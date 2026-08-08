@@ -23,6 +23,11 @@ export function CastScreen({ movie, onOpenActor, onToggleWatched, watchedCount }
   useEffect(() => {
     let cancelled = false
     setStatus('loading')
+    // Reset here, not in a second effect: a movie change reuses this component
+    // instance (React keeps state across a cast->cast navigation), so the
+    // previous film's cast/expansion would otherwise leak into the new one.
+    setCast([])
+    setExpanded(false)
 
     getMovieCredits(movie.tmdbId)
       .then((members) => {
@@ -57,11 +62,11 @@ export function CastScreen({ movie, onOpenActor, onToggleWatched, watchedCount }
         <p className="empty">No cast listed for this film.</p>
       )}
 
-      {visible.map((person) => (
+      {status === 'done' && visible.map((person) => (
         <PersonCard key={person.tmdbId} person={person} onOpen={onOpenActor} />
       ))}
 
-      {!expanded && cast.length > INITIAL_CAST && (
+      {status === 'done' && !expanded && cast.length > INITIAL_CAST && (
         <button className="link" onClick={() => setExpanded(true)}>
           Show all {cast.length}
         </button>
