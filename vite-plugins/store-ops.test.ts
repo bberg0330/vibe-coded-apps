@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { applyOp, parseStore, SeedRejectedError } from './store-ops'
 import { emptyStore } from '../src/types'
-import type { Store, WatchEntry } from '../src/types'
+import type { ServiceKey, Store, WatchEntry } from '../src/types'
 
 const entry = (tmdbId: number, title: string, watchedAt: string): WatchEntry => ({
   watchedAt,
@@ -121,6 +121,24 @@ describe('applyOp: seed', () => {
     expect(() =>
       applyOp(store, { type: 'seed', history: [], enabledServices: ['netflix'] }),
     ).toThrow(SeedRejectedError)
+  })
+
+  it('defaults to all six when enabledServices is entirely invalid', () => {
+    const next = applyOp(emptyStore(), {
+      type: 'seed',
+      history: [entry(1, 'Migrated', '2026-01-01T00:00:00.000Z')],
+      enabledServices: ['bogus' as ServiceKey],
+    })
+    expect(next.enabledServices).toHaveLength(6)
+  })
+
+  it('preserves a deliberate empty enabledServices rather than treating it as corrupt', () => {
+    const next = applyOp(emptyStore(), {
+      type: 'seed',
+      history: [entry(1, 'Migrated', '2026-01-01T00:00:00.000Z')],
+      enabledServices: [],
+    })
+    expect(next.enabledServices).toEqual([])
   })
 })
 

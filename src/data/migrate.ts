@@ -17,6 +17,18 @@ function readJson<T>(key: string): T | null {
 }
 
 /**
+ * Filters to the valid service keys. A non-empty array that filters down to
+ * nothing is corrupt data (e.g. stale/retired keys) — fall back to all six.
+ * An explicitly empty array is the user having deliberately disabled every
+ * service; honor it as-is. Mirrors the convention in
+ * `vite-plugins/store-ops.ts`'s `sanitizeEnabledServices`/`parseStore`.
+ */
+function sanitizeEnabledServices(keys: ServiceKey[]): ServiceKey[] {
+  const valid = keys.filter((k) => ALL_SERVICE_KEYS.includes(k))
+  return keys.length > 0 && valid.length === 0 ? [...ALL_SERVICE_KEYS] : valid
+}
+
+/**
  * One-time lift of localStorage data onto the server.
  *
  * Skips entirely if the server already holds history — the server is the
@@ -31,10 +43,9 @@ export async function migrateFromLocalStorage(): Promise<boolean> {
   if (!Array.isArray(history) || history.length === 0) return false
 
   const stored = readJson<ServiceKey[]>(OLD_SERVICES)
-  const enabledServices =
-    Array.isArray(stored) && stored.length > 0
-      ? stored.filter((k) => ALL_SERVICE_KEYS.includes(k))
-      : [...ALL_SERVICE_KEYS]
+  const enabledServices = Array.isArray(stored)
+    ? sanitizeEnabledServices(stored)
+    : [...ALL_SERVICE_KEYS]
 
   try {
     await applyRemoteOp({ type: 'seed', history, enabledServices })
