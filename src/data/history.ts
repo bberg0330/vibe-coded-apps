@@ -61,10 +61,48 @@ export function exportJson(): string {
   return JSON.stringify(read(), null, 2)
 }
 
-/** Replaces history with the imported entries. Throws on malformed input. */
+function isValidDiscoveredVia(value: unknown): boolean {
+  if (value === null) return true
+  if (typeof value !== 'object') return false
+  const via = value as Record<string, unknown>
+  return (
+    typeof via.fromMovie === 'object' && via.fromMovie !== null &&
+    typeof via.viaActor === 'object' && via.viaActor !== null
+  )
+}
+
+function isValidEntry(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false
+  const entry = value as Record<string, unknown>
+
+  if (typeof entry.watchedAt !== 'string' || !Number.isFinite(Date.parse(entry.watchedAt))) {
+    return false
+  }
+
+  const movie = entry.movie as Record<string, unknown> | undefined
+  if (typeof movie !== 'object' || movie === null) return false
+  if (typeof movie.tmdbId !== 'number' || typeof movie.title !== 'string') return false
+
+  if (!isValidDiscoveredVia(entry.discoveredVia)) return false
+
+  return true
+}
+
+/**
+ * Replaces history with the imported entries. Validates every entry before
+ * writing anything: a partial import that half-succeeds is worse than a
+ * clean failure, since the user can't tell what they now have.
+ */
 export function importJson(json: string): number {
   const parsed = JSON.parse(json)
   if (!Array.isArray(parsed)) throw new Error('Expected an array of entries')
+
+  for (let i = 0; i < parsed.length; i++) {
+    if (!isValidEntry(parsed[i])) {
+      throw new Error(`Invalid history entry at index ${i}`)
+    }
+  }
+
   write(parsed)
   return parsed.length
 }

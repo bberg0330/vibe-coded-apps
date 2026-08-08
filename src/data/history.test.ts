@@ -120,6 +120,55 @@ describe('export and import', () => {
     expect(() => importJson('{{{')).toThrow()
     expect(getHistory()).toHaveLength(1)
   })
+
+  it('rejects an array of shapeless objects without destroying existing history', () => {
+    logWatch(movie(1585, 'Rushmore'), null)
+    expect(() => importJson('[{}]')).toThrow()
+    expect(getHistory()).toHaveLength(1)
+    expect(getHistory()[0].movie.title).toBe('Rushmore')
+  })
+
+  it('rejects a batch with one malformed entry, writing nothing at all', () => {
+    logWatch(movie(1585, 'Rushmore'), null)
+    const before = getHistory()
+
+    const goodEntry = {
+      watchedAt: '2026-08-08T20:00:00.000Z',
+      movie: { tmdbId: 2, title: 'Second', year: 1998, posterPath: null, tomatometer: null },
+      discoveredVia: null,
+    }
+    const badEntry = { watchedAt: 'not-a-date', movie: {}, discoveredVia: null }
+
+    expect(() => importJson(JSON.stringify([goodEntry, badEntry]))).toThrow()
+    expect(getHistory()).toEqual(before)
+  })
+
+  it('names the index of the first bad entry in the error message', () => {
+    const goodEntry = {
+      watchedAt: '2026-08-08T20:00:00.000Z',
+      movie: { tmdbId: 2, title: 'Second', year: 1998, posterPath: null, tomatometer: null },
+      discoveredVia: null,
+    }
+    const badEntry = { watchedAt: 'not-a-date', movie: {}, discoveredVia: null }
+
+    expect(() => importJson(JSON.stringify([goodEntry, badEntry]))).toThrow(/index 1/)
+  })
+
+  it('round-trips two entries, with and without a discovery path, through export/import', () => {
+    logWatch(movie(1585, 'Rushmore'), via)
+    vi.setSystemTime(new Date('2026-09-01T20:00:00Z'))
+    logWatch(movie(2001, 'Direct Search'), null)
+
+    const before = getHistory()
+    const json = exportJson()
+
+    localStorage.clear()
+    expect(getHistory()).toHaveLength(0)
+
+    const count = importJson(json)
+    expect(count).toBe(2)
+    expect(getHistory()).toEqual(before)
+  })
 })
 
 describe('corrupt storage', () => {
