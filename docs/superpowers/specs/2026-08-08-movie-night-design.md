@@ -147,8 +147,19 @@ from JustWatch). Requires a free API key stored in `.env.local` as
 
 The key call is `/discover/movie`, which accepts `with_cast`,
 `with_watch_providers`, `watch_region`, and `with_watch_monetization_types`
-in a single request. This means "films by this actor, streaming on these six
-services" is **one request**, not one request per film.
+together. Availability filtering therefore costs a **fixed** number of
+requests rather than one per film.
+
+`/discover` filters by provider but does not report *which* provider
+matched, so a single combined call cannot produce per-service badges.
+Instead, issue **one discover call per enabled provider**, in parallel, and
+tag each result with the provider whose call returned it. Merge by TMDB
+movie ID, unioning badges for films on several services.
+
+That is 6 streaming calls plus 2 rent calls at most — constant regardless
+of filmography size, which preserves the property that matters. The
+rejected alternative, `/movie/{id}/watch/providers` per film, scales with
+the number of films and would be far slower for prolific actors.
 
 Provider IDs are **not hardcoded from memory**. They were verified on
 2026-08-08 against `/watch/providers/movie?watch_region=US`:
