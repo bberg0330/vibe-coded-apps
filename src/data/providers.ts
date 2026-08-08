@@ -29,6 +29,7 @@ export function getEnabledServices(): ServiceKey[] {
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return [...ALL_SERVICES]
     const valid = parsed.filter((k): k is ServiceKey => ALL_SERVICES.includes(k))
+    if (parsed.length > 0 && valid.length === 0) return [...ALL_SERVICES]
     return valid
   } catch {
     return [...ALL_SERVICES]
