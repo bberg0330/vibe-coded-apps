@@ -59,6 +59,16 @@ describe('CastScreen', () => {
     expect(onOpenActor).toHaveBeenCalledWith(expect.objectContaining({ name: 'Actor 1' }))
   })
 
+  it('does not render a dead tap target for the header movie', async () => {
+    render(<CastScreen movie={movie} onOpenActor={vi.fn()} onToggleWatched={vi.fn()} watchedCount={0} />)
+    await screen.findByText('Rushmore')
+
+    // The header card has nowhere to navigate to, so its main area must not
+    // be a button — only the watch-toggle button should exist for it.
+    expect(screen.queryByRole('button', { name: /^rushmore/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /mark rushmore as watched/i })).toBeInTheDocument()
+  })
+
   it('lets the movie itself be marked watched', async () => {
     const onToggleWatched = vi.fn()
     render(<CastScreen movie={movie} onOpenActor={vi.fn()} onToggleWatched={onToggleWatched} watchedCount={0} />)

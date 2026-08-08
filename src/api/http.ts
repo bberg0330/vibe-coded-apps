@@ -68,7 +68,3 @@ export function tmdbGet<T>(
 
   return memoized(url, run)
 }
-
-export function plainGet<T>(url: string): Promise<T> {
-  return memoized(url, () => request<T>(url, {}))
-}

@@ -5,7 +5,13 @@ import { MovieCard } from '../components/MovieCard'
 import { ErrorRetry } from '../components/ErrorRetry'
 import type { Movie } from '../types'
 
-export function SearchScreen({ onOpenMovie }: { onOpenMovie: (m: Movie) => void }) {
+type Props = {
+  onOpenMovie: (m: Movie) => void
+  onToggleWatched: (movie: Movie) => void
+  watchCountFor: (tmdbId: number) => number
+}
+
+export function SearchScreen({ onOpenMovie, onToggleWatched, watchCountFor }: Props) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Movie[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>('idle')
@@ -71,9 +77,9 @@ export function SearchScreen({ onOpenMovie }: { onOpenMovie: (m: Movie) => void 
         <MovieCard
           key={movie.tmdbId}
           movie={movie}
-          watched={0}
+          watched={watchCountFor(movie.tmdbId)}
           onOpen={onOpenMovie}
-          onToggleWatched={() => {}}
+          onToggleWatched={onToggleWatched}
         />
       ))}
     </div>
