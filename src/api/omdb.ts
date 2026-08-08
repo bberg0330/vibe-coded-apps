@@ -61,8 +61,16 @@ export async function getTomatometer(
       score = parseRt(data.Ratings)
     }
 
-    cache[key] = score
-    writeCache(cache)
+    // Re-read immediately before writing: with many concurrent calls in
+    // flight (e.g. Promise.all over a filmography), each holds a stale
+    // snapshot from its own readCache() at function entry. Merging into a
+    // freshly-read copy here — with no await between this read and the
+    // write — is atomic with respect to other concurrent calls, since
+    // JavaScript is single-threaded. Writing the stale `cache` captured at
+    // entry instead would let the last writer clobber every other result.
+    const latest = readCache()
+    latest[key] = score
+    writeCache(latest)
     return score
   } catch {
     // Offline, blocked, or malformed JSON: fall through to null without caching.
