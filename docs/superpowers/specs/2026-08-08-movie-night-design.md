@@ -264,7 +264,7 @@ Covered, because these can fail silently:
 - rewatches append rather than overwrite
 - `exportJson` round-trips through `importJson` without loss
 
-The three screens and the navigation loop are verified by driving the
+The four screens and the navigation loop are verified by driving the
 running app manually.
 
 ## Out of scope
