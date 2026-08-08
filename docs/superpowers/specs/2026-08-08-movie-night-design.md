@@ -59,10 +59,83 @@ Tapping any film here opens the Cast screen for that film. This closes the
 loop: movie → cast → actor → movies → cast → and onward, with back
 navigation throughout.
 
+### 4. History
+
+A reverse-chronological list of what you've watched. Each row shows poster,
+title, the date watched, and the discovery path that led you to it. A
+**Download JSON** control exports the whole record.
+
+The display is deliberately plain. The intent is to explore visualizations
+of viewing patterns later, so this version captures rich data and renders it
+simply rather than guessing at a design that hasn't been decided.
+
 ### Settings
 
 A sheet with one toggle per streaming service. State persists in
 `localStorage` so it survives reloads. All six default to enabled.
+
+## Viewing history
+
+### Purpose
+
+Record what the two of us actually watch, and how we found it, so that
+viewership can be mapped over the years. The data model is the expensive
+part to change later, so it is deliberately richer than the launch UI needs.
+
+### Logging trigger
+
+Tapping a movie card navigates to its cast, so logging needs its own
+control: a small check button on each movie card, and on the Cast screen
+header so the searched movie itself can be marked. Nothing is logged
+implicitly — browsing does not write history. Tapping the button again
+within the same session undoes an accidental log.
+
+### Entry shape
+
+```ts
+type WatchEntry = {
+  watchedAt: string          // ISO 8601
+  movie: {
+    tmdbId: number
+    title: string
+    year: number | null
+    posterPath: string | null
+    tomatometer: number | null  // as known at log time
+  }
+  discoveredVia: {
+    fromMovie: { tmdbId: number; title: string }
+    viaActor:  { tmdbId: number; name: string }
+  } | null                   // null when reached by direct search
+}
+```
+
+`discoveredVia` is the point of the feature. Without it the record is a flat
+list of titles; with it, an entry reads as "watched Rushmore, found via Bill
+Murray, from Lost in Translation" — which is what makes later analysis of
+viewing paths possible.
+
+`tomatometer` is stored as known at log time rather than re-fetched, so the
+record reflects what informed the decision.
+
+### Rewatches
+
+Watching a film twice writes two entries; it does not overwrite. Rewatch
+frequency is real signal about preference, and collapsing it would discard
+that. The history list groups duplicates visually as "watched 2×".
+
+### Storage
+
+`localStorage`, chosen by the user with the trade-offs understood. Two
+consequences are accepted rather than solved:
+
+- History is **per-browser**. Her phone and the laptop keep separate
+  records; they do not merge.
+- Clearing browser data erases it.
+
+Mitigations: everything goes through a `history.ts` module with a
+storage-agnostic interface (`logWatch`, `getHistory`, `exportJson`,
+`importJson`), and the History screen offers JSON export. Moving to a file
+or database later is a single-module change that touches no UI.
 
 ## Data sources
 
@@ -153,6 +226,9 @@ than a long blank wait.
   The only module that talks to OMDb.
 - **`providers.ts`** — verified provider ID constants and the enabled-set
   logic, backed by `localStorage`.
+- **`history.ts`** — `logWatch`, `getHistory`, `exportJson`, `importJson`.
+  The only module that touches history storage, so the backend can be
+  swapped without touching UI.
 - **UI components** — one per screen, plus shared movie-card and
   person-card components. No component makes a network call directly.
 
@@ -183,6 +259,10 @@ Covered, because these can fail silently:
 - deduplication across the two discover calls
 - Tomatometer sort order, including unscored films sorting last
 - the OMDb cache returns hits without re-requesting
+- a logged entry captures the correct `discoveredVia` path, and records
+  `null` when the film was reached by direct search
+- rewatches append rather than overwrite
+- `exportJson` round-trips through `importJson` without loss
 
 The three screens and the navigation loop are verified by driving the
 running app manually.
@@ -193,7 +273,10 @@ Deliberately excluded to keep the first version small and easy to reshape:
 
 - TV shows — a six-season series is a different decision than a two-hour film
 - Deployment or public hosting
-- Watchlists, "seen it" marking, ratings, or any persisted user history
+- Watchlists, star ratings, or notes on watched films
+- Visualizations or analysis of viewing history — the data is captured now,
+  the charts come later
+- Syncing history between devices
 - Accounts or multi-user support
 - Directors, writers, or any crew beyond billed cast
 
