@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { SearchScreen } from './screens/SearchScreen'
 import { CastScreen } from './screens/CastScreen'
+import { FilmographyScreen } from './screens/FilmographyScreen'
 import { logWatch, undoLastWatch, watchCount } from './data/history'
 import type { Movie, CastMember, WatchEntry } from './types'
 
@@ -47,7 +48,19 @@ export default function App() {
             push({ kind: 'filmography', actor, fromMovie: current.movie })}
         />
       )}
-      {current.kind === 'filmography' && <p className="empty">Coming in the next task.</p>}
+      {current.kind === 'filmography' && (
+        <FilmographyScreen
+          actor={current.actor}
+          fromMovie={current.fromMovie}
+          watchCountFor={watchCount}
+          onOpenMovie={(movie) => push({ kind: 'cast', movie })}
+          onToggleWatched={(movie) =>
+            toggleWatched(movie, {
+              fromMovie: { tmdbId: current.fromMovie.tmdbId, title: current.fromMovie.title },
+              viaActor: { tmdbId: current.actor.tmdbId, name: current.actor.name },
+            })}
+        />
+      )}
       {current.kind === 'history' && <p className="empty">Coming in the next task.</p>}
     </div>
   )
