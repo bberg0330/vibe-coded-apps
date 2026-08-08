@@ -1744,3 +1744,369 @@ No gaps.
 **Placeholder scan:** No TBDs, no "add error handling", no "similar to Task N". Every code step carries real code. Task 6 Step 1 describes a test edit rather than pasting two full rewritten test files; the helper it depends on is given verbatim and the behaviours to preserve are enumerated explicitly.
 
 **Type consistency:** `Store`, `StoreOp`, `emptyStore`, `ALL_SERVICE_KEYS` are defined once in Task 1 and imported everywhere. `applyOp` (Task 2) is reused by Task 4's server and by Tasks 6-7's test fakes. `getStoreSnapshot` / `applyRemoteOp` / `resetStoreForTests` are named identically in Tasks 5, 6, 7 and 8. `handleOp` (Task 4) is the only server entry point. The read functions `getHistory`, `watchCount`, `exportJson`, `getEnabledServices` keep the exact signatures the existing screens already call.
+
+---
+
+### Task 10: Shared Tomatometer score cache
+
+**Added after the original plan**, at the user's request: OMDb's free tier
+is 1,000 requests/day, and a per-browser cache means every film is fetched
+once per DEVICE rather than once ever. This halves consumption and makes
+the cache immune to browser data clearing.
+
+**Files:**
+- Create: `vite-plugins/scores-api.ts`
+- Test: `vite-plugins/scores-api.test.ts`
+- Create: `src/data/scores.ts`
+- Test: `src/data/scores.test.ts`
+- Modify: `src/api/omdb.ts`
+- Modify: `src/api/omdb.test.ts`
+- Modify: `vite.config.ts` (register the plugin)
+- Modify: `.gitignore` (ignore `data/scores.json`)
+
+**Interfaces:**
+- Consumes: `serialise` pattern from Task 4's `store-api.ts`; `loadStore` boot sequence from Task 8
+- Produces:
+  - `mergeScores(dir, patch: ScoreMap): Promise<ScoreMap>` (server)
+  - `scoresApi(dir?: string): Plugin`
+  - `loadScores(): Promise<void>`, `getCachedScore(tmdbId): number | null | undefined`, `cacheScore(tmdbId, score): void` (client)
+
+**Why a SEPARATE file from the store, and NOT committed:** scores are
+regenerable, so they are not durability-critical. More importantly, if they
+shared `store.json` every score lookup would become a git commit, burying
+the movie-night commits that make the history readable. `data/scores.json`
+is therefore gitignored.
+
+`ScoreMap` is `Record<string, number | null>` — the same shape the existing
+`mn.rtScores` localStorage cache uses, keyed by TMDB id, where `null` means
+"OMDb has no Rotten Tomatoes score for this film" and is cached
+deliberately so it is not re-requested forever.
+
+- [ ] **Step 1: Write the failing server test**
+
+```ts
+// vite-plugins/scores-api.test.ts
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { mkdtemp, rm, readFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { mergeScores, readScores } from './scores-api'
+
+let dir: string
+beforeEach(async () => { dir = await mkdtemp(join(tmpdir(), 'mn-scores-')) })
+afterEach(async () => { await rm(dir, { recursive: true, force: true }) })
+
+describe('mergeScores', () => {
+  it('stores a score and returns the full map', async () => {
+    const map = await mergeScores(dir, { '1585': 90 })
+    expect(map['1585']).toBe(90)
+  })
+
+  it('merges rather than replacing', async () => {
+    await mergeScores(dir, { '1': 90 })
+    const map = await mergeScores(dir, { '2': 80 })
+    expect(map).toEqual({ '1': 90, '2': 80 })
+  })
+
+  it('preserves a cached null, which means "OMDb has no score"', async () => {
+    const map = await mergeScores(dir, { '3': null })
+    expect(map['3']).toBeNull()
+    expect('3' in map).toBe(true)
+  })
+
+  it('preserves a genuine zero distinctly from null', async () => {
+    const map = await mergeScores(dir, { '4': 0 })
+    expect(map['4']).toBe(0)
+  })
+
+  it('CONCURRENT merges all survive', async () => {
+    await Promise.all(
+      Array.from({ length: 20 }, (_, i) => mergeScores(dir, { [String(i)]: i })),
+    )
+    const map = await readScores(dir)
+    expect(Object.keys(map)).toHaveLength(20)
+  })
+
+  it('reads an empty map when the file is absent', async () => {
+    expect(await readScores(dir)).toEqual({})
+  })
+
+  it('reads an empty map when the file is corrupt rather than throwing', async () => {
+    await mergeScores(dir, { '1': 90 })
+    const { writeFile } = await import('node:fs/promises')
+    await writeFile(join(dir, 'scores.json'), '{{{')
+    expect(await readScores(dir)).toEqual({})
+  })
+
+  it('writes atomically, leaving no temp file', async () => {
+    await mergeScores(dir, { '1': 90 })
+    const { readdir } = await import('node:fs/promises')
+    expect(await readdir(dir)).toEqual(['scores.json'])
+  })
+
+  it('does not invoke git', async () => {
+    await mergeScores(dir, { '1': 90 })
+    const raw = await readFile(join(dir, 'scores.json'), 'utf8')
+    expect(JSON.parse(raw)['1']).toBe(90)
+    // No .git directory is created, and no commit is attempted: scores are
+    // regenerable and must not bury movie-night commits.
+    const { readdir } = await import('node:fs/promises')
+    expect(await readdir(dir)).not.toContain('.git')
+  })
+})
+```
+
+- [ ] **Step 2: Run it and confirm it fails**
+
+Run: `npx vitest run vite-plugins/scores-api.test.ts`
+Expected: FAIL — cannot resolve `./scores-api`.
+
+- [ ] **Step 3: Implement scores-api.ts**
+
+```ts
+// vite-plugins/scores-api.ts
+import type { Plugin } from 'vite'
+import { readFile, writeFile, rename, mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
+
+/** TMDB id -> Tomatometer, or null meaning "OMDb has no RT score". */
+export type ScoreMap = Record<string, number | null>
+
+const FILE = 'scores.json'
+const DEFAULT_DIR = 'data'
+
+export async function readScores(dir: string): Promise<ScoreMap> {
+  try {
+    const parsed = JSON.parse(await readFile(join(dir, FILE), 'utf8'))
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
+    return parsed as ScoreMap
+  } catch {
+    return {}
+  }
+}
+
+/** Serialised so concurrent merges cannot read-modify-write over each other. */
+let queue: Promise<unknown> = Promise.resolve()
+
+function serialise<T>(work: () => Promise<T>): Promise<T> {
+  const result = queue.then(work, work)
+  queue = result.catch(() => undefined)
+  return result
+}
+
+export function mergeScores(dir: string, patch: ScoreMap): Promise<ScoreMap> {
+  return serialise(async () => {
+    const current = await readScores(dir)
+    const next = { ...current, ...patch }
+
+    await mkdir(dir, { recursive: true })
+    const temp = join(dir, `.${FILE}.tmp`)
+    await writeFile(temp, JSON.stringify(next), 'utf8')
+    await rename(temp, join(dir, FILE))
+
+    return next
+  })
+}
+
+export function scoresApi(dir: string = DEFAULT_DIR): Plugin {
+  return {
+    name: 'movie-night-scores-api',
+    configureServer(server) {
+      server.middlewares.use('/api/scores', async (req, res) => {
+        res.setHeader('Content-Type', 'application/json')
+        try {
+          if (req.method === 'GET') {
+            res.end(JSON.stringify(await readScores(dir)))
+            return
+          }
+          if (req.method === 'POST') {
+            let body = ''
+            for await (const chunk of req) body += chunk
+            res.end(JSON.stringify(await mergeScores(dir, JSON.parse(body) as ScoreMap)))
+            return
+          }
+          res.statusCode = 405
+          res.end(JSON.stringify({ error: 'Method not allowed' }))
+        } catch {
+          res.statusCode = 400
+          res.end(JSON.stringify({ error: 'Score cache write failed' }))
+        }
+      })
+    },
+  }
+}
+```
+
+- [ ] **Step 4: Run it and confirm it passes**
+
+Run: `npx vitest run vite-plugins/scores-api.test.ts`
+Expected: PASS, 9 tests.
+
+- [ ] **Step 5: Write the failing client test**
+
+```ts
+// src/data/scores.test.ts
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { loadScores, getCachedScore, cacheScore, resetScoresForTests } from './scores'
+
+beforeEach(() => {
+  resetScoresForTests()
+})
+
+describe('loadScores', () => {
+  it('fetches the shared cache and exposes it synchronously', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ '1585': 90 }),
+    }))
+
+    await loadScores()
+    expect(getCachedScore(1585)).toBe(90)
+  })
+
+  it('distinguishes a cached null from an absent entry', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true, status: 200, json: async () => ({ '1': null }),
+    }))
+
+    await loadScores()
+    expect(getCachedScore(1)).toBeNull()      // known: OMDb has no score
+    expect(getCachedScore(999)).toBeUndefined() // unknown: never looked up
+  })
+
+  it('degrades to an empty cache when the server is unreachable', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    await expect(loadScores()).resolves.toBeUndefined()
+    expect(getCachedScore(1)).toBeUndefined()
+  })
+})
+
+describe('cacheScore', () => {
+  it('is readable immediately, before the network write settles', () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(() => {})))
+    cacheScore(1585, 90)
+    expect(getCachedScore(1585)).toBe(90)
+  })
+
+  it('posts the new score to the shared cache', async () => {
+    const f = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}) })
+    vi.stubGlobal('fetch', f)
+
+    cacheScore(1585, 90)
+    await vi.waitFor(() => expect(f).toHaveBeenCalled())
+
+    const [url, init] = f.mock.calls[0]
+    expect(url).toBe('/api/scores')
+    expect(JSON.parse(init.body)).toEqual({ '1585': 90 })
+  })
+
+  it('keeps the score in memory even if the write fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    cacheScore(1585, 90)
+    await new Promise((r) => setTimeout(r, 0))
+    expect(getCachedScore(1585)).toBe(90)
+  })
+})
+```
+
+- [ ] **Step 6: Run it and confirm it fails**
+
+Run: `npx vitest run src/data/scores.test.ts`
+Expected: FAIL — cannot resolve `./scores`.
+
+- [ ] **Step 7: Implement src/data/scores.ts**
+
+```ts
+// src/data/scores.ts
+export type ScoreMap = Record<string, number | null>
+
+const ENDPOINT = '/api/scores'
+
+let cache: ScoreMap = {}
+
+export function resetScoresForTests(next: ScoreMap = {}): void {
+  cache = next
+}
+
+/**
+ * Loads the shared cache once at startup. Never rejects: a missing score
+ * cache costs a few OMDb requests, and must not stop the app from booting.
+ */
+export async function loadScores(): Promise<void> {
+  try {
+    const res = await fetch(ENDPOINT)
+    if (!res.ok) return
+    const parsed = (await res.json()) as ScoreMap
+    if (parsed && typeof parsed === 'object') cache = parsed
+  } catch {
+    // Leave the cache empty; scores will simply be re-fetched.
+  }
+}
+
+/**
+ * `number | null` means known (null = OMDb has no RT score).
+ * `undefined` means never looked up.
+ */
+export function getCachedScore(tmdbId: number): number | null | undefined {
+  const key = String(tmdbId)
+  return key in cache ? cache[key] : undefined
+}
+
+/**
+ * Records a score in memory immediately, then writes through to the shared
+ * cache. The write is fire-and-forget: a failure costs a re-fetch later,
+ * never a wrong score or a blocked render.
+ */
+export function cacheScore(tmdbId: number, score: number | null): void {
+  const key = String(tmdbId)
+  cache[key] = score
+
+  void fetch(ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ [key]: score }),
+  }).catch(() => undefined)
+}
+```
+
+- [ ] **Step 8: Point omdb.ts at the shared cache**
+
+In `src/api/omdb.ts`, replace the `localStorage`-backed `readCache` /
+`writeCache` helpers with `getCachedScore` / `cacheScore` from
+`../data/scores`. Delete the `CACHE_KEY` constant and all `localStorage`
+access in that file.
+
+Every existing behaviour must survive unchanged — update
+`src/api/omdb.test.ts` to stub `/api/scores` instead of seeding
+`localStorage`, and keep every existing assertion:
+
+- non-ok HTTP (401 quota exhausted, 500) returns `null` and is NOT cached
+- network rejection and malformed JSON return `null` and are NOT cached
+- `Response: 'False'`, no-RT-rating, and year-mismatch results ARE cached
+- a missing API key returns `null` early
+- a genuine `0` stays distinct from `null`
+- the `y` parameter is never sent to OMDb
+- a cache hit issues no fetch to OMDb
+- concurrent lookups all persist (the race fixed in the first build)
+
+The lookup guard becomes `const hit = getCachedScore(tmdbId); if (hit !== undefined) return hit`
+— `undefined` is the only value meaning "not looked up".
+
+- [ ] **Step 9: Register the plugin and ignore the file**
+
+In `vite.config.ts`, add `scoresApi()` to the plugins array alongside
+`storeApi()`. In `.gitignore`, add `data/scores.json` — the cache is
+regenerable and must not bury movie-night commits.
+
+- [ ] **Step 10: Run the full suite**
+
+Run: `npx tsc -b && npx vitest run`
+Expected: everything passes.
+
+- [ ] **Step 11: Commit**
+
+```bash
+git add vite-plugins/scores-api.ts vite-plugins/scores-api.test.ts \
+        src/data/scores.ts src/data/scores.test.ts \
+        src/api/omdb.ts src/api/omdb.test.ts vite.config.ts .gitignore
+git commit -m "feat: share the Tomatometer cache across devices"
+```
