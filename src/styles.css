@@ -56,3 +56,11 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 }
 .empty { color: var(--muted); }
 .screen-header { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
+
+.sheet {
+  position: fixed; inset: auto 0 0 0; background: var(--surface);
+  border-radius: 16px 16px 0 0; padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 32px rgba(0,0,0,.5);
+}
+.toggle-row { display: flex; gap: 10px; align-items: center; padding: 10px 0; }
