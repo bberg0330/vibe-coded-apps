@@ -54,3 +54,38 @@ export type WatchEntry = {
     viaActor: { tmdbId: number; name: string }
   } | null
 }
+
+/** Everything that lives in data/store.json. */
+export type Store = {
+  version: number
+  history: WatchEntry[]
+  enabledServices: ServiceKey[]
+}
+
+export const CURRENT_STORE_VERSION = 1
+
+export const ALL_SERVICE_KEYS: ServiceKey[] = [
+  'netflix', 'hbomax', 'disney', 'prime', 'appletv', 'peacock',
+]
+
+export function emptyStore(): Store {
+  return {
+    version: CURRENT_STORE_VERSION,
+    history: [],
+    enabledServices: [...ALL_SERVICE_KEYS],
+  }
+}
+
+/**
+ * A single change to the store.
+ *
+ * Operations rather than whole-file writes: with one shared file and two
+ * phones, a whole-file write means whichever request lands second silently
+ * erases the other's change.
+ */
+export type StoreOp =
+  | { type: 'logWatch'; entry: WatchEntry }
+  | { type: 'undoLastWatch'; tmdbId: number }
+  | { type: 'setService'; key: ServiceKey; enabled: boolean }
+  | { type: 'replaceHistory'; entries: WatchEntry[] }
+  | { type: 'seed'; history: WatchEntry[]; enabledServices: ServiceKey[] }
