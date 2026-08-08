@@ -1,5 +1,33 @@
 {
   "version": 1,
-  "history": [],
-  "enabledServices": ["netflix", "hbomax", "disney", "prime", "appletv", "peacock"]
+  "history": [
+    {
+      "watchedAt": "2026-08-08T23:59:39.297Z",
+      "movie": {
+        "tmdbId": 620,
+        "title": "Ghostbusters",
+        "year": 1984,
+        "posterPath": "/7E8nLijS9AwwUEPu2oFYOVKhdFA.jpg",
+        "tomatometer": 95
+      },
+      "discoveredVia": {
+        "fromMovie": {
+          "tmdbId": 153,
+          "title": "Lost in Translation"
+        },
+        "viaActor": {
+          "tmdbId": 1532,
+          "name": "Bill Murray"
+        }
+      }
+    }
+  ],
+  "enabledServices": [
+    "netflix",
+    "hbomax",
+    "disney",
+    "prime",
+    "appletv",
+    "peacock"
+  ]
 }
