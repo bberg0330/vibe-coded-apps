@@ -53,12 +53,20 @@ export function tmdbGet<T>(
   const qs = new URLSearchParams({ language: 'en-US', ...params })
   const url = `${TMDB_BASE}${path}?${qs}`
 
-  return memoized(url, () =>
+  const run = () =>
     request<T>(url, {
       signal,
       headers: { Authorization: `Bearer ${token}`, accept: 'application/json' },
-    }),
-  )
+    })
+
+  // Signal-carrying calls (debounced search) bypass the cache entirely.
+  // Sharing a cached promise across callers with different AbortSignals means
+  // one caller's abort can surface as an AbortError for an unrelated caller —
+  // a real hazard under StrictMode's double-invoked effects. Refetching is
+  // cheap here, so correctness wins over a cache hit.
+  if (signal) return run()
+
+  return memoized(url, run)
 }
 
 export function plainGet<T>(url: string): Promise<T> {
