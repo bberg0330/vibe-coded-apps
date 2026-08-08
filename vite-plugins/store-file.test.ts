@@ -66,6 +66,42 @@ describe('writeStoreAtomic', () => {
     const raw = await readFile(join(dir, 'store.json'), 'utf8')
     expect(() => JSON.parse(raw)).not.toThrow()
   })
+
+  it('handles ten concurrent writes without throwing or corrupting the file', async () => {
+    const stores = Array.from({ length: 10 }, (_, i) => ({
+      ...emptyStore(),
+      history: [entry(`Concurrent ${i}`)],
+    }))
+
+    await expect(
+      Promise.all(stores.map((s) => writeStoreAtomic(dir, s))),
+    ).resolves.not.toThrow()
+
+    const raw = await readFile(join(dir, 'store.json'), 'utf8')
+    const parsed = JSON.parse(raw)
+    expect(stores.some((s) => JSON.stringify(s) === JSON.stringify(parsed))).toBe(true)
+  })
+
+  it('leaves only store.json after concurrent writes, no leftover temp files', async () => {
+    const stores = Array.from({ length: 10 }, (_, i) => ({
+      ...emptyStore(),
+      history: [entry(`Concurrent ${i}`)],
+    }))
+
+    await Promise.all(stores.map((s) => writeStoreAtomic(dir, s)))
+
+    const files = await readdir(dir)
+    expect(files).toEqual(['store.json'])
+  })
+
+  it('does not leave a temp file behind when the write fails', async () => {
+    const unserializable = { ...emptyStore(), history: [{ bad: 10n } as unknown] } as any
+
+    await expect(writeStoreAtomic(dir, unserializable)).rejects.toThrow()
+
+    const files = await readdir(dir).catch(() => [])
+    expect(files.some((f) => f.includes('.tmp'))).toBe(false)
+  })
 })
 
 describe('commitStore', () => {
