@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { SearchScreen } from './screens/SearchScreen'
 import { CastScreen } from './screens/CastScreen'
 import { FilmographyScreen } from './screens/FilmographyScreen'
 import { HistoryScreen } from './screens/HistoryScreen'
 import { SettingsSheet } from './screens/SettingsSheet'
 import { logWatch, undoLastWatch, watchCount } from './data/history'
+import { loadStore } from './data/store'
+import { migrateFromLocalStorage } from './data/migrate'
 import type { Movie, CastMember, WatchEntry } from './types'
 
 export type Screen =
@@ -30,19 +32,71 @@ export default function App() {
   // one. See the spec's "Logging trigger" and "Rewatches" sections.
   const [loggedThisSession, setLoggedThisSession] = useState<Set<number>>(new Set())
 
-  const toggleWatched = (movie: Movie, via: WatchEntry['discoveredVia']) => {
-    if (loggedThisSession.has(movie.tmdbId)) {
-      undoLastWatch(movie.tmdbId)
-      setLoggedThisSession((s) => {
-        const next = new Set(s)
-        next.delete(movie.tmdbId)
+  const [booting, setBooting] = useState(true)
+  const [bootError, setBootError] = useState<string | null>(null)
+  const [bootAttempt, setBootAttempt] = useState(0)
+  const [saveError, setSaveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setBooting(true)
+    setBootError(null)
+
+    loadStore()
+      .then(() => migrateFromLocalStorage())
+      .then(() => { if (!cancelled) setBooting(false) })
+      .catch((err) => {
+        if (cancelled) return
+        setBootError(err instanceof Error ? err.message : "Can't reach the Movie Night server")
+        setBooting(false)
+      })
+
+    return () => { cancelled = true }
+  }, [bootAttempt])
+
+  const toggleWatched = async (movie: Movie, via: WatchEntry['discoveredVia']) => {
+    const wasLoggedThisSession = loggedThisSession.has(movie.tmdbId)
+    setSaveError(null)
+
+    // Optimistic: update the session set immediately so the ✓ responds.
+    setLoggedThisSession((prev) => {
+      const next = new Set(prev)
+      if (wasLoggedThisSession) next.delete(movie.tmdbId)
+      else next.add(movie.tmdbId)
+      return next
+    })
+
+    try {
+      if (wasLoggedThisSession) await undoLastWatch(movie.tmdbId)
+      else await logWatch(movie, via)
+      setHistoryVersion((v) => v + 1)
+    } catch {
+      // Revert: never let the UI claim a save that did not happen.
+      setLoggedThisSession((prev) => {
+        const next = new Set(prev)
+        if (wasLoggedThisSession) next.add(movie.tmdbId)
+        else next.delete(movie.tmdbId)
         return next
       })
-    } else {
-      logWatch(movie, via)
-      setLoggedThisSession((s) => new Set(s).add(movie.tmdbId))
+      setSaveError("Couldn't save that — is the Movie Night server still running?")
+      setHistoryVersion((v) => v + 1)
     }
-    setHistoryVersion((v) => v + 1)
+  }
+
+  if (booting) {
+    return <div className="app"><p className="empty">Loading your history…</p></div>
+  }
+
+  if (bootError) {
+    return (
+      <div className="app">
+        <div className="error" role="alert">
+          <p>{bootError}</p>
+          <p>Make sure <code>npm run dev</code> is still running on the Mac.</p>
+          <button onClick={() => setBootAttempt((a) => a + 1)}>Try again</button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -56,6 +110,8 @@ export default function App() {
           <button className="link" onClick={() => push({ kind: 'history' })}>History</button>
         </span>
       </nav>
+
+      {saveError && <div className="error" role="alert">{saveError}</div>}
 
       {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
 
