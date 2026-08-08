@@ -110,4 +110,39 @@ describe('getTomatometer', () => {
 
     expect(f).toHaveBeenCalledTimes(1)
   })
+
+  it('does not lose results when many lookups run concurrently', async () => {
+    // Regression for a real bug found in live browser testing: a filmography
+    // screen fires ~40 getTomatometer calls via Promise.all. Each call reads
+    // the cache at entry, so under the old code every write serialized that
+    // same stale snapshot plus its own single addition, and the last writer
+    // clobbered every other result — 36 fetched, only 1 persisted.
+    const films = Array.from({ length: 10 }, (_, i) => ({
+      id: 1000 + i,
+      title: `Concurrent Film ${i}`,
+      year: 2000 + i,
+      score: 10 * (i + 1),
+    }))
+
+    const f = vi.fn().mockImplementation(async (url: string) => {
+      const t = new URL(url).searchParams.get('t')!
+      const film = films.find((film) => film.title === t)!
+      return { ok: true, status: 200, json: async () => omdbResponse(film.title, String(film.year), `${film.score}%`) }
+    })
+    vi.stubGlobal('fetch', f)
+
+    const results = await Promise.all(
+      films.map((film) => getTomatometer(film.id, film.title, film.year)),
+    )
+    expect(results).toEqual(films.map((film) => film.score))
+
+    const stored = JSON.parse(localStorage.getItem('mn.rtScores')!)
+    for (const film of films) {
+      expect(stored[String(film.id)]).toBe(film.score)
+    }
+
+    // Regression guard: a second concurrent pass hits the cache, not the network.
+    await Promise.all(films.map((film) => getTomatometer(film.id, film.title, film.year)))
+    expect(f).toHaveBeenCalledTimes(films.length)
+  })
 })
