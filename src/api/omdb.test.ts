@@ -82,4 +82,32 @@ describe('getTomatometer', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
     expect(await getTomatometer(444, 'Whatever', 2000)).toBeNull()
   })
+
+  it('returns null without caching when OMDb rate-limits (401)', async () => {
+    const f = vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({}) })
+    vi.stubGlobal('fetch', f)
+
+    expect(await getTomatometer(333, 'Rate Limited', 2000)).toBeNull()
+    expect(await getTomatometer(333, 'Rate Limited', 2000)).toBeNull()
+
+    expect(f).toHaveBeenCalledTimes(2)
+  })
+
+  it('returns null without caching when OMDb has an outage (500)', async () => {
+    const f = vi.fn().mockResolvedValue({ ok: false, status: 500, json: async () => ({}) })
+    vi.stubGlobal('fetch', f)
+
+    expect(await getTomatometer(222, 'Outage', 2000)).toBeNull()
+
+    expect(f).toHaveBeenCalledTimes(1)
+  })
+
+  it('still caches a definitive "not found" response (regression)', async () => {
+    const f = stub({ Response: 'False', Error: 'Movie not found!' })
+
+    await getTomatometer(111, 'Definitely Not Found', 2000)
+    await getTomatometer(111, 'Definitely Not Found', 2000)
+
+    expect(f).toHaveBeenCalledTimes(1)
+  })
 })
