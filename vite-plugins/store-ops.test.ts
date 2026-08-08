@@ -157,4 +157,19 @@ describe('parseStore', () => {
     const parsed = parseStore('{"version":1,"history":[]}')
     expect(parsed.enabledServices).toHaveLength(6)
   })
+
+  it('defaults to all six when enabledServices is present but entirely invalid', () => {
+    const parsed = parseStore('{"version":1,"history":[],"enabledServices":["bogus"]}')
+    expect(parsed.enabledServices).toHaveLength(6)
+  })
+
+  it('preserves a deliberate empty enabledServices rather than treating it as corrupt', () => {
+    const parsed = parseStore('{"version":1,"history":[],"enabledServices":[]}')
+    expect(parsed.enabledServices).toEqual([])
+  })
+
+  it('keeps only the valid entries when enabledServices is partially valid', () => {
+    const parsed = parseStore('{"version":1,"history":[],"enabledServices":["netflix","bogus"]}')
+    expect(parsed.enabledServices).toEqual(['netflix'])
+  })
 })

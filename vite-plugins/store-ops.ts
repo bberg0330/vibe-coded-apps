@@ -82,11 +82,20 @@ export function parseStore(raw: string | null): Store {
   const obj = parsed as Partial<Store>
   if (!isWatchEntryArray(obj.history)) return emptyStore()
 
-  const enabled = Array.isArray(obj.enabledServices)
-    ? (obj.enabledServices.filter((k) =>
-        ALL_SERVICE_KEYS.includes(k as ServiceKey),
-      ) as ServiceKey[])
-    : [...ALL_SERVICE_KEYS]
+  let enabled: ServiceKey[]
+  if (Array.isArray(obj.enabledServices)) {
+    const valid = obj.enabledServices.filter((k) =>
+      ALL_SERVICE_KEYS.includes(k as ServiceKey),
+    ) as ServiceKey[]
+    // A non-empty array that filters down to nothing is corrupt data (e.g.
+    // stale service keys) — fall back to all six. An explicitly empty array
+    // is the user having deliberately disabled every service; honor it.
+    enabled = obj.enabledServices.length > 0 && valid.length === 0
+      ? [...ALL_SERVICE_KEYS]
+      : valid
+  } else {
+    enabled = [...ALL_SERVICE_KEYS]
+  }
 
   return {
     version: typeof obj.version === 'number' ? obj.version : CURRENT_STORE_VERSION,
