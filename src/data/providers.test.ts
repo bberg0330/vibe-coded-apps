@@ -55,4 +55,19 @@ describe('enabled services', () => {
     localStorage.setItem('mn.enabledServices', 'not json')
     expect(getEnabledServices()).toHaveLength(6)
   })
+
+  it('falls back to defaults when a non-empty array has no valid keys', () => {
+    localStorage.setItem('mn.enabledServices', '["bogus"]')
+    expect(getEnabledServices()).toHaveLength(6)
+  })
+
+  it('treats an explicit empty array as the deliberate all-disabled case', () => {
+    localStorage.setItem('mn.enabledServices', '[]')
+    expect(getEnabledServices()).toEqual([])
+  })
+
+  it('keeps valid entries from a mixed array of valid and invalid keys', () => {
+    localStorage.setItem('mn.enabledServices', '["netflix","bogus"]')
+    expect(getEnabledServices()).toEqual(['netflix'])
+  })
 })
