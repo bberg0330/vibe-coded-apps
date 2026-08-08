@@ -2122,7 +2122,7 @@ export function SearchScreen({ onOpenMovie }: { onOpenMovie: (m: Movie) => void 
       <input
         type="search"
         className="search-input"
-        placeholder="Search for a movie you liked"
+        placeholder="Search for a movie"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         autoFocus
