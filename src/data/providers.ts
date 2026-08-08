@@ -1,3 +1,4 @@
+import { getStoreSnapshot, applyRemoteOp } from './store'
 import type { ServiceKey, RentKey } from '../types'
 
 /**
@@ -19,28 +20,14 @@ export const RENT_SERVICES: Record<RentKey, { label: string; ids: number[] }> = 
   youtube: { label: 'YouTube', ids: [192] },
 }
 
-const STORAGE_KEY = 'mn.enabledServices'
 const ALL_SERVICES = Object.keys(SERVICES) as ServiceKey[]
 
 export function getEnabledServices(): ServiceKey[] {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return [...ALL_SERVICES]
-  try {
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return [...ALL_SERVICES]
-    const valid = parsed.filter((k): k is ServiceKey => ALL_SERVICES.includes(k))
-    if (parsed.length > 0 && valid.length === 0) return [...ALL_SERVICES]
-    return valid
-  } catch {
-    return [...ALL_SERVICES]
-  }
+  return getStoreSnapshot().enabledServices
 }
 
-export function setServiceEnabled(key: ServiceKey, enabled: boolean): void {
-  const current = new Set(getEnabledServices())
-  if (enabled) current.add(key)
-  else current.delete(key)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([...current]))
+export async function setServiceEnabled(key: ServiceKey, enabled: boolean): Promise<void> {
+  await applyRemoteOp({ type: 'setService', key, enabled })
 }
 
 export function serviceForProviderId(id: number): ServiceKey | null {
