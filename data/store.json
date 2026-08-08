@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "history": [],
+  "enabledServices": ["netflix", "hbomax", "disney", "prime", "appletv", "peacock"]
+}
