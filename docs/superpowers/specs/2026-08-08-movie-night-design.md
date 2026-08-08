@@ -125,6 +125,11 @@ that. The history list groups duplicates visually as "watched 2×".
 
 ### Storage
 
+> **Superseded** by `2026-08-08-shared-store-design.md`. History and
+> settings moved to a JSON file on the Mac, served by the dev server and
+> committed to git — which resolves both consequences listed below. The
+> original decision is kept here for context.
+
 `localStorage`, chosen by the user with the trade-offs understood. Two
 consequences are accepted rather than solved:
 
