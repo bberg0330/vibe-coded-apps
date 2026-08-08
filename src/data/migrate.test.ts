@@ -83,4 +83,31 @@ describe('migrateFromLocalStorage', () => {
     stubStoreServer()
     expect(await migrateFromLocalStorage()).toBe(false)
   })
+
+  it('defaults to all six services when enabledServices is present but entirely invalid', async () => {
+    localStorage.setItem('mn.history', JSON.stringify([entry('Old')]))
+    localStorage.setItem('mn.enabledServices', JSON.stringify(['bogus']))
+    stubStoreServer()
+
+    await migrateFromLocalStorage()
+    expect(getStoreSnapshot().enabledServices).toHaveLength(6)
+  })
+
+  it('honors a deliberate empty enabledServices rather than treating it as corrupt', async () => {
+    localStorage.setItem('mn.history', JSON.stringify([entry('Old')]))
+    localStorage.setItem('mn.enabledServices', JSON.stringify([]))
+    stubStoreServer()
+
+    await migrateFromLocalStorage()
+    expect(getStoreSnapshot().enabledServices).toEqual([])
+  })
+
+  it('keeps only the valid entries when enabledServices is partially valid', async () => {
+    localStorage.setItem('mn.history', JSON.stringify([entry('Old')]))
+    localStorage.setItem('mn.enabledServices', JSON.stringify(['netflix', 'bogus']))
+    stubStoreServer()
+
+    await migrateFromLocalStorage()
+    expect(getStoreSnapshot().enabledServices).toEqual(['netflix'])
+  })
 })

@@ -15,6 +15,17 @@ export class SeedRejectedError extends Error {
  * Operations exist so two devices writing at once merge rather than
  * clobber: the server applies the change to whatever is currently on disk.
  */
+/**
+ * Filters to the valid service keys. A non-empty array that filters down to
+ * nothing is corrupt data (e.g. stale/retired keys) — fall back to all six.
+ * An explicitly empty array is the user having deliberately disabled every
+ * service; honor it as-is.
+ */
+export function sanitizeEnabledServices(keys: ServiceKey[]): ServiceKey[] {
+  const valid = keys.filter((k) => ALL_SERVICE_KEYS.includes(k))
+  return keys.length > 0 && valid.length === 0 ? [...ALL_SERVICE_KEYS] : valid
+}
+
 export function applyOp(store: Store, op: StoreOp): Store {
   switch (op.type) {
     case 'logWatch':
@@ -47,7 +58,7 @@ export function applyOp(store: Store, op: StoreOp): Store {
       return {
         ...store,
         history: [...op.history],
-        enabledServices: [...op.enabledServices],
+        enabledServices: sanitizeEnabledServices(op.enabledServices),
       }
 
     default: {
@@ -82,20 +93,9 @@ export function parseStore(raw: string | null): Store {
   const obj = parsed as Partial<Store>
   if (!isWatchEntryArray(obj.history)) return emptyStore()
 
-  let enabled: ServiceKey[]
-  if (Array.isArray(obj.enabledServices)) {
-    const valid = obj.enabledServices.filter((k) =>
-      ALL_SERVICE_KEYS.includes(k as ServiceKey),
-    ) as ServiceKey[]
-    // A non-empty array that filters down to nothing is corrupt data (e.g.
-    // stale service keys) — fall back to all six. An explicitly empty array
-    // is the user having deliberately disabled every service; honor it.
-    enabled = obj.enabledServices.length > 0 && valid.length === 0
-      ? [...ALL_SERVICE_KEYS]
-      : valid
-  } else {
-    enabled = [...ALL_SERVICE_KEYS]
-  }
+  const enabled: ServiceKey[] = Array.isArray(obj.enabledServices)
+    ? sanitizeEnabledServices(obj.enabledServices as ServiceKey[])
+    : [...ALL_SERVICE_KEYS]
 
   return {
     version: typeof obj.version === 'number' ? obj.version : CURRENT_STORE_VERSION,
