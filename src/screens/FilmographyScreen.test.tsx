@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { FilmographyScreen } from './FilmographyScreen'
 import { clearHttpCache } from '../api/http'
+import { resetScoresForTests } from '../data/scores'
 import type { CastMember, Movie } from '../types'
 
 const actor: CastMember = {
@@ -23,6 +24,9 @@ const film = (id: number, title: string) => ({
 
 function stubApis(opts: { films?: Record<string, unknown[]>; scores?: Record<string, string> } = {}) {
   vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
+    if (url.startsWith('/api/scores')) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
+    }
     if (url.includes('omdbapi.com')) {
       const title = new URL(url).searchParams.get('t') ?? ''
       const rt = opts.scores?.[title]
@@ -43,6 +47,7 @@ function stubApis(opts: { films?: Record<string, unknown[]>; scores?: Record<str
 
 beforeEach(() => {
   clearHttpCache()
+  resetScoresForTests()
   vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
   vi.stubEnv('VITE_OMDB_KEY', 'test-key')
 })
