@@ -1,8 +1,25 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   SERVICES, RENT_SERVICES, getEnabledServices, setServiceEnabled,
   serviceForProviderId, rentServiceForProviderId,
 } from './providers'
+import { resetStoreForTests, getStoreSnapshot } from './store'
+import { applyOp } from '../../vite-plugins/store-ops'
+import type { StoreOp } from '../types'
+
+/** A fake server: applies the op to the current snapshot and echoes it back. */
+function stubStoreServer() {
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+    const op = JSON.parse(String(init?.body)) as StoreOp
+    const next = applyOp(getStoreSnapshot(), op)
+    return { ok: true, status: 200, json: async () => next }
+  }))
+}
+
+beforeEach(() => {
+  resetStoreForTests()
+  stubStoreServer()
+})
 
 describe('provider constants', () => {
   it('uses the verified TMDB provider ids', () => {
@@ -39,35 +56,15 @@ describe('enabled services', () => {
     )
   })
 
-  it('persists a disabled service', () => {
-    setServiceEnabled('netflix', false)
+  it('persists a disabled service', async () => {
+    await setServiceEnabled('netflix', false)
     expect(getEnabledServices()).not.toContain('netflix')
     expect(getEnabledServices()).toContain('hbomax')
   })
 
-  it('re-enables a service', () => {
-    setServiceEnabled('netflix', false)
-    setServiceEnabled('netflix', true)
+  it('re-enables a service', async () => {
+    await setServiceEnabled('netflix', false)
+    await setServiceEnabled('netflix', true)
     expect(getEnabledServices()).toContain('netflix')
-  })
-
-  it('ignores corrupt stored data and falls back to defaults', () => {
-    localStorage.setItem('mn.enabledServices', 'not json')
-    expect(getEnabledServices()).toHaveLength(6)
-  })
-
-  it('falls back to defaults when a non-empty array has no valid keys', () => {
-    localStorage.setItem('mn.enabledServices', '["bogus"]')
-    expect(getEnabledServices()).toHaveLength(6)
-  })
-
-  it('treats an explicit empty array as the deliberate all-disabled case', () => {
-    localStorage.setItem('mn.enabledServices', '[]')
-    expect(getEnabledServices()).toEqual([])
-  })
-
-  it('keeps valid entries from a mixed array of valid and invalid keys', () => {
-    localStorage.setItem('mn.enabledServices', '["netflix","bogus"]')
-    expect(getEnabledServices()).toEqual(['netflix'])
   })
 })

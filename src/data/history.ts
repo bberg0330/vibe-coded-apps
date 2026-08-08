@@ -1,26 +1,20 @@
+import { getStoreSnapshot, applyRemoteOp } from './store'
 import type { Movie, WatchEntry } from '../types'
 
-const STORAGE_KEY = 'mn.history'
-
-function read(): WatchEntry[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    const parsed = raw ? JSON.parse(raw) : []
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
+/** Newest first. */
+export function getHistory(): WatchEntry[] {
+  return [...getStoreSnapshot().history].reverse()
 }
 
-function write(entries: WatchEntry[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries))
+export function watchCount(tmdbId: number): number {
+  return getStoreSnapshot().history.filter((e) => e.movie.tmdbId === tmdbId).length
 }
 
 /** Appends a watch. Rewatches add a new entry rather than overwriting. */
-export function logWatch(
+export async function logWatch(
   movie: Movie,
   discoveredVia: WatchEntry['discoveredVia'],
-): WatchEntry {
+): Promise<WatchEntry> {
   const entry: WatchEntry = {
     watchedAt: new Date().toISOString(),
     movie: {
@@ -32,33 +26,17 @@ export function logWatch(
     },
     discoveredVia,
   }
-  write([...read(), entry])
+  await applyRemoteOp({ type: 'logWatch', entry })
   return entry
 }
 
-/** Newest first. */
-export function getHistory(): WatchEntry[] {
-  return [...read()].reverse()
-}
-
-export function watchCount(tmdbId: number): number {
-  return read().filter((e) => e.movie.tmdbId === tmdbId).length
-}
-
 /** Removes the most recent entry for a film. For undoing a misfired tap. */
-export function undoLastWatch(tmdbId: number): void {
-  const entries = read()
-  for (let i = entries.length - 1; i >= 0; i--) {
-    if (entries[i].movie.tmdbId === tmdbId) {
-      entries.splice(i, 1)
-      write(entries)
-      return
-    }
-  }
+export async function undoLastWatch(tmdbId: number): Promise<void> {
+  await applyRemoteOp({ type: 'undoLastWatch', tmdbId })
 }
 
 export function exportJson(): string {
-  return JSON.stringify(read(), null, 2)
+  return JSON.stringify(getStoreSnapshot().history, null, 2)
 }
 
 function isValidDiscoveredVia(value: unknown): boolean {
@@ -71,7 +49,7 @@ function isValidDiscoveredVia(value: unknown): boolean {
   )
 }
 
-function isValidEntry(value: unknown): boolean {
+function isValidEntry(value: unknown): value is WatchEntry {
   if (typeof value !== 'object' || value === null) return false
   const entry = value as Record<string, unknown>
 
@@ -93,16 +71,14 @@ function isValidEntry(value: unknown): boolean {
  * writing anything: a partial import that half-succeeds is worse than a
  * clean failure, since the user can't tell what they now have.
  */
-export function importJson(json: string): number {
+export async function importJson(json: string): Promise<number> {
   const parsed = JSON.parse(json)
   if (!Array.isArray(parsed)) throw new Error('Expected an array of entries')
 
-  for (let i = 0; i < parsed.length; i++) {
-    if (!isValidEntry(parsed[i])) {
-      throw new Error(`Invalid history entry at index ${i}`)
-    }
-  }
+  parsed.forEach((entry, i) => {
+    if (!isValidEntry(entry)) throw new Error(`Invalid history entry at index ${i}`)
+  })
 
-  write(parsed)
+  await applyRemoteOp({ type: 'replaceHistory', entries: parsed })
   return parsed.length
 }
