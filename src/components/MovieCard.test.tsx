@@ -65,4 +65,22 @@ describe('MovieCard', () => {
     expect(screen.getByText('Apple TV')).toBeInTheDocument()
     expect(screen.getByText('YouTube')).toBeInTheDocument()
   })
+
+  it('renders the main area as non-interactive when noOpen is set', () => {
+    const onOpen = vi.fn()
+    render(<MovieCard movie={movie} onOpen={onOpen} onToggleWatched={vi.fn()} watched={0} noOpen />)
+
+    // No tappable "open" target for the title itself; only the watch button remains a button.
+    expect(screen.queryByRole('button', { name: /^rushmore/i })).not.toBeInTheDocument()
+    expect(screen.getByText('Rushmore')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /mark rushmore as watched/i })).toBeInTheDocument()
+  })
+
+  it('still logs a watch when noOpen is set', async () => {
+    const onToggleWatched = vi.fn()
+    render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={onToggleWatched} watched={0} noOpen />)
+
+    await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
+    expect(onToggleWatched).toHaveBeenCalledWith(movie)
+  })
 })

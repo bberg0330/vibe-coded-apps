@@ -49,11 +49,6 @@ export async function searchMovies(query: string, signal?: AbortSignal): Promise
   return data.results.map(toMovie)
 }
 
-export async function getMovieDetails(movieId: number): Promise<Movie> {
-  const raw = await tmdbGet<TmdbMovie>(`/movie/${movieId}`, {})
-  return toMovie(raw)
-}
-
 export async function getMovieCredits(movieId: number): Promise<CastMember[]> {
   const data = await tmdbGet<{ cast: TmdbCast[] }>(`/movie/${movieId}/credits`, {})
   return data.cast

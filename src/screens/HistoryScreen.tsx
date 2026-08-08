@@ -1,5 +1,6 @@
 import { getHistory, exportJson } from '../data/history'
 import { posterUrl } from '../api/tmdb'
+import type { WatchEntry } from '../types'
 
 function download(): void {
   const blob = new Blob([exportJson()], { type: 'application/json' })
@@ -13,8 +14,34 @@ function download(): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
+type Group = { entry: WatchEntry; count: number }
+
+/**
+ * Collapses repeat watches of the same film into one row: "watched 2×".
+ * `entries` is newest-first, so the first occurrence of a tmdbId is its most
+ * recent watch — that's the one whose date and discovery path we keep.
+ */
+function groupByFilm(entries: WatchEntry[]): Group[] {
+  const groups = new Map<number, Group>()
+  const order: Group[] = []
+
+  for (const entry of entries) {
+    const existing = groups.get(entry.movie.tmdbId)
+    if (existing) {
+      existing.count += 1
+    } else {
+      const group: Group = { entry, count: 1 }
+      groups.set(entry.movie.tmdbId, group)
+      order.push(group)
+    }
+  }
+
+  return order
+}
+
 export function HistoryScreen() {
   const entries = getHistory()
+  const groups = groupByFilm(entries)
 
   if (entries.length === 0) {
     return (
@@ -30,10 +57,10 @@ export function HistoryScreen() {
       <h1>History</h1>
       <button className="link" onClick={download}>Download JSON</button>
 
-      {entries.map((entry, i) => {
+      {groups.map(({ entry, count }) => {
         const poster = posterUrl(entry.movie.posterPath)
         return (
-          <div className="card" key={`${entry.movie.tmdbId}-${entry.watchedAt}-${i}`}>
+          <div className="card" key={entry.movie.tmdbId}>
             <div className="card-main">
               {poster
                 ? <img className="poster" src={poster} alt="" loading="lazy" />
@@ -45,6 +72,7 @@ export function HistoryScreen() {
                   {entry.movie.tomatometer !== null && (
                     <span className="score">{entry.movie.tomatometer}%</span>
                   )}
+                  {count > 1 && <span className="rewatch">watched {count}×</span>}
                 </div>
                 {entry.discoveredVia && (
                   <div className="card-meta">

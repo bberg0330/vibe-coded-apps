@@ -52,6 +52,37 @@ describe('HistoryScreen', () => {
     expect(screen.queryByText(/via /i)).not.toBeInTheDocument()
   })
 
+  it('collapses repeat watches of the same film into one row with a count', () => {
+    logWatch(movie(1585, 'Rushmore'), null)
+    vi.setSystemTime(new Date('2026-09-01T20:00:00Z'))
+    logWatch(movie(1585, 'Rushmore'), null)
+
+    render(<HistoryScreen />)
+    expect(screen.getAllByTestId('history-title')).toHaveLength(1)
+    expect(screen.getByText('watched 2×')).toBeInTheDocument()
+  })
+
+  it('keeps the most recent date and discovery path for a collapsed group', () => {
+    logWatch(movie(1585, 'Rushmore'), via)
+    vi.setSystemTime(new Date('2026-09-01T20:00:00Z'))
+    logWatch(movie(1585, 'Rushmore'), null)
+
+    render(<HistoryScreen />)
+    expect(screen.getByText('9/1/2026')).toBeInTheDocument()
+    // The most recent watch had no discovery path, so none should show —
+    // even though the earlier watch of the same film had one.
+    expect(screen.queryByText(/via /i)).not.toBeInTheDocument()
+  })
+
+  it('does not collapse watches of different films', () => {
+    logWatch(movie(1, 'Older'), null)
+    logWatch(movie(2, 'Newer'), null)
+
+    render(<HistoryScreen />)
+    expect(screen.getAllByTestId('history-title')).toHaveLength(2)
+    expect(screen.queryByText(/watched \d+×/)).not.toBeInTheDocument()
+  })
+
   it('offers a JSON export', () => {
     logWatch(movie(1585, 'Rushmore'), null)
     render(<HistoryScreen />)

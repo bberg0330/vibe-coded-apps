@@ -49,7 +49,7 @@ export function CastScreen({ movie, onOpenActor, onToggleWatched, watchedCount }
       <MovieCard
         movie={movie}
         watched={watchedCount}
-        onOpen={() => {}}
+        noOpen
         onToggleWatched={onToggleWatched}
       />
 

@@ -24,9 +24,24 @@ export default function App() {
   const [, setHistoryVersion] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
 
+  // Films logged during THIS session. Undo is scoped to a misfired tap in
+  // the current session, not to lifetime history: a film watched in a
+  // previous session must append a new entry on tap, never delete an old
+  // one. See the spec's "Logging trigger" and "Rewatches" sections.
+  const [loggedThisSession, setLoggedThisSession] = useState<Set<number>>(new Set())
+
   const toggleWatched = (movie: Movie, via: WatchEntry['discoveredVia']) => {
-    if (watchCount(movie.tmdbId) > 0) undoLastWatch(movie.tmdbId)
-    else logWatch(movie, via)
+    if (loggedThisSession.has(movie.tmdbId)) {
+      undoLastWatch(movie.tmdbId)
+      setLoggedThisSession((s) => {
+        const next = new Set(s)
+        next.delete(movie.tmdbId)
+        return next
+      })
+    } else {
+      logWatch(movie, via)
+      setLoggedThisSession((s) => new Set(s).add(movie.tmdbId))
+    }
     setHistoryVersion((v) => v + 1)
   }
 
@@ -45,7 +60,11 @@ export default function App() {
       {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
 
       {current.kind === 'search' && (
-        <SearchScreen onOpenMovie={(movie) => push({ kind: 'cast', movie })} />
+        <SearchScreen
+          onOpenMovie={(movie) => push({ kind: 'cast', movie })}
+          watchCountFor={watchCount}
+          onToggleWatched={(movie) => toggleWatched(movie, null)}
+        />
       )}
       {current.kind === 'cast' && (
         <CastScreen
