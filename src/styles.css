@@ -44,3 +44,15 @@ body {
 }
 .watch-btn.watched { background: #1f3a24; color: #7ee29b; }
 .error { background: #33222a; border-radius: 10px; padding: 12px; }
+
+.app { max-width: 640px; margin: 0 auto; padding: 12px; }
+.topbar { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.link { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; padding: 8px; }
+h1 { font-size: 22px; margin: 4px 0 12px; }
+h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+.search-input {
+  width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #2a2f3a;
+  background: var(--surface); color: var(--text); font: inherit; margin-bottom: 16px;
+}
+.empty { color: var(--muted); }
+.screen-header { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
