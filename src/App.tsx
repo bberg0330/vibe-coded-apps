@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { SearchScreen } from './screens/SearchScreen'
-import type { Movie, CastMember } from './types'
+import { CastScreen } from './screens/CastScreen'
+import { logWatch, undoLastWatch, watchCount } from './data/history'
+import type { Movie, CastMember, WatchEntry } from './types'
 
 export type Screen =
   | { kind: 'search' }
@@ -15,6 +17,15 @@ export default function App() {
   const push = (screen: Screen) => setStack((s) => [...s, screen])
   const pop = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
 
+  // A counter forces re-render after a history write, since history lives outside React state.
+  const [, setHistoryVersion] = useState(0)
+
+  const toggleWatched = (movie: Movie, via: WatchEntry['discoveredVia']) => {
+    if (watchCount(movie.tmdbId) > 0) undoLastWatch(movie.tmdbId)
+    else logWatch(movie, via)
+    setHistoryVersion((v) => v + 1)
+  }
+
   return (
     <div className="app">
       <nav className="topbar">
@@ -27,7 +38,17 @@ export default function App() {
       {current.kind === 'search' && (
         <SearchScreen onOpenMovie={(movie) => push({ kind: 'cast', movie })} />
       )}
-      {current.kind !== 'search' && <p className="empty">Coming in the next task.</p>}
+      {current.kind === 'cast' && (
+        <CastScreen
+          movie={current.movie}
+          watchedCount={watchCount(current.movie.tmdbId)}
+          onToggleWatched={(m) => toggleWatched(m, null)}
+          onOpenActor={(actor) =>
+            push({ kind: 'filmography', actor, fromMovie: current.movie })}
+        />
+      )}
+      {current.kind === 'filmography' && <p className="empty">Coming in the next task.</p>}
+      {current.kind === 'history' && <p className="empty">Coming in the next task.</p>}
     </div>
   )
 }
