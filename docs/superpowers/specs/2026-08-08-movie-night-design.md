@@ -20,8 +20,8 @@ wifi can reach it. There is no deployment, no hosting, and no public URL.
 
 ## Subscriptions
 
-Streaming (primary results): Netflix, Max, Disney+, Prime Video, Apple TV+,
-Peacock.
+Streaming (primary results): Netflix, HBO Max, Disney+, Prime Video,
+Apple TV+, Peacock. The UI labels it "HBO Max", matching TMDB.
 
 Rent (secondary results): Apple TV, YouTube.
 
@@ -77,26 +77,57 @@ The key call is `/discover/movie`, which accepts `with_cast`,
 in a single request. This means "films by this actor, streaming on these six
 services" is **one request**, not one request per film.
 
-Provider IDs are **not hardcoded from memory**. During setup, fetch
-`/watch/providers/movie?watch_region=US` and write the verified IDs into a
-constants file. Max in particular changed IDs when it rebranded from HBO Max.
+Provider IDs are **not hardcoded from memory**. They were verified on
+2026-08-08 against `/watch/providers/movie?watch_region=US`:
+
+| Toggle | TMDB provider ID(s) | TMDB's name |
+| --- | --- | --- |
+| Netflix | 8 | Netflix |
+| Max | 1899 | HBO Max |
+| Disney+ | 337 | Disney Plus |
+| Prime Video | 9 | Amazon Prime Video |
+| Apple TV+ | 350 | Apple TV |
+| Peacock | 386, 387 | Peacock Premium, Peacock Premium Plus |
+
+Rent tier: Apple TV Store (2), YouTube (192).
+
+Two traps, both hit during verification:
+
+- **`350` and `2` are different providers.** `350` is the Apple TV+
+  subscription; `2` is the Apple TV rental store. Conflating them puts
+  Apple TV+ originals in the rent list and vice versa.
+- **Max is `1899`, not `384`.** The rebrand from HBO Max moved it.
+
+`*_Amazon Channel` and `*_Apple TV Channel` variants are deliberately
+excluded — those are add-on subscriptions purchased through another
+platform, which is not what these six toggles mean.
 
 ### OMDb
 
 Provides the Rotten Tomatoes Tomatometer, which TMDB does not carry. Free
 key, 1,000 requests/day, stored in `.env.local` as `VITE_OMDB_KEY`.
 
-Films are looked up by **title + release year** (`?t=<title>&y=<year>`), not
-by IMDb ID. TMDB's `/discover` response does not include `imdb_id`, and
-fetching it would cost an extra request per film — which would undo the
-whole reason for using `/discover`. Title+year carries a small ambiguity
-risk on remakes sharing a title and year; that is accepted as the cheaper
-trade.
+Films are looked up by **title only** (`?t=<title>`), then validated against
+the expected release year. Lookup is not by IMDb ID: TMDB's `/discover`
+response does not include `imdb_id`, and fetching it would cost an extra
+request per film, undoing the whole reason for using `/discover`.
 
-Scores are cached permanently in `localStorage`, keyed by title+year — a
-Tomatometer for a released film does not meaningfully change, so each film
-costs one request once, ever. Two casual users will not approach the daily
-cap.
+**Do not pass OMDb's `y` parameter.** Verified 2026-08-08: OMDb reports
+IMDb's year, which routinely disagrees with TMDB's by one — Rushmore is
+1998 on TMDB and 1999 on IMDb, and `&y=1998` returns "Movie not found!"
+rather than a near match. Two of five sampled films failed under strict
+year matching.
+
+Instead: request by title, then **accept the result if its year is within
+±1 of TMDB's**, and discard it otherwise. This tolerates the databases'
+disagreement while still rejecting a wrong film with a colliding title. A
+discarded or missing result means no score, and the film sorts to the
+bottom of its section.
+
+Scores are cached permanently in `localStorage`, keyed by TMDB movie ID —
+a Tomatometer for a released film does not meaningfully change, so each
+film costs one request once, ever. Two casual users will not approach the
+daily cap.
 
 ## Data flow
 
