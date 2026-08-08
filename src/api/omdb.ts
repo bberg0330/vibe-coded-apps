@@ -46,24 +46,28 @@ export async function getTomatometer(
   const apiKey = import.meta.env.VITE_OMDB_KEY
   if (!apiKey) return null
 
-  let score: number | null = null
   try {
     const qs = new URLSearchParams({ apikey: apiKey, t: title })
     const res = await fetch(`https://www.omdbapi.com/?${qs}`)
-    if (res.ok) {
-      const data = (await res.json()) as OmdbResponse
-      if (data.Response === 'True' && yearMatches(data.Year, year)) {
-        score = parseRt(data.Ratings)
-      }
+    if (!res.ok) {
+      // Rate limit (401) or outage (5xx): transient, may succeed later.
+      // Do not cache — that would permanently poison this film's score.
+      return null
     }
+
+    const data = (await res.json()) as OmdbResponse
+    let score: number | null = null
+    if (data.Response === 'True' && yearMatches(data.Year, year)) {
+      score = parseRt(data.Ratings)
+    }
+
+    cache[key] = score
+    writeCache(cache)
+    return score
   } catch {
-    // Offline or blocked: fall through to null without caching.
+    // Offline, blocked, or malformed JSON: fall through to null without caching.
     return null
   }
-
-  cache[key] = score
-  writeCache(cache)
-  return score
 }
 
 /** Tolerates the one-year drift between IMDb's and TMDB's release years. */
