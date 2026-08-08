@@ -6,6 +6,7 @@ import { HistoryScreen } from './screens/HistoryScreen'
 import { SettingsSheet } from './screens/SettingsSheet'
 import { logWatch, undoLastWatch, watchCount } from './data/history'
 import { loadStore } from './data/store'
+import { loadScores } from './data/scores'
 import { migrateFromLocalStorage } from './data/migrate'
 import type { Movie, CastMember, WatchEntry } from './types'
 
@@ -42,8 +43,10 @@ export default function App() {
     setBooting(true)
     setBootError(null)
 
-    loadStore()
-      .then(() => migrateFromLocalStorage())
+    // The score cache load races alongside the store boot: a missing or
+    // slow score cache should never block the app, so its failure is
+    // swallowed inside loadScores() itself rather than surfaced here.
+    Promise.all([loadStore().then(() => migrateFromLocalStorage()), loadScores()])
       .then(() => { if (!cancelled) setBooting(false) })
       .catch((err) => {
         if (cancelled) return

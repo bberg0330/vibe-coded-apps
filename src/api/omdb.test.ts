@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getTomatometer } from './omdb'
+import { getCachedScore, resetScoresForTests } from '../data/scores'
 
 const omdbResponse = (title: string, year: string, rt?: string) => ({
   Response: 'True', Title: title, Year: year,
@@ -9,14 +10,26 @@ const omdbResponse = (title: string, year: string, rt?: string) => ({
   ] : [{ Source: 'Internet Movie Database', Value: '7.7/10' }],
 })
 
+/**
+ * Stubs `fetch` for the OMDb call and returns a spy scoped to ONLY that
+ * call. Writes through to the shared `/api/scores` cache (triggered by
+ * `cacheScore`) are answered separately so they don't inflate the
+ * OMDb-call assertions below.
+ */
 function stub(body: unknown) {
   const f = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => body })
-  vi.stubGlobal('fetch', f)
+  vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+    if (typeof url === 'string' && url.startsWith('/api/scores')) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
+    }
+    return f(url, init)
+  })
   return f
 }
 
 beforeEach(() => {
   vi.stubEnv('VITE_OMDB_KEY', 'test-key')
+  resetScoresForTests()
 })
 
 describe('getTomatometer', () => {
@@ -129,16 +142,20 @@ describe('getTomatometer', () => {
       const film = films.find((film) => film.title === t)!
       return { ok: true, status: 200, json: async () => omdbResponse(film.title, String(film.year), `${film.score}%`) }
     })
-    vi.stubGlobal('fetch', f)
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      if (typeof url === 'string' && url.startsWith('/api/scores')) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
+      }
+      return f(url, init)
+    })
 
     const results = await Promise.all(
       films.map((film) => getTomatometer(film.id, film.title, film.year)),
     )
     expect(results).toEqual(films.map((film) => film.score))
 
-    const stored = JSON.parse(localStorage.getItem('mn.rtScores')!)
     for (const film of films) {
-      expect(stored[String(film.id)]).toBe(film.score)
+      expect(getCachedScore(film.id)).toBe(film.score)
     }
 
     // Regression guard: a second concurrent pass hits the cache, not the network.

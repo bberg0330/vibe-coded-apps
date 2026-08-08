@@ -1,24 +1,4 @@
-const CACHE_KEY = 'mn.rtScores'
-/** Cached forever: a released film's Tomatometer does not meaningfully change. */
-type ScoreCache = Record<string, number | null>
-
-function readCache(): ScoreCache {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY)
-    const parsed = raw ? JSON.parse(raw) : {}
-    return typeof parsed === 'object' && parsed !== null ? parsed : {}
-  } catch {
-    return {}
-  }
-}
-
-function writeCache(cache: ScoreCache): void {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache))
-  } catch {
-    // Storage full or blocked: scores just re-fetch next session.
-  }
-}
+import { getCachedScore, cacheScore } from '../data/scores'
 
 type OmdbResponse = {
   Response: 'True' | 'False'
@@ -39,9 +19,8 @@ export async function getTomatometer(
   title: string,
   year: number | null,
 ): Promise<number | null> {
-  const cache = readCache()
-  const key = String(tmdbId)
-  if (key in cache) return cache[key]
+  const hit = getCachedScore(tmdbId)
+  if (hit !== undefined) return hit
 
   const apiKey = import.meta.env.VITE_OMDB_KEY
   if (!apiKey) return null
@@ -61,16 +40,14 @@ export async function getTomatometer(
       score = parseRt(data.Ratings)
     }
 
-    // Re-read immediately before writing: with many concurrent calls in
-    // flight (e.g. Promise.all over a filmography), each holds a stale
-    // snapshot from its own readCache() at function entry. Merging into a
-    // freshly-read copy here — with no await between this read and the
-    // write — is atomic with respect to other concurrent calls, since
-    // JavaScript is single-threaded. Writing the stale `cache` captured at
-    // entry instead would let the last writer clobber every other result.
-    const latest = readCache()
-    latest[key] = score
-    writeCache(latest)
+    // cacheScore updates the in-memory cache synchronously, with no await
+    // between this decision and that write. With many concurrent calls in
+    // flight (e.g. Promise.all over a filmography), each call's own stale
+    // snapshot read at function entry no longer matters: every caller
+    // writes straight into the shared in-memory map, not a copy it read
+    // earlier, so no result is clobbered. The write-through to the server
+    // is fire-and-forget and does not affect this.
+    cacheScore(tmdbId, score)
     return score
   } catch {
     // Offline, blocked, or malformed JSON: fall through to null without caching.
