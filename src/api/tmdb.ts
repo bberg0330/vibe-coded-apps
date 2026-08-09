@@ -1,6 +1,6 @@
 import { tmdbGet } from './http'
 import { SERVICES, RENT_SERVICES, getEnabledServices } from '../data/providers'
-import type { Movie, CastMember, ServiceKey, RentKey } from '../types'
+import type { Movie, CastMember, Person, ServiceKey, RentKey } from '../types'
 
 type TmdbMovie = {
   id: number
@@ -136,4 +136,20 @@ export async function getActorMovies(
   }
 
   return { streaming: [...streaming.values()], rent: [...rent.values()] }
+}
+
+export async function getMovieDetails(movieId: number): Promise<Movie> {
+  const raw = await tmdbGet<TmdbMovie>(`/movie/${movieId}`, {})
+  return toMovie(raw)
+}
+
+type TmdbPerson = {
+  id: number
+  name: string
+  profile_path: string | null
+}
+
+export async function getPerson(personId: number): Promise<Person> {
+  const raw = await tmdbGet<TmdbPerson>(`/person/${personId}`, {})
+  return { tmdbId: raw.id, name: raw.name, profilePath: raw.profile_path }
 }
