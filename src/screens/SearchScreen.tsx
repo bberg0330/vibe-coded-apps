@@ -9,9 +9,10 @@ type Props = {
   onOpenMovie: (m: Movie) => void
   onToggleWatched: (movie: Movie) => void
   watchCountFor: (tmdbId: number) => number
+  isPending?: (tmdbId: number) => boolean
 }
 
-export function SearchScreen({ onOpenMovie, onToggleWatched, watchCountFor }: Props) {
+export function SearchScreen({ onOpenMovie, onToggleWatched, watchCountFor, isPending }: Props) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<Movie[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>('idle')
@@ -77,7 +78,8 @@ export function SearchScreen({ onOpenMovie, onToggleWatched, watchCountFor }: Pr
         <MovieCard
           key={movie.tmdbId}
           movie={movie}
-          watched={watchCountFor(movie.tmdbId)}
+          watched={watchCountFor(movie.tmdbId) > 0}
+          pending={isPending?.(movie.tmdbId) ?? false}
           onOpen={onOpenMovie}
           onToggleWatched={onToggleWatched}
         />

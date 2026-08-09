@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { SearchScreen } from './screens/SearchScreen'
 import { CastScreen } from './screens/CastScreen'
 import { FilmographyScreen } from './screens/FilmographyScreen'
@@ -33,6 +33,17 @@ export default function App() {
   // one. See the spec's "Logging trigger" and "Rewatches" sections.
   const [loggedThisSession, setLoggedThisSession] = useState<Set<number>>(new Set())
 
+  // Authoritative guard against a second tap landing while the first
+  // save is still in flight. A ref, not state: two taps fired in the same
+  // tick (a real double-tap) both read this synchronously before either
+  // has awaited anything, so only a value mutated in place — not one that
+  // waits for a re-render to update — can actually block the second call.
+  // useState alone cannot do this: both calls would read the same
+  // pre-render snapshot. `pendingWatch` (state) mirrors this ref purely so
+  // the UI can disable the button; it is never the source of truth.
+  const pendingWatchRef = useRef<Set<number>>(new Set())
+  const [pendingWatch, setPendingWatch] = useState<Set<number>>(new Set())
+
   const [booting, setBooting] = useState(true)
   const [bootError, setBootError] = useState<string | null>(null)
   const [bootAttempt, setBootAttempt] = useState(0)
@@ -58,6 +69,13 @@ export default function App() {
   }, [bootAttempt])
 
   const toggleWatched = async (movie: Movie, via: WatchEntry['discoveredVia']) => {
+    // A second tap while this movie's save is still in flight is dropped
+    // entirely, before it can read any state — this is what actually stops
+    // the double-log/double-undo race, not anything below.
+    if (pendingWatchRef.current.has(movie.tmdbId)) return
+    pendingWatchRef.current.add(movie.tmdbId)
+    setPendingWatch(new Set(pendingWatchRef.current))
+
     const wasLoggedThisSession = loggedThisSession.has(movie.tmdbId)
     setSaveError(null)
 
@@ -83,6 +101,9 @@ export default function App() {
       })
       setSaveError("Couldn't save that — is the Movie Night server still running?")
       setHistoryVersion((v) => v + 1)
+    } finally {
+      pendingWatchRef.current.delete(movie.tmdbId)
+      setPendingWatch(new Set(pendingWatchRef.current))
     }
   }
 
@@ -122,6 +143,7 @@ export default function App() {
         <SearchScreen
           onOpenMovie={(movie) => push({ kind: 'cast', movie })}
           watchCountFor={watchCount}
+          isPending={(tmdbId) => pendingWatch.has(tmdbId)}
           onToggleWatched={(movie) => toggleWatched(movie, null)}
         />
       )}
@@ -129,6 +151,7 @@ export default function App() {
         <CastScreen
           movie={current.movie}
           watchedCount={watchCount(current.movie.tmdbId)}
+          pending={pendingWatch.has(current.movie.tmdbId)}
           onToggleWatched={(m) => toggleWatched(m, null)}
           onOpenActor={(actor) =>
             push({ kind: 'filmography', actor, fromMovie: current.movie })}
@@ -139,6 +162,7 @@ export default function App() {
           actor={current.actor}
           fromMovie={current.fromMovie}
           watchCountFor={watchCount}
+          isPending={(tmdbId) => pendingWatch.has(tmdbId)}
           onOpenMovie={(movie) => push({ kind: 'cast', movie })}
           onToggleWatched={(movie) =>
             toggleWatched(movie, {

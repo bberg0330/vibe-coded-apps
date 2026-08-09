@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { clearHttpCache } from './api/http'
@@ -65,6 +65,25 @@ describe('App - toggleWatched session scoping', () => {
     await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
     await waitFor(() => expect(getHistory()).toHaveLength(0))
   })
+
+  it(
+    'ignores a rapid second tap while the first save is still in flight ' +
+    '(reproduces the production bug: two taps landing in the same tick double-logged a watch)',
+    async () => {
+      render(<App />)
+      await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+      const button = await screen.findByRole('button', { name: /mark rushmore as watched/i })
+
+      // fireEvent, not userEvent: userEvent awaits each click to full
+      // settlement, which can never reproduce a race. Firing both
+      // synchronously, before either's async work resolves, is what
+      // actually happened when the button was tapped twice quickly.
+      fireEvent.click(button)
+      fireEvent.click(button)
+
+      await waitFor(() => expect(getHistory()).toHaveLength(1))
+    },
+  )
 
   it(
     'appends rather than deletes when the film was logged in a PREVIOUS session ' +

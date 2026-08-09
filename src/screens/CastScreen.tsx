@@ -12,9 +12,10 @@ type Props = {
   onOpenActor: (actor: CastMember) => void
   onToggleWatched: (movie: Movie) => void
   watchedCount: number
+  pending?: boolean
 }
 
-export function CastScreen({ movie, onOpenActor, onToggleWatched, watchedCount }: Props) {
+export function CastScreen({ movie, onOpenActor, onToggleWatched, watchedCount, pending }: Props) {
   const [cast, setCast] = useState<CastMember[]>([])
   const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading')
   const [expanded, setExpanded] = useState(false)
@@ -48,7 +49,8 @@ export function CastScreen({ movie, onOpenActor, onToggleWatched, watchedCount }
     <div className="screen">
       <MovieCard
         movie={movie}
-        watched={watchedCount}
+        watched={watchedCount > 0}
+        pending={pending}
         noOpen
         onToggleWatched={onToggleWatched}
       />

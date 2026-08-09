@@ -7,8 +7,8 @@ type Props = {
   /** Omit together with `noOpen` when there is nowhere for the card to navigate to. */
   onOpen?: (movie: Movie) => void
   onToggleWatched: (movie: Movie) => void
-  /** How many times this film has been logged. */
-  watched: number
+  /** Whether this film has been logged at all. How many times lives only on the History screen. */
+  watched: boolean
   /**
    * When true, the main area renders as a plain div rather than a button:
    * for a header card with nowhere to navigate to (e.g. the searched movie
@@ -16,9 +16,11 @@ type Props = {
    * reads as broken.
    */
   noOpen?: boolean
+  /** True while a save for this film is in flight. Disables the button so a second tap can't race the first. */
+  pending?: boolean
 }
 
-export function MovieCard({ movie, onOpen, onToggleWatched, watched, noOpen }: Props) {
+export function MovieCard({ movie, onOpen, onToggleWatched, watched, noOpen, pending = false }: Props) {
   const poster = posterUrl(movie.posterPath)
   const badges = [
     ...movie.availability.streaming.map((k) => SERVICES[k].label),
@@ -37,7 +39,6 @@ export function MovieCard({ movie, onOpen, onToggleWatched, watched, noOpen }: P
           <span className={movie.tomatometer === null ? 'score-none' : 'score'}>
             {movie.tomatometer === null ? 'No score' : `${movie.tomatometer}%`}
           </span>
-          {watched > 1 && <span className="rewatch">{watched}×</span>}
         </div>
         <div className="badges">
           {badges.map((label) => <span className="badge" key={label}>{label}</span>)}
@@ -53,11 +54,12 @@ export function MovieCard({ movie, onOpen, onToggleWatched, watched, noOpen }: P
         : <button className="card-main" onClick={() => onOpen?.(movie)}>{body}</button>}
 
       <button
-        className={watched > 0 ? 'watch-btn watched' : 'watch-btn'}
-        aria-label={watched > 0
+        className={`watch-btn${watched ? ' watched' : ''}`}
+        aria-label={watched
           ? `Undo watched for ${movie.title}`
           : `Mark ${movie.title} as watched`}
-        aria-pressed={watched > 0}
+        aria-pressed={watched}
+        disabled={pending}
         onClick={(e) => {
           e.stopPropagation()
           onToggleWatched(movie)

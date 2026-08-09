@@ -12,14 +12,14 @@ const movie: Movie = {
 
 describe('MovieCard', () => {
   it('shows title, year and score', () => {
-    render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={0} />)
+    render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={false} />)
     expect(screen.getByText('Rushmore')).toBeInTheDocument()
     expect(screen.getByText('1998')).toBeInTheDocument()
     expect(screen.getByText('90%')).toBeInTheDocument()
   })
 
   it('badges every service the film streams on', () => {
-    render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={0} />)
+    render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={false} />)
     expect(screen.getByText('Netflix')).toBeInTheDocument()
     expect(screen.getByText('HBO Max')).toBeInTheDocument()
   })
@@ -27,14 +27,14 @@ describe('MovieCard', () => {
   it('shows "No score" when the tomatometer is unknown', () => {
     render(
       <MovieCard movie={{ ...movie, tomatometer: null }} onOpen={vi.fn()}
-        onToggleWatched={vi.fn()} watched={0} />,
+        onToggleWatched={vi.fn()} watched={false} />,
     )
     expect(screen.getByText('No score')).toBeInTheDocument()
   })
 
   it('opens the film when the card is tapped', async () => {
     const onOpen = vi.fn()
-    render(<MovieCard movie={movie} onOpen={onOpen} onToggleWatched={vi.fn()} watched={0} />)
+    render(<MovieCard movie={movie} onOpen={onOpen} onToggleWatched={vi.fn()} watched={false} />)
 
     await userEvent.click(screen.getByRole('button', { name: /^rushmore/i }))
     expect(onOpen).toHaveBeenCalledWith(movie)
@@ -43,7 +43,7 @@ describe('MovieCard', () => {
   it('logs a watch without opening the film', async () => {
     const onOpen = vi.fn()
     const onToggleWatched = vi.fn()
-    render(<MovieCard movie={movie} onOpen={onOpen} onToggleWatched={onToggleWatched} watched={0} />)
+    render(<MovieCard movie={movie} onOpen={onOpen} onToggleWatched={onToggleWatched} watched={false} />)
 
     await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
 
@@ -51,16 +51,31 @@ describe('MovieCard', () => {
     expect(onOpen).not.toHaveBeenCalled()
   })
 
-  it('shows a rewatch count once watched more than once', () => {
-    render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={2} />)
-    expect(screen.getByText('2×')).toBeInTheDocument()
+  it('shows the checked state once watched', () => {
+    render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={vi.fn()} watched />)
+    expect(screen.getByRole('button', { name: /undo watched for rushmore/i }))
+      .toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('disables the watch button while a save is pending, and ignores a click on it', async () => {
+    const onToggleWatched = vi.fn()
+    render(
+      <MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={onToggleWatched}
+        watched={false} pending />,
+    )
+
+    const button = screen.getByRole('button', { name: /mark rushmore as watched/i })
+    expect(button).toBeDisabled()
+
+    await userEvent.click(button)
+    expect(onToggleWatched).not.toHaveBeenCalled()
   })
 
   it('shows rental storefronts for a rent-tier film', () => {
     render(
       <MovieCard
         movie={{ ...movie, availability: { streaming: [], rent: ['appletv_store', 'youtube'] } }}
-        onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={0} />,
+        onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={false} />,
     )
     expect(screen.getByText('Apple TV')).toBeInTheDocument()
     expect(screen.getByText('YouTube')).toBeInTheDocument()
@@ -68,7 +83,7 @@ describe('MovieCard', () => {
 
   it('renders the main area as non-interactive when noOpen is set', () => {
     const onOpen = vi.fn()
-    render(<MovieCard movie={movie} onOpen={onOpen} onToggleWatched={vi.fn()} watched={0} noOpen />)
+    render(<MovieCard movie={movie} onOpen={onOpen} onToggleWatched={vi.fn()} watched={false} noOpen />)
 
     // No tappable "open" target for the title itself; only the watch button remains a button.
     expect(screen.queryByRole('button', { name: /^rushmore/i })).not.toBeInTheDocument()
@@ -78,7 +93,7 @@ describe('MovieCard', () => {
 
   it('still logs a watch when noOpen is set', async () => {
     const onToggleWatched = vi.fn()
-    render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={onToggleWatched} watched={0} noOpen />)
+    render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={onToggleWatched} watched={false} noOpen />)
 
     await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
     expect(onToggleWatched).toHaveBeenCalledWith(movie)
