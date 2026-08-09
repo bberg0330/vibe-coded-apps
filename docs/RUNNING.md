@@ -31,7 +31,26 @@ and runs `npm run dev` — nothing to remember or paste. It's a personal
 convenience on this Mac, not part of the repo.
 
 Vite prints two URLs. The **Network** one (`192.168.x.x`) is what to open on
-a phone on the same wifi. The Mac must be awake with the server running.
+a phone on the same wifi — but that IP can change whenever the router
+reassigns it (a reboot, a lease renewal), which means resending a new link
+every time it does.
+
+**A stable alternative that doesn't change:** your Mac's mDNS hostname,
+which iPhones resolve natively with no setup:
+
+```
+http://<your-mac-name>.local:5173
+```
+
+Find `<your-mac-name>` with:
+
+```bash
+scutil --get LocalHostName
+```
+
+Bookmark that `.local` URL on both phones once, and it keeps working even
+after the IP changes — only the Mac being awake and the server running
+still matter. The Mac must be awake with the server running either way.
 
 ## Tests
 
