@@ -20,6 +20,16 @@ npm install
 npm run dev
 ```
 
+Or, from any Terminal window:
+
+```bash
+movienight
+```
+
+This is a shell function added to `~/.zshrc` that `cd`s into this project
+and runs `npm run dev` — nothing to remember or paste. It's a personal
+convenience on this Mac, not part of the repo.
+
 Vite prints two URLs. The **Network** one (`192.168.x.x`) is what to open on
 a phone on the same wifi. The Mac must be awake with the server running.
 
