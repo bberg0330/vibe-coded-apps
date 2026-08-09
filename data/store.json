@@ -11,6 +11,17 @@
         "tomatometer": null
       },
       "discoveredVia": null
+    },
+    {
+      "watchedAt": "2026-08-09T01:48:51.395Z",
+      "movie": {
+        "tmdbId": 310307,
+        "title": "The Founder",
+        "year": 2016,
+        "posterPath": "/8gLIksu5ggdfBL1UbeTeonHquxl.jpg",
+        "tomatometer": null
+      },
+      "discoveredVia": null
     }
   ],
   "enabledServices": [
