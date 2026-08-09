@@ -65,7 +65,7 @@ export function SearchScreen({ onOpenMovie, onToggleWatched, watchCountFor, isPe
       <input
         type="search"
         className="search-input"
-        placeholder="Search for a movie you liked"
+        placeholder="What movie did you watch last?"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         autoFocus
