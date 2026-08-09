@@ -7,7 +7,8 @@ import { getHistory } from './data/history'
 import { resetStoreForTests, getStoreSnapshot } from './data/store'
 import { applyOp } from '../vite-plugins/store-ops'
 import { emptyStore } from './types'
-import type { StoreOp } from './types'
+import type { StoreOp, Movie } from './types'
+import { hashFor } from './router'
 
 const rushmoreSearchResults = {
   results: [{
@@ -36,6 +37,7 @@ function stubAppServer() {
 }
 
 beforeEach(() => {
+  window.location.hash = ''
   clearHttpCache()
   resetStoreForTests()
   vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
@@ -140,6 +142,92 @@ describe('App startup', () => {
     await userEvent.click(await screen.findByRole('button', { name: /try again/i }))
 
     expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+  })
+})
+
+describe('App - URL navigation', () => {
+  it('normalizes an empty hash to the root route on first load', async () => {
+    render(<App />)
+    await screen.findByRole('searchbox')
+    expect(window.location.hash).toBe('#/')
+  })
+
+  it('pushes a hash when navigating to a movie', async () => {
+    render(<App />)
+    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await userEvent.click(await screen.findByRole('button', { name: /^rushmore/i }))
+
+    expect(window.location.hash).toBe(hashFor({
+      kind: 'cast', movie: { tmdbId: 1585, title: 'Rushmore' } as Movie,
+    }))
+  })
+
+  it('rehydrates a cast screen from a cold hash with no in-memory history', async () => {
+    const movieDetails = {
+      id: 1585, title: 'Rushmore', release_date: '1998-10-09',
+      poster_path: null, popularity: 18,
+    }
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).startsWith('/api/store')) {
+        if (init?.method === 'POST') {
+          const op = JSON.parse(String(init.body)) as StoreOp
+          return { ok: true, status: 200, json: async () => applyOp(getStoreSnapshot(), op) }
+        }
+        return { ok: true, status: 200, json: async () => getStoreSnapshot() }
+      }
+      if (String(url).includes('/movie/1585')) {
+        return { ok: true, status: 200, json: async () => movieDetails }
+      }
+      return { ok: true, status: 200, json: async () => rushmoreSearchResults }
+    }))
+    window.location.hash = '#/movie/rushmore-1585'
+
+    render(<App />)
+
+    expect(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
+      .toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /← Back/i })).toBeInTheDocument()
+  })
+
+  it('falls back to search with a message when rehydration fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+      if (String(url).startsWith('/api/store')) {
+        return { ok: true, status: 200, json: async () => getStoreSnapshot() }
+      }
+      throw new Error('not found')
+    }))
+    window.location.hash = '#/movie/rushmore-1585'
+
+    render(<App />)
+
+    expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+    expect(await screen.findByText(/couldn't open that link/i)).toBeInTheDocument()
+  })
+
+  it('moves back via popstate without refetching an already-visited screen', async () => {
+    render(<App />)
+    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await userEvent.click(await screen.findByRole('button', { name: /^rushmore/i }))
+    await screen.findByRole('button', { name: /mark rushmore as watched/i })
+
+    const fetchCallsBeforeBack = (fetch as ReturnType<typeof vi.fn>).mock.calls.length
+    await userEvent.click(screen.getByRole('button', { name: /← Back/i }))
+
+    expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+    // Going back to a screen already held in memory must not hit the network again.
+    expect((fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(fetchCallsBeforeBack)
+  })
+
+  it('closes Settings on back rather than navigating the screen stack', async () => {
+    render(<App />)
+    await screen.findByRole('searchbox')
+    await userEvent.click(screen.getByRole('button', { name: /settings/i }))
+    expect(await screen.findByText('Our subscriptions')).toBeInTheDocument()
+
+    window.dispatchEvent(new PopStateEvent('popstate', { state: { pointer: 0 } }))
+
+    expect(screen.queryByText('Our subscriptions')).not.toBeInTheDocument()
+    expect(screen.getByRole('searchbox')).toBeInTheDocument()
   })
 })
 
