@@ -218,6 +218,25 @@ describe('App - URL navigation', () => {
     expect((fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(fetchCallsBeforeBack)
   })
 
+  it('moves back via a raw popstate event, identically to the Back button', async () => {
+    render(<App />)
+    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await userEvent.click(await screen.findByRole('button', { name: /^rushmore/i }))
+    await screen.findByRole('button', { name: /mark rushmore as watched/i })
+
+    const fetchCallsBeforeBack = (fetch as ReturnType<typeof vi.fn>).mock.calls.length
+
+    // Dispatch the raw browser gesture directly, instead of clicking the
+    // on-screen Back button — proving the button is just a thin wrapper
+    // around `history.back()` and not a separate code path.
+    window.dispatchEvent(new PopStateEvent('popstate', { state: { pointer: 0 } }))
+
+    expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+    // Same outcome as clicking Back: the already-visited search screen is
+    // restored from memory, with no extra network round-trip.
+    expect((fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(fetchCallsBeforeBack)
+  })
+
   it('closes Settings on back rather than navigating the screen stack', async () => {
     render(<App />)
     await screen.findByRole('searchbox')

@@ -73,7 +73,10 @@ export default function App() {
           if (cancelled) return
           setEntries(stack)
           setPointer(stack.length - 1)
-          history.replaceState({ pointer: stack.length - 1 }, '', hashFor(stack[stack.length - 1]))
+          history.replaceState({ pointer: 0 }, '', hashFor(stack[0]))
+          for (let i = 1; i < stack.length; i++) {
+            history.pushState({ pointer: i }, '', hashFor(stack[i]))
+          }
         } catch (err) {
           if (cancelled) return
           setEntries([{ kind: 'search' }])
@@ -122,16 +125,23 @@ export default function App() {
       if (!route) {
         setEntries([{ kind: 'search' }])
         setPointer(0)
+        history.replaceState({ pointer: 0 }, '', '#/')
+        setLocationError("Couldn't open that link — showing search instead.")
         return
       }
       rehydrate(route)
         .then((stack) => {
           setEntries(stack)
           setPointer(stack.length - 1)
+          history.replaceState({ pointer: 0 }, '', hashFor(stack[0]))
+          for (let i = 1; i < stack.length; i++) {
+            history.pushState({ pointer: i }, '', hashFor(stack[i]))
+          }
         })
         .catch((err) => {
           setEntries([{ kind: 'search' }])
           setPointer(0)
+          history.replaceState({ pointer: 0 }, '', '#/')
           setLocationError(err instanceof RehydrationError ? err.message
             : "Couldn't open that link — showing search instead.")
         })

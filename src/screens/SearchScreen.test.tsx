@@ -103,3 +103,47 @@ describe('search text persistence', () => {
     expect(sessionStorage.getItem('mn.searchQuery')).toBe('gladiator')
   })
 })
+
+describe('search scroll restoration', () => {
+  let currentScrollY = 0
+
+  beforeEach(() => {
+    sessionStorage.clear()
+    currentScrollY = 0
+    Object.defineProperty(window, 'scrollY', {
+      configurable: true,
+      get: () => currentScrollY,
+    })
+    vi.stubGlobal('scrollTo', vi.fn((x: number, y: number) => {
+      currentScrollY = y
+    }))
+  })
+
+  // Reproduces the reload bug: SearchScreen starts in `status: 'idle'`, not
+  // `'loading'`, so a naive `ready = status !== 'loading'` gate is TRUE at
+  // the very first render — before the restored query has even triggered a
+  // fetch. The hook would then "restore" against an empty screen (a no-op
+  // in jsdom, but a real browser clamps to scrollY 0), and when the search
+  // effect flips `status` to `'loading'` moments later, `ready` flips back
+  // to `false`, firing the hook's cleanup — which calls `save()` and stamps
+  // the now-zero scrollY back over the previously saved position, destroying
+  // it before the results ever render.
+  it('does not overwrite a saved scroll position while a restored query resolves', async () => {
+    sessionStorage.setItem('mn.searchQuery', 'rushmore')
+    sessionStorage.setItem('mn.scroll:search', '500')
+
+    render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+
+    // While the restored query is in flight, the saved position must stay
+    // untouched — no premature restore-then-erase cycle.
+    expect(sessionStorage.getItem('mn.scroll:search')).toBe('500')
+
+    // Let the debounced search resolve to `status: 'done'`.
+    expect(await screen.findByText('Rushmore')).toBeInTheDocument()
+
+    // Once settled, the hook restores against the now-populated screen and
+    // the saved value must still be intact (not clobbered with '0').
+    expect(sessionStorage.getItem('mn.scroll:search')).toBe('500')
+    expect(currentScrollY).toBe(500)
+  })
+})
