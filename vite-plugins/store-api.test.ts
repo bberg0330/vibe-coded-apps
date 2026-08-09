@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { handleOp } from './store-api'
@@ -68,6 +68,21 @@ describe('handleOp', () => {
     ).rejects.toThrow()
 
     expect((await readStore(dir)).history).toHaveLength(1)
+  })
+
+  it('REGRESSION: a corrupt store.json on disk rejects the write and leaves the file untouched', async () => {
+    // The actual data-loss scenario this fix closes: before the fix, a
+    // corrupt file read as an empty store, and the next op's write would
+    // atomically overwrite it, replacing years of real history with a
+    // single new entry and reporting success.
+    const corrupt = '{{{ not json'
+    await writeFile(join(dir, 'store.json'), corrupt)
+
+    await expect(
+      handleOp(dir, { type: 'logWatch', entry: entry(1, 'Rushmore') }),
+    ).rejects.toThrow()
+
+    expect(await readFile(join(dir, 'store.json'), 'utf8')).toBe(corrupt)
   })
 
   it('a rejected operation does not block later operations', async () => {

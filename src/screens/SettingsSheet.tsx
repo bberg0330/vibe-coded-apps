@@ -11,6 +11,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
     try {
       await setServiceEnabled(key, next)
       setEnabled(getEnabledServices())
+      setError(null)
     } catch {
       setError("Couldn't save that change.")
       setEnabled(getEnabledServices())

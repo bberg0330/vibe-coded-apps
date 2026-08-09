@@ -26,9 +26,14 @@ describe('readStore', () => {
     expect(await readStore(dir)).toEqual(emptyStore())
   })
 
-  it('returns an empty store when the file is corrupt rather than throwing', async () => {
+  it('throws when the file exists but is not parseable JSON', async () => {
     await writeFile(join(dir, 'store.json'), '{{{')
-    expect(await readStore(dir)).toEqual(emptyStore())
+    await expect(readStore(dir)).rejects.toThrow()
+  })
+
+  it('throws when the file is valid JSON of the wrong shape', async () => {
+    await writeFile(join(dir, 'store.json'), '[]')
+    await expect(readStore(dir)).rejects.toThrow()
   })
 
   it('round-trips a written store', async () => {

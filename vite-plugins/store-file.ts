@@ -11,14 +11,58 @@ const run = promisify(execFile)
 
 const FILE = 'store.json'
 
-export async function readStore(dir: string): Promise<Store> {
+function isEnoent(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as { code?: string }).code === 'ENOENT'
+  )
+}
+
+/**
+ * True when `raw` parses as JSON with the shape a Store needs
+ * (an object with a `history` array). Mirrors the shape check in
+ * `store-ops.ts`'s `parseStore`, but here a failure must THROW rather than
+ * be tolerated — see `readStore` below.
+ */
+function looksLikeStore(raw: string): boolean {
+  let parsed: unknown
   try {
-    return parseStore(await readFile(join(dir, FILE), 'utf8'))
+    parsed = JSON.parse(raw)
   } catch {
-    // Missing file, permissions, anything: start from empty rather than
-    // taking the dev server down.
-    return parseStore(null)
+    return false
   }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return false
+  return Array.isArray((parsed as { history?: unknown }).history)
+}
+
+/**
+ * A MISSING file reads as an empty store — that's correct and needed for
+ * first run, so `parseStore(null)` handles it.
+ *
+ * Any OTHER failure — the file exists but is corrupt, wrong shape, or a
+ * transient filesystem error prevented the read — is rethrown instead of
+ * swallowed. `handleOp` (in store-api.ts) applies the caller's operation to
+ * whatever `readStore` returns and then atomically overwrites store.json
+ * with the result. If a corrupt file quietly became an empty store here,
+ * the very next write would replace the couple's entire history with a
+ * single new entry and report success. Rethrowing turns that into a
+ * visible, recoverable 400 instead of silent data loss.
+ */
+export async function readStore(dir: string): Promise<Store> {
+  let raw: string
+  try {
+    raw = await readFile(join(dir, FILE), 'utf8')
+  } catch (err) {
+    if (isEnoent(err)) return parseStore(null)
+    throw err
+  }
+
+  if (!looksLikeStore(raw)) {
+    throw new Error(`${FILE} exists but is not valid store JSON`)
+  }
+
+  return parseStore(raw)
 }
 
 /**

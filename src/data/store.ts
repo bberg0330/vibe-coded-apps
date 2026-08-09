@@ -29,6 +29,22 @@ export function resetStoreForTests(store: Store = emptyStore()): void {
   snapshot = store
 }
 
+/**
+ * Guards against a non-Store response body. Without this, `snapshot = body`
+ * would happily assign `undefined` or `{}`, and the next
+ * `getStoreSnapshot()` call would throw on `[...undefined]` outside any
+ * error boundary — a hard crash instead of the recoverable
+ * StoreUnavailableError the rest of this module is built around.
+ */
+function isStoreShape(value: unknown): value is Store {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Array.isArray((value as Partial<Store>).history) &&
+    Array.isArray((value as Partial<Store>).enabledServices)
+  )
+}
+
 async function parseError(res: Response): Promise<never> {
   let message = `Store request failed (${res.status})`
   try {
@@ -49,7 +65,9 @@ export async function loadStore(): Promise<Store> {
   }
   if (!res.ok) await parseError(res)
 
-  snapshot = (await res.json()) as Store
+  const body: unknown = await res.json()
+  if (!isStoreShape(body)) throw new StoreUnavailableError('Store server returned an unexpected response')
+  snapshot = body
   return getStoreSnapshot()
 }
 
@@ -71,6 +89,8 @@ export async function applyRemoteOp(op: StoreOp): Promise<Store> {
   }
   if (!res.ok) await parseError(res)
 
-  snapshot = (await res.json()) as Store
+  const body: unknown = await res.json()
+  if (!isStoreShape(body)) throw new StoreUnavailableError('Store server returned an unexpected response')
+  snapshot = body
   return getStoreSnapshot()
 }

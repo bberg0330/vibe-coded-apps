@@ -43,10 +43,19 @@ describe('migrateFromLocalStorage', () => {
     expect(getStoreSnapshot().enabledServices).toEqual(['netflix'])
   })
 
-  it('does nothing when localStorage has no history', async () => {
+  it('does nothing (and makes no network call) when both history and settings are absent', async () => {
     const f = stubStoreServer()
     expect(await migrateFromLocalStorage()).toBe(false)
     expect(f).not.toHaveBeenCalled()
+  })
+
+  it('migrates settings even when history is empty, so toggles are not silently discarded', async () => {
+    localStorage.setItem('mn.enabledServices', JSON.stringify(['netflix']))
+    stubStoreServer()
+
+    expect(await migrateFromLocalStorage()).toBe(true)
+    expect(getStoreSnapshot().history).toEqual([])
+    expect(getStoreSnapshot().enabledServices).toEqual(['netflix'])
   })
 
   it('does NOT migrate when the server already has history', async () => {

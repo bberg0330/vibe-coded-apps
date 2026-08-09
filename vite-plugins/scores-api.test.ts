@@ -56,6 +56,17 @@ describe('mergeScores', () => {
     expect(await readdir(dir)).toEqual(['scores.json'])
   })
 
+  it('leaves no temp file behind after concurrent merges', async () => {
+    // Regression guard: a fixed temp filename would let concurrent merges
+    // collide on the same temp path. The unique-per-call name (pid +
+    // random suffix) must leave only scores.json once all settle.
+    await Promise.all(
+      Array.from({ length: 10 }, (_, i) => mergeScores(dir, { [String(i)]: i })),
+    )
+    const { readdir } = await import('node:fs/promises')
+    expect(await readdir(dir)).toEqual(['scores.json'])
+  })
+
   it('does not invoke git', async () => {
     await mergeScores(dir, { '1': 90 })
     const raw = await readFile(join(dir, 'scores.json'), 'utf8')
