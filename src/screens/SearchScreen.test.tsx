@@ -83,3 +83,23 @@ describe('SearchScreen', () => {
     })
   })
 })
+
+describe('search text persistence', () => {
+  beforeEach(() => {
+    sessionStorage.clear()
+  })
+
+  it('restores a previously typed query on mount', async () => {
+    sessionStorage.setItem('mn.searchQuery', 'rushmore')
+    render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+
+    expect(screen.getByRole('searchbox')).toHaveValue('rushmore')
+  })
+
+  it('saves the query as the user types', async () => {
+    render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+    await userEvent.type(screen.getByRole('searchbox'), 'gladiator')
+
+    expect(sessionStorage.getItem('mn.searchQuery')).toBe('gladiator')
+  })
+})

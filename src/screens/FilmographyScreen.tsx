@@ -4,6 +4,8 @@ import { getTomatometer } from '../api/omdb'
 import { rankByTomatometer } from '../lib/ranking'
 import { MovieCard } from '../components/MovieCard'
 import { ErrorRetry } from '../components/ErrorRetry'
+import { useScrollRestoration } from '../hooks/useScrollRestoration'
+import { filmographyRouteKey } from '../router'
 import type { Person, Movie } from '../types'
 
 type Props = {
@@ -22,6 +24,8 @@ export function FilmographyScreen({
   const [rent, setRent] = useState<Movie[]>([])
   const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading')
   const [attempt, setAttempt] = useState(0)
+
+  useScrollRestoration(filmographyRouteKey(fromMovie.tmdbId, actor.tmdbId), status !== 'loading')
 
   useEffect(() => {
     let cancelled = false
