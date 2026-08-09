@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, cleanup } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import { useScrollRestoration } from './useScrollRestoration'
 
 function TestComponent({ routeKey, ready }: { routeKey: string; ready: boolean }) {
@@ -17,7 +17,7 @@ beforeEach(() => {
   })
   window.scrollTo = vi.fn((x: number, y: number) => {
     currentScrollY = y
-  })
+  }) as unknown as typeof window.scrollTo
 })
 
 describe('useScrollRestoration', () => {
