@@ -1,6 +1,18 @@
 {
   "version": 1,
-  "history": [],
+  "history": [
+    {
+      "watchedAt": "2026-08-09T01:48:35.004Z",
+      "movie": {
+        "tmdbId": 310307,
+        "title": "The Founder",
+        "year": 2016,
+        "posterPath": "/8gLIksu5ggdfBL1UbeTeonHquxl.jpg",
+        "tomatometer": null
+      },
+      "discoveredVia": null
+    }
+  ],
   "enabledServices": [
     "netflix",
     "hbomax",
