@@ -22,7 +22,7 @@ export function SearchScreen({ onOpenMovie, onToggleWatched, watchCountFor, isPe
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>('idle')
   const [attempt, setAttempt] = useState(0)
 
-  useScrollRestoration(SEARCH_ROUTE_KEY, status !== 'loading')
+  useScrollRestoration(SEARCH_ROUTE_KEY, status === 'done' || status === 'error' || status === 'nokey')
 
   useEffect(() => {
     sessionStorage.setItem(QUERY_STORAGE_KEY, query)
