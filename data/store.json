@@ -11,17 +11,6 @@
         "tomatometer": null
       },
       "discoveredVia": null
-    },
-    {
-      "watchedAt": "2026-08-09T02:54:07.662Z",
-      "movie": {
-        "tmdbId": 98,
-        "title": "Gladiator",
-        "year": 2000,
-        "posterPath": "/wN2xWp1eIwCKOD0BHTcErTBv1Uq.jpg",
-        "tomatometer": null
-      },
-      "discoveredVia": null
     }
   ],
   "enabledServices": [
