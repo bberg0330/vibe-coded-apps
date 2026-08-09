@@ -31,6 +31,17 @@ npm test
 
 Tests stub `fetch` and never call the live APIs, so they run without keys.
 
+## Navigation and reloading
+
+The URL reflects where you are — search, a film's cast, or an actor's
+filmography — so reloading the page or returning after iOS has unloaded
+the tab lands you back where you left off, not at a blank search box. The
+iPhone back-swipe gesture works the same way any website's does.
+
+A URL you've bookmarked or sent yourself still works even if the film's
+title has since changed on TMDB — only the trailing ID in the URL is
+actually used to look anything up.
+
 ## Where your data lives
 
 History and subscription settings live in `data/store.json`, on this Mac —
