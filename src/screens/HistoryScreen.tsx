@@ -1,5 +1,7 @@
 import { getHistory, exportJson } from '../data/history'
 import { posterUrl } from '../api/tmdb'
+import { useScrollRestoration } from '../hooks/useScrollRestoration'
+import { HISTORY_ROUTE_KEY } from '../router'
 import type { WatchEntry } from '../types'
 
 function download(): void {
@@ -40,6 +42,8 @@ function groupByFilm(entries: WatchEntry[]): Group[] {
 }
 
 export function HistoryScreen() {
+  useScrollRestoration(HISTORY_ROUTE_KEY, true)
+
   const entries = getHistory()
   const groups = groupByFilm(entries)
 

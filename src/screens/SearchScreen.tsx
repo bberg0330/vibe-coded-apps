@@ -3,7 +3,11 @@ import { searchMovies } from '../api/tmdb'
 import { MissingKeyError } from '../api/http'
 import { MovieCard } from '../components/MovieCard'
 import { ErrorRetry } from '../components/ErrorRetry'
+import { useScrollRestoration } from '../hooks/useScrollRestoration'
+import { SEARCH_ROUTE_KEY } from '../router'
 import type { Movie } from '../types'
+
+const QUERY_STORAGE_KEY = 'mn.searchQuery'
 
 type Props = {
   onOpenMovie: (m: Movie) => void
@@ -13,10 +17,16 @@ type Props = {
 }
 
 export function SearchScreen({ onOpenMovie, onToggleWatched, watchCountFor, isPending }: Props) {
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(() => sessionStorage.getItem(QUERY_STORAGE_KEY) ?? '')
   const [results, setResults] = useState<Movie[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>('idle')
   const [attempt, setAttempt] = useState(0)
+
+  useScrollRestoration(SEARCH_ROUTE_KEY, status !== 'loading')
+
+  useEffect(() => {
+    sessionStorage.setItem(QUERY_STORAGE_KEY, query)
+  }, [query])
 
   useEffect(() => {
     const trimmed = query.trim()

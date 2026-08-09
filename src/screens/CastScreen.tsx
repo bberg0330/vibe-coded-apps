@@ -3,6 +3,8 @@ import { getMovieCredits } from '../api/tmdb'
 import { MovieCard } from '../components/MovieCard'
 import { PersonCard } from '../components/PersonCard'
 import { ErrorRetry } from '../components/ErrorRetry'
+import { useScrollRestoration } from '../hooks/useScrollRestoration'
+import { castRouteKey } from '../router'
 import type { CastMember, Movie } from '../types'
 
 const INITIAL_CAST = 15
@@ -20,6 +22,8 @@ export function CastScreen({ movie, onOpenActor, onToggleWatched, watchedCount, 
   const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading')
   const [expanded, setExpanded] = useState(false)
   const [attempt, setAttempt] = useState(0)
+
+  useScrollRestoration(castRouteKey(movie.tmdbId), status !== 'loading')
 
   useEffect(() => {
     let cancelled = false
