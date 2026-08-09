@@ -89,3 +89,9 @@ export type StoreOp =
   | { type: 'setService'; key: ServiceKey; enabled: boolean }
   | { type: 'replaceHistory'; entries: WatchEntry[] }
   | { type: 'seed'; history: WatchEntry[]; enabledServices: ServiceKey[] }
+
+export type Screen =
+  | { kind: 'search' }
+  | { kind: 'cast'; movie: Movie }
+  | { kind: 'filmography'; actor: Person; fromMovie: Movie }
+  | { kind: 'history' }

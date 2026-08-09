@@ -3,15 +3,13 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { FilmographyScreen } from './FilmographyScreen'
 import { clearHttpCache } from '../api/http'
 import { resetScoresForTests } from '../data/scores'
-import type { CastMember, Movie } from '../types'
+import type { Person, Movie } from '../types'
 
-const actor: CastMember = {
-  tmdbId: 1532, name: 'Bill Murray', character: 'Herman Blume',
-  profilePath: null, order: 1,
+const actor: Person = {
+  tmdbId: 1532, name: 'Bill Murray', profilePath: null,
 }
-const actorB: CastMember = {
-  tmdbId: 4467, name: 'Owen Wilson', character: 'Dirk Calloway',
-  profilePath: null, order: 2,
+const actorB: Person = {
+  tmdbId: 4467, name: 'Owen Wilson', profilePath: null,
 }
 const fromMovie: Movie = {
   tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null,
