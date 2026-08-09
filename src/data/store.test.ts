@@ -46,6 +46,13 @@ describe('loadStore', () => {
     stubJson({ error: 'boom' }, false)
     await expect(loadStore()).rejects.toBeInstanceOf(StoreUnavailableError)
   })
+
+  it('throws StoreUnavailableError instead of assigning a malformed body', async () => {
+    stubJson({ not: 'a store' })
+    await expect(loadStore()).rejects.toBeInstanceOf(StoreUnavailableError)
+    // The bad body must not have been adopted as the snapshot.
+    expect(getStoreSnapshot()).toEqual(emptyStore())
+  })
 })
 
 describe('applyRemoteOp', () => {
@@ -79,6 +86,17 @@ describe('applyRemoteOp', () => {
     await expect(
       applyRemoteOp({ type: 'seed', history: [], enabledServices: [] }),
     ).rejects.toThrow(/Refusing to seed/)
+  })
+
+  it('throws StoreUnavailableError instead of assigning a malformed body', async () => {
+    resetStoreForTests({ ...emptyStore(), history: [entry('Existing')] })
+    stubJson({ history: [] }) // missing enabledServices
+
+    await expect(
+      applyRemoteOp({ type: 'logWatch', entry: entry('New') }),
+    ).rejects.toBeInstanceOf(StoreUnavailableError)
+    // The bad body must not have been adopted as the snapshot.
+    expect(getStoreSnapshot().history.map((e) => e.movie.title)).toEqual(['Existing'])
   })
 })
 

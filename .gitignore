@@ -6,3 +6,4 @@ dist/
 tsconfig.tsbuildinfo
 .claude/
 data/scores.json
+data/.*.tmp

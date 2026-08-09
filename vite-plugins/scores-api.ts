@@ -1,6 +1,7 @@
 import type { Plugin } from 'vite'
-import { readFile, writeFile, rename, mkdir } from 'node:fs/promises'
+import { readFile, writeFile, rename, mkdir, rm } from 'node:fs/promises'
 import { join } from 'node:path'
+import { randomBytes } from 'node:crypto'
 
 /** TMDB id -> Tomatometer, or null meaning "OMDb has no RT score". */
 export type ScoreMap = Record<string, number | null>
@@ -33,9 +34,18 @@ export function mergeScores(dir: string, patch: ScoreMap): Promise<ScoreMap> {
     const next = { ...current, ...patch }
 
     await mkdir(dir, { recursive: true })
-    const temp = join(dir, `.${FILE}.tmp`)
-    await writeFile(temp, JSON.stringify(next), 'utf8')
-    await rename(temp, join(dir, FILE))
+    // Unique per-call name (pid + random suffix), same convention as
+    // store-file.ts's writeStoreAtomic: a fixed temp name would let two
+    // concurrent merges collide on the same temp path. Same directory as
+    // the target so `rename` stays atomic.
+    const temp = join(dir, `.${FILE}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`)
+    try {
+      await writeFile(temp, JSON.stringify(next), 'utf8')
+      await rename(temp, join(dir, FILE))
+    } catch (err) {
+      await rm(temp, { force: true })
+      throw err
+    }
 
     return next
   })

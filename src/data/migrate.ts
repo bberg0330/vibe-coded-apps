@@ -34,17 +34,27 @@ function sanitizeEnabledServices(keys: ServiceKey[]): ServiceKey[] {
  * Skips entirely if the server already holds history — the server is the
  * record, and a stale browser must never overwrite it. The done-flag is
  * only set after a SUCCESSFUL upload, so a failed attempt retries later.
+ *
+ * History and settings migrate independently: a couple with no watch
+ * history yet but with subscription toggles already set must not have
+ * those toggles silently discarded just because history is empty. Only
+ * skip the upload (and the network call) when BOTH are absent — an empty
+ * history with no settings either is nothing to migrate.
  */
 export async function migrateFromLocalStorage(): Promise<boolean> {
   if (localStorage.getItem(DONE_FLAG)) return false
   if (getStoreSnapshot().history.length > 0) return false
 
-  const history = readJson<WatchEntry[]>(OLD_HISTORY)
-  if (!Array.isArray(history) || history.length === 0) return false
+  const rawHistory = readJson<WatchEntry[]>(OLD_HISTORY)
+  const history = Array.isArray(rawHistory) ? rawHistory : []
 
   const stored = readJson<ServiceKey[]>(OLD_SERVICES)
-  const enabledServices = Array.isArray(stored)
-    ? sanitizeEnabledServices(stored)
+  const hasSettings = Array.isArray(stored)
+
+  if (history.length === 0 && !hasSettings) return false
+
+  const enabledServices = hasSettings
+    ? sanitizeEnabledServices(stored as ServiceKey[])
     : [...ALL_SERVICE_KEYS]
 
   try {
