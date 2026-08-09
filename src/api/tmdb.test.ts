@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { searchMovies, getMovieCredits, posterUrl } from './tmdb'
+import { searchMovies, getMovieCredits, posterUrl, getMovieDetails, getPerson } from './tmdb'
 import { clearHttpCache } from './http'
 
 const SEARCH_FIXTURE = {
@@ -85,5 +85,42 @@ describe('posterUrl', () => {
 
   it('returns null when there is no poster', () => {
     expect(posterUrl(null)).toBeNull()
+  })
+})
+
+describe('getMovieDetails', () => {
+  it('maps a single TMDB movie response into a Movie', async () => {
+    stub({
+      id: 1585, title: 'Rushmore', release_date: '1998-10-09',
+      poster_path: '/abc.jpg', popularity: 18.4,
+    })
+    const movie = await getMovieDetails(1585)
+    expect(movie).toMatchObject({
+      tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: '/abc.jpg',
+    })
+  })
+
+  it('starts with no score and no known availability, same as search results', async () => {
+    stub({
+      id: 1585, title: 'Rushmore', release_date: '1998-10-09',
+      poster_path: '/abc.jpg', popularity: 18.4,
+    })
+    const movie = await getMovieDetails(1585)
+    expect(movie.tomatometer).toBeNull()
+    expect(movie.availability).toEqual({ streaming: [], rent: [] })
+  })
+})
+
+describe('getPerson', () => {
+  it('maps a TMDB person response into a Person', async () => {
+    stub({ id: 1532, name: 'Bill Murray', profile_path: '/bm.jpg' })
+    const person = await getPerson(1532)
+    expect(person).toEqual({ tmdbId: 1532, name: 'Bill Murray', profilePath: '/bm.jpg' })
+  })
+
+  it('handles a missing profile photo', async () => {
+    stub({ id: 1532, name: 'Bill Murray', profile_path: null })
+    const person = await getPerson(1532)
+    expect(person.profilePath).toBeNull()
   })
 })
