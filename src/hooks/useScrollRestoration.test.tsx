@@ -59,4 +59,44 @@ describe('useScrollRestoration', () => {
     expect(sessionStorage.getItem('mn.scroll:movie/1')).toBe('111')
     expect(sessionStorage.getItem('mn.scroll:movie/2')).toBe('222')
   })
+
+  it('saves the current scroll position on pagehide, without unmounting', () => {
+    render(<TestComponent routeKey="movie/153" ready />)
+    window.scrollTo(0, 500)
+
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(sessionStorage.getItem('mn.scroll:movie/153')).toBe('500')
+  })
+
+  it('saves the current scroll position when visibility becomes hidden', () => {
+    render(<TestComponent routeKey="movie/153" ready />)
+    window.scrollTo(0, 600)
+
+    Object.defineProperty(document, 'visibilityState', {
+      configurable: true,
+      value: 'hidden',
+    })
+    document.dispatchEvent(new Event('visibilitychange'))
+
+    expect(sessionStorage.getItem('mn.scroll:movie/153')).toBe('600')
+  })
+
+  it('removes its listeners on unmount so a stale instance cannot overwrite a later screen', () => {
+    const { unmount } = render(<TestComponent routeKey="movie/153" ready />)
+    window.scrollTo(0, 300)
+
+    unmount()
+    expect(sessionStorage.getItem('mn.scroll:movie/153')).toBe('300')
+
+    // A different screen now owns this route key's storage.
+    sessionStorage.setItem('mn.scroll:movie/153', '999')
+    window.scrollTo(0, 123)
+
+    // If the unmounted hook's pagehide listener were still attached, it
+    // would overwrite the storage with the stale scrollY of 123.
+    window.dispatchEvent(new Event('pagehide'))
+
+    expect(sessionStorage.getItem('mn.scroll:movie/153')).toBe('999')
+  })
 })
