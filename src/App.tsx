@@ -8,13 +8,7 @@ import { logWatch, undoLastWatch, watchCount } from './data/history'
 import { loadStore } from './data/store'
 import { loadScores } from './data/scores'
 import { migrateFromLocalStorage } from './data/migrate'
-import type { Movie, CastMember, WatchEntry } from './types'
-
-export type Screen =
-  | { kind: 'search' }
-  | { kind: 'cast'; movie: Movie }
-  | { kind: 'filmography'; actor: CastMember; fromMovie: Movie }
-  | { kind: 'history' }
+import type { Movie, WatchEntry, Screen } from './types'
 
 export default function App() {
   const [stack, setStack] = useState<Screen[]>([{ kind: 'search' }])

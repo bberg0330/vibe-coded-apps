@@ -4,10 +4,10 @@ import { getTomatometer } from '../api/omdb'
 import { rankByTomatometer } from '../lib/ranking'
 import { MovieCard } from '../components/MovieCard'
 import { ErrorRetry } from '../components/ErrorRetry'
-import type { CastMember, Movie } from '../types'
+import type { Person, Movie } from '../types'
 
 type Props = {
-  actor: CastMember
+  actor: Person
   fromMovie: Movie
   onOpenMovie: (movie: Movie) => void
   onToggleWatched: (movie: Movie) => void
