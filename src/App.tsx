@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { flushSync } from 'react-dom'
 import { SearchScreen } from './screens/SearchScreen'
 import { CastScreen } from './screens/CastScreen'
 import { FilmographyScreen } from './screens/FilmographyScreen'
@@ -8,14 +9,26 @@ import { logWatch, undoLastWatch, watchCount } from './data/history'
 import { loadStore } from './data/store'
 import { loadScores } from './data/scores'
 import { migrateFromLocalStorage } from './data/migrate'
+import { hashFor, parseHash, rehydrate, RehydrationError } from './router'
 import type { Movie, WatchEntry, Screen } from './types'
 
 export default function App() {
-  const [stack, setStack] = useState<Screen[]>([{ kind: 'search' }])
-  const current = stack[stack.length - 1]
+  const [entries, setEntries] = useState<Screen[]>([{ kind: 'search' }])
+  const [pointer, setPointer] = useState(0)
+  const current = entries[pointer]
 
-  const push = (screen: Screen) => setStack((s) => [...s, screen])
-  const pop = () => setStack((s) => (s.length > 1 ? s.slice(0, -1) : s))
+  const [locationError, setLocationError] = useState<string | null>(null)
+
+  const navigate = (screen: Screen) => {
+    const nextEntries = [...entries.slice(0, pointer + 1), screen]
+    const nextPointer = nextEntries.length - 1
+    setEntries(nextEntries)
+    setPointer(nextPointer)
+    setLocationError(null)
+    history.pushState({ pointer: nextPointer }, '', hashFor(screen))
+  }
+
+  const goBack = () => history.back()
 
   // A counter forces re-render after a history write, since history lives outside React state.
   const [, setHistoryVersion] = useState(0)
@@ -52,7 +65,25 @@ export default function App() {
     // slow score cache should never block the app, so its failure is
     // swallowed inside loadScores() itself rather than surfaced here.
     Promise.all([loadStore().then(() => migrateFromLocalStorage()), loadScores()])
-      .then(() => { if (!cancelled) setBooting(false) })
+      .then(async () => {
+        if (cancelled) return
+        const route = parseHash(window.location.hash) ?? { kind: 'search' as const }
+        try {
+          const stack = await rehydrate(route)
+          if (cancelled) return
+          setEntries(stack)
+          setPointer(stack.length - 1)
+          history.replaceState({ pointer: stack.length - 1 }, '', hashFor(stack[stack.length - 1]))
+        } catch (err) {
+          if (cancelled) return
+          setEntries([{ kind: 'search' }])
+          setPointer(0)
+          history.replaceState({ pointer: 0 }, '', '#/')
+          setLocationError(err instanceof RehydrationError ? err.message
+            : "Couldn't open that link — showing search instead.")
+        }
+        setBooting(false)
+      })
       .catch((err) => {
         if (cancelled) return
         setBootError(err instanceof Error ? err.message : "Can't reach the Movie Night server")
@@ -61,6 +92,54 @@ export default function App() {
 
     return () => { cancelled = true }
   }, [bootAttempt])
+
+  useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      if (settingsOpen) {
+        // flushSync: a real back-swipe's popstate must be answered by a
+        // synchronous re-push, or the browser briefly shows the screen
+        // underneath before React's next paint reverts it — a visible flash
+        // on exactly the gesture this is meant to make seamless.
+        flushSync(() => setSettingsOpen(false))
+        // Settings is a modal, not a route: closing it must not actually
+        // move through history, so re-assert the current entry to cancel
+        // the browser's own back navigation.
+        history.pushState({ pointer }, '', hashFor(entries[pointer]))
+        return
+      }
+
+      const state = event.state as { pointer?: number } | null
+      if (state && typeof state.pointer === 'number' && state.pointer >= 0
+        && state.pointer < entries.length) {
+        setPointer(state.pointer)
+        return
+      }
+
+      // Somewhere with no matching in-memory entry — a direct URL edit, or
+      // history from before this page load. Treat it exactly like a cold
+      // load: parse and rehydrate.
+      const route = parseHash(window.location.hash)
+      if (!route) {
+        setEntries([{ kind: 'search' }])
+        setPointer(0)
+        return
+      }
+      rehydrate(route)
+        .then((stack) => {
+          setEntries(stack)
+          setPointer(stack.length - 1)
+        })
+        .catch((err) => {
+          setEntries([{ kind: 'search' }])
+          setPointer(0)
+          setLocationError(err instanceof RehydrationError ? err.message
+            : "Couldn't open that link — showing search instead.")
+        })
+    }
+
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [entries, pointer, settingsOpen])
 
   const toggleWatched = async (movie: Movie, via: WatchEntry['discoveredVia']) => {
     // A second tap while this movie's save is still in flight is dropped
@@ -120,22 +199,23 @@ export default function App() {
   return (
     <div className="app">
       <nav className="topbar">
-        {stack.length > 1
-          ? <button className="link" onClick={pop}>← Back</button>
+        {pointer > 0
+          ? <button className="link" onClick={goBack}>← Back</button>
           : <span />}
         <span>
           <button className="link" onClick={() => setSettingsOpen(true)}>Settings</button>
-          <button className="link" onClick={() => push({ kind: 'history' })}>History</button>
+          <button className="link" onClick={() => navigate({ kind: 'history' })}>History</button>
         </span>
       </nav>
 
       {saveError && <div className="error" role="alert">{saveError}</div>}
+      {locationError && <div className="error" role="alert">{locationError}</div>}
 
       {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
 
       {current.kind === 'search' && (
         <SearchScreen
-          onOpenMovie={(movie) => push({ kind: 'cast', movie })}
+          onOpenMovie={(movie) => navigate({ kind: 'cast', movie })}
           watchCountFor={watchCount}
           isPending={(tmdbId) => pendingWatch.has(tmdbId)}
           onToggleWatched={(movie) => toggleWatched(movie, null)}
@@ -148,7 +228,7 @@ export default function App() {
           pending={pendingWatch.has(current.movie.tmdbId)}
           onToggleWatched={(m) => toggleWatched(m, null)}
           onOpenActor={(actor) =>
-            push({ kind: 'filmography', actor, fromMovie: current.movie })}
+            navigate({ kind: 'filmography', actor, fromMovie: current.movie })}
         />
       )}
       {current.kind === 'filmography' && (
@@ -157,7 +237,7 @@ export default function App() {
           fromMovie={current.fromMovie}
           watchCountFor={watchCount}
           isPending={(tmdbId) => pendingWatch.has(tmdbId)}
-          onOpenMovie={(movie) => push({ kind: 'cast', movie })}
+          onOpenMovie={(movie) => navigate({ kind: 'cast', movie })}
           onToggleWatched={(movie) =>
             toggleWatched(movie, {
               fromMovie: { tmdbId: current.fromMovie.tmdbId, title: current.fromMovie.title },
