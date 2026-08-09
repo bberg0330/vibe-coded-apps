@@ -56,6 +56,7 @@ movie-night/
 **Files:**
 - Modify: `src/types.ts` (append)
 - Modify: `src/App.tsx` (remove the local `Screen` definition, import it instead)
+- Modify: `src/screens/FilmographyScreen.tsx` (narrow its own `Props.actor` from `CastMember` to `Person`)
 
 **Interfaces:**
 - Consumes: nothing new
@@ -89,15 +90,38 @@ import type { Movie, CastMember, WatchEntry, Screen } from './types'
 
 Leave every other line in `App.tsx` untouched for this task — `push({ kind: 'filmography', actor, fromMovie: current.movie })` still compiles, because `actor` there is a `CastMember` variable being assigned into a `Person`-typed field, and TypeScript's structural typing accepts that for variables (only object *literals* get excess-property errors).
 
-- [ ] **Step 3: Typecheck**
+- [ ] **Step 3: Update src/screens/FilmographyScreen.tsx**
+
+Narrowing `Screen.filmography.actor` to `Person` only helps if the component receiving it also accepts a `Person` — otherwise `App.tsx`'s `<FilmographyScreen actor={current.actor} .../>` fails to typecheck the other direction, since `current.actor` is now a `Person` (missing `character`/`order`) being passed where the component still demands a full `CastMember`.
+
+The component's JSX only ever reads `actor.tmdbId`, `actor.profilePath`, and `actor.name` — never `character` or `order` — so this is a safe, no-behavior-change edit. Change the import and the `Props` type:
+
+```ts
+import type { Person, Movie } from '../types'
+
+type Props = {
+  actor: Person
+  fromMovie: Movie
+  onOpenMovie: (movie: Movie) => void
+  onToggleWatched: (movie: Movie) => void
+  watchCountFor: (tmdbId: number) => number
+  isPending?: (tmdbId: number) => boolean
+}
+```
+
+Do not change the component body — nothing else in the file references the removed fields.
+
+If `src/screens/FilmographyScreen.test.tsx` constructs an `actor` fixture with `character`/`order` fields, those extra fields are harmless to leave; only trim them if `tsc -b` actually flags it.
+
+- [ ] **Step 4: Typecheck**
 
 Run: `npx tsc -b`
 Expected: no errors.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/types.ts src/App.tsx
+git add src/types.ts src/App.tsx src/screens/FilmographyScreen.tsx
 git commit -m "refactor: move Screen to shared types, narrow filmography actor to Person"
 ```
 
