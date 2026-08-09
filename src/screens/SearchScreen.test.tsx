@@ -114,8 +114,13 @@ describe('search scroll restoration', () => {
       configurable: true,
       get: () => currentScrollY,
     })
-    vi.stubGlobal('scrollTo', vi.fn((x: number, y: number) => {
-      currentScrollY = y
+    vi.stubGlobal('scrollTo', vi.fn((_x: number, y: number) => {
+      // A real browser clamps scrollTo to 0 when the page has no
+      // scrollable content yet. An unconditional stub would let this test
+      // pass even against the buggy gate this test exists to catch — it
+      // must clamp exactly like a real browser to be a real regression guard.
+      const hasContent = document.querySelector('.card-main') !== null
+      currentScrollY = hasContent ? y : 0
     }))
   })
 
