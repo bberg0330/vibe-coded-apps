@@ -11,6 +11,17 @@
         "tomatometer": null
       },
       "discoveredVia": null
+    },
+    {
+      "watchedAt": "2026-08-16T00:21:32.746Z",
+      "movie": {
+        "tmdbId": 222935,
+        "title": "The Fault in Our Stars",
+        "year": 2014,
+        "posterPath": "/kcVuktIlrn9SAN1uBmPDnocTQmF.jpg",
+        "tomatometer": null
+      },
+      "discoveredVia": null
     }
   ],
   "enabledServices": [
