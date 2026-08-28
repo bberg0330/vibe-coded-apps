@@ -22,6 +22,17 @@
         "tomatometer": null
       },
       "discoveredVia": null
+    },
+    {
+      "watchedAt": "2026-08-28T22:58:02.348Z",
+      "movie": {
+        "tmdbId": 792293,
+        "title": "Dumb Money",
+        "year": 2023,
+        "posterPath": "/e9u7luSxFKOZgPTB9XHFnPArGdP.jpg",
+        "tomatometer": null
+      },
+      "discoveredVia": null
     }
   ],
   "enabledServices": [
