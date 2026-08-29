@@ -33,6 +33,17 @@
         "tomatometer": null
       },
       "discoveredVia": null
+    },
+    {
+      "watchedAt": "2026-08-29T22:39:19.002Z",
+      "movie": {
+        "tmdbId": 1114967,
+        "title": "Good Fortune",
+        "year": 2025,
+        "posterPath": "/rywxUbd4zvHiRP7nOHeDzuQSLIZ.jpg",
+        "tomatometer": 79
+      },
+      "discoveredVia": null
     }
   ],
   "enabledServices": [
