@@ -44,6 +44,17 @@
         "tomatometer": 79
       },
       "discoveredVia": null
+    },
+    {
+      "watchedAt": "2026-09-12T22:59:24.722Z",
+      "movie": {
+        "tmdbId": 1552,
+        "title": "Parenthood",
+        "year": 1989,
+        "posterPath": "/29Y6yg0gSurkFYTh54yxDzLBmrT.jpg",
+        "tomatometer": 92
+      },
+      "discoveredVia": null
     }
   ],
   "enabledServices": [
