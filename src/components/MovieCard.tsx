@@ -40,7 +40,7 @@ export function MovieCard({ movie, onOpen, onToggleWatched, watched, noOpen, pen
             {movie.tomatometer === null ? 'No critic score' : `🍅 ${movie.tomatometer}%`}
           </span>
           {movie.popcornmeter !== null && (
-            <span className="score" title="Audience score">🍿 {movie.popcornmeter}%</span>
+            <span className="score" title="IMDb rating">🍿 {movie.popcornmeter}%</span>
           )}
         </div>
         <div className="badges">

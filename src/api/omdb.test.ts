@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getTomatometer } from './omdb'
+import { getTomatometer, getRottenTomatoesScores } from './omdb'
 import { getCachedScores, resetScoresForTests } from '../data/scores'
 
-const omdbResponse = (title: string, year: string, rt?: string) => ({
+const omdbResponse = (title: string, year: string, rt?: string, imdbRating = '7.7') => ({
   Response: 'True', Title: title, Year: year,
   Ratings: rt ? [
     { Source: 'Internet Movie Database', Value: '7.7/10' },
     { Source: 'Rotten Tomatoes', Value: rt },
   ] : [{ Source: 'Internet Movie Database', Value: '7.7/10' }],
+  imdbRating,
 })
 
 /**
@@ -161,5 +162,26 @@ describe('getTomatometer', () => {
     // Regression guard: a second concurrent pass hits the cache, not the network.
     await Promise.all(films.map((film) => getTomatometer(film.id, film.title, film.year)))
     expect(f).toHaveBeenCalledTimes(films.length)
+  })
+})
+
+describe('getRottenTomatoesScores audience score (IMDb rating)', () => {
+  it('scales IMDb\'s 0-10 rating to a 0-100 percentage', async () => {
+    stub(omdbResponse('Lost in Translation', '2003', '95%', '7.7'))
+    const scores = await getRottenTomatoesScores(153, 'Lost in Translation', 2003)
+    expect(scores.audience).toBe(77)
+  })
+
+  it('returns null when OMDb has no IMDb rating', async () => {
+    stub(omdbResponse('Obscure Film', '1974', '85%', 'N/A'))
+    const scores = await getRottenTomatoesScores(888, 'Obscure Film', 1974)
+    expect(scores.audience).toBeNull()
+  })
+
+  it('is absent alongside an absent critic score when the film is not found', async () => {
+    stub({ Response: 'False', Error: 'Movie not found!' })
+    const scores = await getRottenTomatoesScores(777, 'Nonexistent', 2020)
+    expect(scores.critic).toBeUndefined()
+    expect(scores.audience).toBeUndefined()
   })
 })
