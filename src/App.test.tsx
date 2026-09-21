@@ -9,6 +9,7 @@ import { applyOp } from '../vite-plugins/store-ops'
 import { emptyStore } from './types'
 import type { StoreOp, Movie } from './types'
 import { hashFor } from './router'
+import { PROFILES } from './data/profiles'
 
 const rushmoreSearchResults = {
   results: [{
@@ -40,6 +41,7 @@ beforeEach(() => {
   window.location.hash = ''
   clearHttpCache()
   resetStoreForTests()
+  localStorage.clear()
   vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
   stubAppServer()
 })
@@ -247,6 +249,36 @@ describe('App - URL navigation', () => {
 
     expect(screen.queryByText('Our subscriptions')).not.toBeInTheDocument()
     expect(screen.getByRole('searchbox')).toBeInTheDocument()
+  })
+})
+
+describe('App - profile switcher', () => {
+  it('shows a chip for every configured profile', async () => {
+    render(<App />)
+    await screen.findByRole('searchbox')
+
+    for (const profile of PROFILES) {
+      expect(screen.getByRole('button', { name: profile.name })).toBeInTheDocument()
+    }
+  })
+
+  it('persists the selected profile across a simulated reload', async () => {
+    const { unmount } = render(<App />)
+    await screen.findByRole('searchbox')
+
+    const chip = screen.getByRole('button', { name: PROFILES[1].name })
+    expect(chip).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(chip)
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
+
+    // Simulate a fresh app load: unmount and remount, re-reading whatever
+    // was persisted to localStorage rather than any in-memory state.
+    unmount()
+    render(<App />)
+    await screen.findByRole('searchbox')
+
+    expect(screen.getByRole('button', { name: PROFILES[1].name }))
+      .toHaveAttribute('aria-pressed', 'true')
   })
 })
 
