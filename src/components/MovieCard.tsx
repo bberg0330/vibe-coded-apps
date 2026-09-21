@@ -36,9 +36,12 @@ export function MovieCard({ movie, onOpen, onToggleWatched, watched, noOpen, pen
         <div className="card-title">{movie.title}</div>
         <div className="card-meta">
           {movie.year !== null && <span>{movie.year}</span>}
-          <span className={movie.tomatometer === null ? 'score-none' : 'score'}>
-            {movie.tomatometer === null ? 'No score' : `${movie.tomatometer}%`}
+          <span className={movie.tomatometer === null ? 'score-none' : 'score'} title="Critic score">
+            {movie.tomatometer === null ? 'No critic score' : `🍅 ${movie.tomatometer}%`}
           </span>
+          {movie.popcornmeter !== null && (
+            <span className="score" title="Audience score">🍿 {movie.popcornmeter}%</span>
+          )}
         </div>
         <div className="badges">
           {badges.map((label) => <span className="badge" key={label}>{label}</span>)}

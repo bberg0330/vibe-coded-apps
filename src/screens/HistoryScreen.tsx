@@ -41,7 +41,11 @@ function groupByFilm(entries: WatchEntry[]): Group[] {
   return order
 }
 
-export function HistoryScreen() {
+type Props = {
+  onOpenMovie?: (movie: WatchEntry['movie']) => void
+}
+
+export function HistoryScreen({ onOpenMovie }: Props = {}) {
   useScrollRestoration(HISTORY_ROUTE_KEY, true)
 
   const entries = getHistory()
@@ -64,7 +68,12 @@ export function HistoryScreen() {
       {groups.map(({ entry, count }) => {
         const poster = posterUrl(entry.movie.posterPath)
         return (
-          <div className="card" key={entry.movie.tmdbId}>
+          <button
+            className="card"
+            key={entry.movie.tmdbId}
+            onClick={() => onOpenMovie?.(entry.movie)}
+            style={{ cursor: onOpenMovie ? 'pointer' : 'default' }}
+          >
             <div className="card-main">
               {poster
                 ? <img className="poster" src={poster} alt="" loading="lazy" />
@@ -74,7 +83,10 @@ export function HistoryScreen() {
                 <div className="card-meta">
                   <span>{new Date(entry.watchedAt).toLocaleDateString()}</span>
                   {entry.movie.tomatometer !== null && (
-                    <span className="score">{entry.movie.tomatometer}%</span>
+                    <span className="score" title="Critic score">🍅 {entry.movie.tomatometer}%</span>
+                  )}
+                  {entry.movie.popcornmeter !== null && (
+                    <span className="score" title="Audience score">🍿 {entry.movie.popcornmeter}%</span>
                   )}
                   {count > 1 && <span className="rewatch">watched {count}×</span>}
                 </div>
@@ -86,7 +98,7 @@ export function HistoryScreen() {
                 )}
               </div>
             </div>
-          </div>
+          </button>
         )
       })}
     </div>

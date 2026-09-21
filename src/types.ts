@@ -18,8 +18,10 @@ export type Movie = {
   year: number | null
   posterPath: string | null
   popularity: number
-  /** null until OMDb resolves, or when OMDb has no RT score. */
+  /** Critic score (Rotten Tomatoes). null until OMDb resolves, or when unavailable. */
   tomatometer: number | null
+  /** Audience score (Rotten Tomatoes Popcornmeter). null until OMDb resolves, or when unavailable. */
+  popcornmeter: number | null
   availability: Availability
 }
 
@@ -47,6 +49,7 @@ export type WatchEntry = {
     year: number | null
     posterPath: string | null
     tomatometer: number | null
+    popcornmeter: number | null
   }
   /** null when the film was reached by direct search rather than via an actor. */
   discoveredVia: {
