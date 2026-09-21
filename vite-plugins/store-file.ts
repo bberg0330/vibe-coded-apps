@@ -129,5 +129,9 @@ export function commitMessageFor(op: StoreOp): string {
       return `history: import ${op.entries.length} entries`
     case 'seed':
       return 'history: seed from localStorage'
+    case 'startWatching':
+      return `watching: ${op.entry.movie.title} (${op.entry.profileId})`
+    case 'cancelWatching':
+      return `watching: cancel (tmdb ${op.tmdbId})`
   }
 }

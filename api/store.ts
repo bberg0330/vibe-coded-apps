@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import type { Store, StoreOp } from '../src/types';
+import { applyOp } from '../src/data/storeReducer';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -12,48 +13,11 @@ if (!supabaseUrl || !supabaseKey || !writeSecret) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-function applyOp(store: Store, op: StoreOp): Store {
-  switch (op.type) {
-    case 'logWatch': {
-      const isDuplicate = store.history.some(
-        (e) =>
-          e.tmdbId === op.entry.tmdbId &&
-          e.watchedAt === op.entry.watchedAt &&
-          e.rating === op.entry.rating
-      );
-      if (isDuplicate) return store;
-      return {
-        ...store,
-        history: [...store.history, op.entry],
-      };
-    }
-    case 'undoLastWatch': {
-      const idx = store.history.findLastIndex((e) => e.tmdbId === op.tmdbId);
-      if (idx < 0) return store;
-      return {
-        ...store,
-        history: store.history.toSpliced(idx, 1),
-      };
-    }
-    case 'setService': {
-      const services = [...store.enabledServices];
-      const idx = services.indexOf(op.key);
-      if (op.enabled && idx < 0) services.push(op.key);
-      if (!op.enabled && idx >= 0) services.splice(idx, 1);
-      return { ...store, enabledServices: services };
-    }
-    case 'replaceHistory': {
-      return { ...store, history: op.entries };
-    }
-    case 'seed': {
-      return {
-        ...store,
-        history: op.history,
-        enabledServices: op.enabledServices,
-      };
-    }
-  }
-}
+// `applyOp` is imported from src/data/storeReducer.ts — the SAME reducer
+// vite-plugins/store-ops.ts uses for local dev — so this handler and the
+// local mock can never drift the way they used to (this file previously
+// had its own copy that read op.entry.tmdbId/op.entry.rating, fields that
+// don't exist on WatchEntry, silently no-oping its dedupe check).
 
 export default async function handler(
   req: VercelRequest,
@@ -65,7 +29,7 @@ export default async function handler(
     if (req.method === 'GET') {
       const { data: rows, error } = await supabase
         .from('movie_night_store')
-        .select('version, history, enabled_services')
+        .select('version, history, enabled_services, now_watching')
         .order('id', { ascending: true })
         .limit(1);
 
@@ -77,6 +41,7 @@ export default async function handler(
         version: data.version,
         history: data.history || [],
         enabledServices: data.enabled_services || [],
+        nowWatching: data.now_watching || [],
       };
 
       return res.status(200).json(store);
@@ -91,7 +56,7 @@ export default async function handler(
 
       const { data: current, error: fetchError } = await supabase
         .from('movie_night_store')
-        .select('id, version, history, enabled_services')
+        .select('id, version, history, enabled_services, now_watching')
         .order('id', { ascending: true })
         .limit(1)
         .single();
@@ -103,6 +68,7 @@ export default async function handler(
         version: current.version,
         history: current.history || [],
         enabledServices: current.enabled_services || [],
+        nowWatching: current.now_watching || [],
       };
 
       const nextStore = applyOp(currentStore, op);
@@ -112,9 +78,10 @@ export default async function handler(
         .update({
           history: nextStore.history,
           enabled_services: nextStore.enabledServices,
+          now_watching: nextStore.nowWatching,
         })
         .eq('id', current.id)
-        .select('version, history, enabled_services')
+        .select('version, history, enabled_services, now_watching')
         .single();
 
       if (updateError) throw updateError;
@@ -123,6 +90,7 @@ export default async function handler(
         version: updated!.version,
         history: updated!.history || [],
         enabledServices: updated!.enabled_services || [],
+        nowWatching: updated!.now_watching || [],
       };
 
       return res.status(200).json(resultStore);

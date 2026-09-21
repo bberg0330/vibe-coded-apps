@@ -63,14 +63,24 @@ export type WatchEntry = {
   } | null
 }
 
+/** An in-progress "watching tonight" session, before it ages into history. */
+export type WatchingEntry = {
+  /** ISO 8601, when the profile tapped "watching". */
+  startedAt: string
+  profileId: string
+  movie: WatchEntry['movie']
+  discoveredVia: WatchEntry['discoveredVia']
+}
+
 /** Everything that lives in data/store.json. */
 export type Store = {
   version: number
   history: WatchEntry[]
   enabledServices: ServiceKey[]
+  nowWatching: WatchingEntry[]
 }
 
-export const CURRENT_STORE_VERSION = 1
+export const CURRENT_STORE_VERSION = 2
 
 export const ALL_SERVICE_KEYS: ServiceKey[] = [
   'netflix', 'hbomax', 'disney', 'prime', 'appletv', 'peacock',
@@ -81,6 +91,7 @@ export function emptyStore(): Store {
     version: CURRENT_STORE_VERSION,
     history: [],
     enabledServices: [...ALL_SERVICE_KEYS],
+    nowWatching: [],
   }
 }
 
@@ -97,6 +108,8 @@ export type StoreOp =
   | { type: 'setService'; key: ServiceKey; enabled: boolean }
   | { type: 'replaceHistory'; entries: WatchEntry[] }
   | { type: 'seed'; history: WatchEntry[]; enabledServices: ServiceKey[] }
+  | { type: 'startWatching'; entry: WatchingEntry }
+  | { type: 'cancelWatching'; profileId: string; tmdbId: number }
 
 export type Screen =
   | { kind: 'search' }
