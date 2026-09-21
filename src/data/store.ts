@@ -81,7 +81,10 @@ export async function applyRemoteOp(op: StoreOp): Promise<Store> {
   try {
     res = await fetch(ENDPOINT, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Store-Secret': import.meta.env.VITE_STORE_API_SECRET ?? '',
+      },
       body: JSON.stringify(op),
     })
   } catch {
