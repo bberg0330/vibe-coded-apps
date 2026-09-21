@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { searchMovies } from '../api/tmdb'
+import { getTomatometer } from '../api/omdb'
 import { MissingKeyError } from '../api/http'
 import { MovieCard } from '../components/MovieCard'
 import { ErrorRetry } from '../components/ErrorRetry'
@@ -46,6 +47,15 @@ export function SearchScreen({ onOpenMovie, onToggleWatched, watchCountFor, isPe
         if (cancelled) return
         setResults(found)
         setStatus('done')
+
+        for (const movie of found) {
+          getTomatometer(movie.tmdbId, movie.title, movie.year).then((score) => {
+            if (cancelled || score === null) return
+            setResults((prev) =>
+              prev.map((m) => m.tmdbId === movie.tmdbId ? { ...m, tomatometer: score } : m),
+            )
+          })
+        }
       } catch (err) {
         if (cancelled) return
         setStatus(err instanceof MissingKeyError ? 'nokey' : 'error')
