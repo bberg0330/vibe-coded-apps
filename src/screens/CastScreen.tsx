@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getMovieCredits } from '../api/tmdb'
+import { getTomatometer } from '../api/omdb'
 import { MovieCard } from '../components/MovieCard'
 import { PersonCard } from '../components/PersonCard'
 import { ErrorRetry } from '../components/ErrorRetry'
@@ -22,8 +23,18 @@ export function CastScreen({ movie, onOpenActor, onToggleWatched, watchedCount, 
   const [status, setStatus] = useState<'loading' | 'done' | 'error'>('loading')
   const [expanded, setExpanded] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  const [displayMovie, setDisplayMovie] = useState(movie)
 
   useScrollRestoration(castRouteKey(movie.tmdbId), status !== 'loading')
+
+  useEffect(() => {
+    let cancelled = false
+    setDisplayMovie(movie)
+    getTomatometer(movie.tmdbId, movie.title, movie.year).then((score) => {
+      if (!cancelled && score !== null) setDisplayMovie((m) => ({ ...m, tomatometer: score }))
+    })
+    return () => { cancelled = true }
+  }, [movie.tmdbId])
 
   useEffect(() => {
     let cancelled = false
@@ -52,7 +63,7 @@ export function CastScreen({ movie, onOpenActor, onToggleWatched, watchedCount, 
   return (
     <div className="screen">
       <MovieCard
-        movie={movie}
+        movie={displayMovie}
         watched={watchedCount > 0}
         pending={pending}
         noOpen
