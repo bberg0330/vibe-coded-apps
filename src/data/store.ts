@@ -22,6 +22,7 @@ export function getStoreSnapshot(): Store {
     version: snapshot.version,
     history: [...snapshot.history],
     enabledServices: [...snapshot.enabledServices],
+    nowWatching: [...snapshot.nowWatching],
   }
 }
 
@@ -41,7 +42,8 @@ function isStoreShape(value: unknown): value is Store {
     typeof value === 'object' &&
     value !== null &&
     Array.isArray((value as Partial<Store>).history) &&
-    Array.isArray((value as Partial<Store>).enabledServices)
+    Array.isArray((value as Partial<Store>).enabledServices) &&
+    Array.isArray((value as Partial<Store>).nowWatching)
   )
 }
 
