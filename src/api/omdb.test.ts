@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getTomatometer } from './omdb'
-import { getCachedScore, resetScoresForTests } from '../data/scores'
+import { getCachedScores, resetScoresForTests } from '../data/scores'
 
 const omdbResponse = (title: string, year: string, rt?: string) => ({
   Response: 'True', Title: title, Year: year,
@@ -13,7 +13,7 @@ const omdbResponse = (title: string, year: string, rt?: string) => ({
 /**
  * Stubs `fetch` for the OMDb call and returns a spy scoped to ONLY that
  * call. Writes through to the shared `/api/scores` cache (triggered by
- * `cacheScore`) are answered separately so they don't inflate the
+ * `cacheScores`) are answered separately so they don't inflate the
  * OMDb-call assertions below.
  */
 function stub(body: unknown) {
@@ -155,7 +155,7 @@ describe('getTomatometer', () => {
     expect(results).toEqual(films.map((film) => film.score))
 
     for (const film of films) {
-      expect(getCachedScore(film.id)).toBe(film.score)
+      expect(getCachedScores(film.id)?.critic).toBe(film.score)
     }
 
     // Regression guard: a second concurrent pass hits the cache, not the network.

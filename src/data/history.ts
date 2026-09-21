@@ -23,6 +23,7 @@ export async function logWatch(
       year: movie.year,
       posterPath: movie.posterPath,
       tomatometer: movie.tomatometer,
+      popcornmeter: movie.popcornmeter,
     },
     discoveredVia,
   }

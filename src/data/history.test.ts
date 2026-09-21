@@ -17,7 +17,7 @@ function stubStoreServer() {
 
 const movie = (tmdbId: number, title: string): Movie => ({
   tmdbId, title, year: 1998, posterPath: '/p.jpg', popularity: 10,
-  tomatometer: 90, availability: { streaming: ['netflix'], rent: [] },
+  tomatometer: 90, popcornmeter: null, availability: { streaming: ['netflix'], rent: [] },
 })
 
 const via = {

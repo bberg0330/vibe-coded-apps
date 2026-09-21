@@ -8,7 +8,7 @@ import type { Movie, StoreOp } from '../types'
 
 const movie = (tmdbId: number, title: string): Movie => ({
   tmdbId, title, year: 1998, posterPath: null, popularity: 10,
-  tomatometer: 90, availability: { streaming: [], rent: [] },
+  tomatometer: 90, popcornmeter: null, availability: { streaming: [], rent: [] },
 })
 
 const via = {
@@ -94,6 +94,17 @@ describe('HistoryScreen', () => {
     render(<HistoryScreen />)
     expect(screen.getAllByTestId('history-title')).toHaveLength(2)
     expect(screen.queryByText(/watched \d+×/)).not.toBeInTheDocument()
+  })
+
+  it('navigates to the movie when a history row is tapped', async () => {
+    await logWatch(movie(1585, 'Rushmore'), null)
+    const onOpenMovie = vi.fn()
+    render(<HistoryScreen onOpenMovie={onOpenMovie} />)
+
+    fireEvent.click(screen.getByTestId('history-title'))
+    expect(onOpenMovie).toHaveBeenCalledWith(
+      expect.objectContaining({ tmdbId: 1585, title: 'Rushmore' }),
+    )
   })
 
   it('offers a JSON export', async () => {

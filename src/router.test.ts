@@ -8,7 +8,7 @@ import type { Movie, Person } from './types'
 
 const movie: Movie = {
   tmdbId: 153, title: 'Lost in Translation', year: 2003, posterPath: null,
-  popularity: 20, tomatometer: 95, availability: { streaming: [], rent: [] },
+  popularity: 20, tomatometer: 95, popcornmeter: null, availability: { streaming: [], rent: [] },
 }
 const actor: Person = { tmdbId: 1532, name: 'Bill Murray', profilePath: null }
 
