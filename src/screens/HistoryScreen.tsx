@@ -86,7 +86,7 @@ export function HistoryScreen({ onOpenMovie }: Props = {}) {
                     <span className="score" title="Critic score">🍅 {entry.movie.tomatometer}%</span>
                   )}
                   {entry.movie.popcornmeter !== null && (
-                    <span className="score" title="Audience score">🍿 {entry.movie.popcornmeter}%</span>
+                    <span className="score" title="IMDb rating">🍿 {entry.movie.popcornmeter}%</span>
                   )}
                   {count > 1 && <span className="rewatch">watched {count}×</span>}
                 </div>

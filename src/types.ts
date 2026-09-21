@@ -20,7 +20,12 @@ export type Movie = {
   popularity: number
   /** Critic score (Rotten Tomatoes). null until OMDb resolves, or when unavailable. */
   tomatometer: number | null
-  /** Audience score (Rotten Tomatoes Popcornmeter). null until OMDb resolves, or when unavailable. */
+  /**
+   * Audience opinion score. Rotten Tomatoes' own Popcornmeter has no public
+   * API, so this is IMDb's user rating (also from OMDb), scaled from 0-10
+   * to a 0-100 percentage to match the tomatometer's scale.
+   * null until OMDb resolves, or when unavailable.
+   */
   popcornmeter: number | null
   availability: Availability
 }

@@ -6,6 +6,8 @@ type OmdbResponse = {
   Title?: string
   Year?: string
   Ratings?: { Source: string; Value: string }[]
+  /** IMDb's own user rating, 0-10 (e.g. "7.7"), or "N/A" when absent. */
+  imdbRating?: string
 }
 
 /**
@@ -35,7 +37,10 @@ export async function getRottenTomatoesScores(
     const data = (await res.json()) as OmdbResponse
     let scores: ScoreData = {}
     if (data.Response === 'True' && yearMatches(data.Year, year)) {
-      scores = parseRtScores(data.Ratings)
+      scores = {
+        critic: parseCriticScore(data.Ratings),
+        audience: parseImdbRating(data.imdbRating),
+      }
     }
 
     cacheScores(tmdbId, scores)
@@ -45,7 +50,7 @@ export async function getRottenTomatoesScores(
   }
 }
 
-// Legacy function for backward compatibility
+/** Convenience wrapper for callers that only care about the critic score. */
 export async function getTomatometer(
   tmdbId: number,
   title: string,
@@ -63,13 +68,21 @@ function yearMatches(omdbYear: string | undefined, expected: number | null): boo
   return Number.isFinite(actual) && Math.abs(actual - expected) <= 1
 }
 
-function parseRtScores(ratings: OmdbResponse['Ratings']): ScoreData {
+function parseCriticScore(ratings: OmdbResponse['Ratings']): number | null {
   const rt = ratings?.find((r) => r.Source === 'Rotten Tomatoes')
-  if (!rt) return {}
-
+  if (!rt) return null
   const value = Number.parseInt(rt.Value, 10)
-  return {
-    critic: Number.isFinite(value) ? value : null,
-    // Note: OMDb typically only provides one RT score. Audience score would need separate API.
-  }
+  return Number.isFinite(value) ? value : null
+}
+
+/**
+ * Rotten Tomatoes' own audience score (Popcornmeter) has no public API.
+ * IMDb's user rating, already present in the same OMDb response, is used
+ * as a real stand-in "audience opinion" score instead — scaled from
+ * IMDb's 0-10 to a 0-100 percentage to match the tomatometer's scale.
+ */
+function parseImdbRating(imdbRating: string | undefined): number | null {
+  if (!imdbRating || imdbRating === 'N/A') return null
+  const value = Number.parseFloat(imdbRating)
+  return Number.isFinite(value) ? Math.round(value * 10) : null
 }
