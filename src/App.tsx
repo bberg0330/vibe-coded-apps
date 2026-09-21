@@ -256,7 +256,11 @@ export default function App() {
             })}
         />
       )}
-      {current.kind === 'history' && <HistoryScreen />}
+      {current.kind === 'history' && (
+        <HistoryScreen onOpenMovie={(movie) =>
+          navigate({ kind: 'cast', movie: { ...movie, popularity: 0, availability: { streaming: [], rent: [] } } })
+        } />
+      )}
       <Analytics />
     </div>
   )

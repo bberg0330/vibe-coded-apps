@@ -33,6 +33,7 @@ export function toMovie(raw: TmdbMovie): Movie {
     posterPath: raw.poster_path,
     popularity: raw.popularity ?? 0,
     tomatometer: null,
+    popcornmeter: null,
     availability: { streaming: [], rent: [] },
   }
 }

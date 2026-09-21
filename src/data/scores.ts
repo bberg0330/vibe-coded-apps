@@ -1,4 +1,9 @@
-export type ScoreMap = Record<string, number | null>
+export type ScoreData = {
+  critic?: number | null
+  audience?: number | null
+}
+
+export type ScoreMap = Record<string, ScoreData>
 
 const ENDPOINT = '/api/scores'
 
@@ -24,26 +29,34 @@ export async function loadScores(): Promise<void> {
 }
 
 /**
- * `number | null` means known (null = OMDb has no RT score).
- * `undefined` means never looked up.
+ * Returns cached score data, or undefined if never looked up.
  */
-export function getCachedScore(tmdbId: number): number | null | undefined {
+export function getCachedScores(tmdbId: number): ScoreData | undefined {
   const key = String(tmdbId)
   return key in cache ? cache[key] : undefined
 }
 
 /**
- * Records a score in memory immediately, then writes through to the shared
- * cache. The write is fire-and-forget: a failure costs a re-fetch later,
- * never a wrong score or a blocked render.
+ * Records scores in memory immediately, then writes through to the shared
+ * cache. The write is fire-and-forget: a failure costs a re-fetch later.
  */
-export function cacheScore(tmdbId: number, score: number | null): void {
+export function cacheScores(tmdbId: number, scores: ScoreData): void {
   const key = String(tmdbId)
-  cache[key] = score
+  cache[key] = scores
 
   void fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ [key]: score }),
+    body: JSON.stringify({ [key]: scores }),
   }).catch(() => undefined)
+}
+
+// Legacy function for backward compatibility
+export function getCachedScore(tmdbId: number): number | null | undefined {
+  const data = getCachedScores(tmdbId)
+  return data ? data.critic : undefined
+}
+
+export function cacheScore(tmdbId: number, score: number | null): void {
+  cacheScores(tmdbId, { critic: score })
 }

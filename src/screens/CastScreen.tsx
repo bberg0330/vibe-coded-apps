@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getMovieCredits } from '../api/tmdb'
-import { getTomatometer } from '../api/omdb'
+import { getRottenTomatoesScores } from '../api/omdb'
 import { MovieCard } from '../components/MovieCard'
 import { PersonCard } from '../components/PersonCard'
 import { ErrorRetry } from '../components/ErrorRetry'
@@ -30,8 +30,14 @@ export function CastScreen({ movie, onOpenActor, onToggleWatched, watchedCount, 
   useEffect(() => {
     let cancelled = false
     setDisplayMovie(movie)
-    getTomatometer(movie.tmdbId, movie.title, movie.year).then((score) => {
-      if (!cancelled && score !== null) setDisplayMovie((m) => ({ ...m, tomatometer: score }))
+    getRottenTomatoesScores(movie.tmdbId, movie.title, movie.year).then((scores) => {
+      if (!cancelled) {
+        setDisplayMovie((m) => ({
+          ...m,
+          tomatometer: scores.critic ?? null,
+          popcornmeter: scores.audience ?? null,
+        }))
+      }
     })
     return () => { cancelled = true }
   }, [movie.tmdbId])
