@@ -13,7 +13,7 @@ const actorB: Person = {
 }
 const fromMovie: Movie = {
   tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null,
-  popularity: 18, tomatometer: null, availability: { streaming: [], rent: [] },
+  popularity: 18, tomatometer: null, popcornmeter: null, availability: { streaming: [], rent: [] },
 }
 
 const film = (id: number, title: string) => ({
@@ -93,7 +93,7 @@ describe('FilmographyScreen', () => {
     renderScreen()
 
     expect(await screen.findByText('Unknown')).toBeInTheDocument()
-    expect(await screen.findByText('No score')).toBeInTheDocument()
+    expect(await screen.findByText('No critic score')).toBeInTheDocument()
   })
 
   it('still shows the list when scoring fails entirely', async () => {

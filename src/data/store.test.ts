@@ -7,7 +7,7 @@ import type { WatchEntry } from '../types'
 
 const entry = (title: string): WatchEntry => ({
   watchedAt: '2026-08-08T20:00:00.000Z',
-  movie: { tmdbId: 1, title, year: 1998, posterPath: null, tomatometer: 90 },
+  movie: { tmdbId: 1, title, year: 1998, posterPath: null, tomatometer: 90, popcornmeter: null },
   discoveredVia: null,
 })
 

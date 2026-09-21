@@ -6,7 +6,7 @@ import type { Movie } from '../types'
 
 const movie: Movie = {
   tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: '/p.jpg',
-  popularity: 18, tomatometer: 90,
+  popularity: 18, tomatometer: 90, popcornmeter: null,
   availability: { streaming: ['netflix', 'hbomax'], rent: [] },
 }
 
@@ -15,7 +15,7 @@ describe('MovieCard', () => {
     render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={false} />)
     expect(screen.getByText('Rushmore')).toBeInTheDocument()
     expect(screen.getByText('1998')).toBeInTheDocument()
-    expect(screen.getByText('90%')).toBeInTheDocument()
+    expect(screen.getByText('🍅 90%')).toBeInTheDocument()
   })
 
   it('badges every service the film streams on', () => {
@@ -24,12 +24,20 @@ describe('MovieCard', () => {
     expect(screen.getByText('HBO Max')).toBeInTheDocument()
   })
 
-  it('shows "No score" when the tomatometer is unknown', () => {
+  it('shows "No critic score" when the tomatometer is unknown', () => {
     render(
       <MovieCard movie={{ ...movie, tomatometer: null }} onOpen={vi.fn()}
         onToggleWatched={vi.fn()} watched={false} />,
     )
-    expect(screen.getByText('No score')).toBeInTheDocument()
+    expect(screen.getByText('No critic score')).toBeInTheDocument()
+  })
+
+  it('shows the audience score badge when popcornmeter is known', () => {
+    render(
+      <MovieCard movie={{ ...movie, popcornmeter: 82 }} onOpen={vi.fn()}
+        onToggleWatched={vi.fn()} watched={false} />,
+    )
+    expect(screen.getByText('🍿 82%')).toBeInTheDocument()
   })
 
   it('opens the film when the card is tapped', async () => {

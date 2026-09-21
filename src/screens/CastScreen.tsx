@@ -31,13 +31,12 @@ export function CastScreen({ movie, onOpenActor, onToggleWatched, watchedCount, 
     let cancelled = false
     setDisplayMovie(movie)
     getRottenTomatoesScores(movie.tmdbId, movie.title, movie.year).then((scores) => {
-      if (!cancelled) {
-        setDisplayMovie((m) => ({
-          ...m,
-          tomatometer: scores.critic ?? null,
-          popcornmeter: scores.audience ?? null,
-        }))
-      }
+      if (cancelled) return
+      setDisplayMovie((m) => ({
+        ...m,
+        tomatometer: scores.critic ?? m.tomatometer,
+        popcornmeter: scores.audience ?? m.popcornmeter,
+      }))
     })
     return () => { cancelled = true }
   }, [movie.tmdbId])

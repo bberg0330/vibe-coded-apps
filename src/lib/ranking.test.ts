@@ -4,7 +4,7 @@ import type { Movie } from '../types'
 
 const movie = (title: string, tomatometer: number | null, popularity = 1): Movie => ({
   tmdbId: title.length, title, year: 2000, posterPath: null,
-  popularity, tomatometer, availability: { streaming: [], rent: [] },
+  popularity, tomatometer, popcornmeter: null, availability: { streaming: [], rent: [] },
 })
 
 describe('rankByTomatometer', () => {

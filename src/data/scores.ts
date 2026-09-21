@@ -50,13 +50,3 @@ export function cacheScores(tmdbId: number, scores: ScoreData): void {
     body: JSON.stringify({ [key]: scores }),
   }).catch(() => undefined)
 }
-
-// Legacy function for backward compatibility
-export function getCachedScore(tmdbId: number): number | null | undefined {
-  const data = getCachedScores(tmdbId)
-  return data ? data.critic : undefined
-}
-
-export function cacheScore(tmdbId: number, score: number | null): void {
-  cacheScores(tmdbId, { critic: score })
-}

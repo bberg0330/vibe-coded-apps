@@ -7,12 +7,12 @@ import type { Movie } from '../types'
 
 const movie: Movie = {
   tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null,
-  popularity: 18, tomatometer: 90, availability: { streaming: [], rent: [] },
+  popularity: 18, tomatometer: 90, popcornmeter: null, availability: { streaming: [], rent: [] },
 }
 
 const movieB: Movie = {
   tmdbId: 9999, title: 'The Life Aquatic', year: 2004, posterPath: null,
-  popularity: 12, tomatometer: 56, availability: { streaming: [], rent: [] },
+  popularity: 12, tomatometer: 56, popcornmeter: null, availability: { streaming: [], rent: [] },
 }
 
 const cast = Array.from({ length: 20 }, (_, i) => ({
