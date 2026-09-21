@@ -10,6 +10,8 @@ import { logWatch, undoLastWatch, watchCount } from './data/history'
 import { loadStore } from './data/store'
 import { loadScores } from './data/scores'
 import { migrateFromLocalStorage } from './data/migrate'
+import { PROFILES, type ProfileId } from './data/profiles'
+import { getActiveProfileId, setActiveProfileId } from './data/activeProfile'
 import { hashFor, parseHash, rehydrate, RehydrationError } from './router'
 import type { Movie, WatchEntry, Screen } from './types'
 
@@ -19,6 +21,18 @@ export default function App() {
   const current = entries[pointer]
 
   const [locationError, setLocationError] = useState<string | null>(null)
+
+  // Who's "watching tonight" — local to this device, no store/network
+  // involved. Later screens will consume this value; this task only wires
+  // up the selector itself.
+  const [activeProfileId, setActiveProfileIdState] = useState<ProfileId | null>(
+    () => getActiveProfileId(),
+  )
+
+  const selectProfile = (id: ProfileId) => {
+    setActiveProfileIdState(id)
+    setActiveProfileId(id)
+  }
 
   const navigate = (screen: Screen) => {
     const nextEntries = [...entries.slice(0, pointer + 1), screen]
@@ -213,6 +227,19 @@ export default function App() {
         {pointer > 0
           ? <button className="link" onClick={goBack}>← Back</button>
           : <span />}
+        <span className="profile-switcher" role="group" aria-label="Watching tonight">
+          {PROFILES.map((profile) => (
+            <button
+              key={profile.id}
+              type="button"
+              className="chip"
+              aria-pressed={activeProfileId === profile.id}
+              onClick={() => selectProfile(profile.id)}
+            >
+              {profile.name}
+            </button>
+          ))}
+        </span>
         <span>
           <button className="link" onClick={() => setSettingsOpen(true)}>Settings</button>
           <button className="link" onClick={() => navigate({ kind: 'history' })}>History</button>
