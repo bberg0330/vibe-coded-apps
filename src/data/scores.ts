@@ -46,7 +46,10 @@ export function cacheScores(tmdbId: number, scores: ScoreData): void {
 
   void fetch(ENDPOINT, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Store-Secret': import.meta.env.VITE_STORE_API_SECRET ?? '',
+    },
     body: JSON.stringify({ [key]: scores }),
   }).catch(() => undefined)
 }

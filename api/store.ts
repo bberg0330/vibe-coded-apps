@@ -4,9 +4,10 @@ import type { Store, StoreOp } from '../src/types';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const writeSecret = process.env.STORE_API_SECRET;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase credentials');
+if (!supabaseUrl || !supabaseKey || !writeSecret) {
+  throw new Error('Missing Supabase credentials or STORE_API_SECRET');
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -62,12 +63,14 @@ export default async function handler(
 
   try {
     if (req.method === 'GET') {
-      const { data, error } = await supabase
+      const { data: rows, error } = await supabase
         .from('movie_night_store')
         .select('version, history, enabled_services')
-        .single();
+        .order('id', { ascending: true })
+        .limit(1);
 
       if (error) throw error;
+      const data = rows?.[0];
       if (!data) throw new Error('No store data found');
 
       const store: Store = {
@@ -80,11 +83,17 @@ export default async function handler(
     }
 
     if (req.method === 'POST') {
+      if (req.headers['x-store-secret'] !== writeSecret) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
       const op: StoreOp = req.body;
 
       const { data: current, error: fetchError } = await supabase
         .from('movie_night_store')
-        .select('version, history, enabled_services')
+        .select('id, version, history, enabled_services')
+        .order('id', { ascending: true })
+        .limit(1)
         .single();
 
       if (fetchError) throw fetchError;
@@ -104,7 +113,7 @@ export default async function handler(
           history: nextStore.history,
           enabled_services: nextStore.enabledServices,
         })
-        .eq('id', 1)
+        .eq('id', current.id)
         .select('version, history, enabled_services')
         .single();
 
@@ -120,8 +129,7 @@ export default async function handler(
     }
 
     res.status(405).json({ error: 'Method not allowed' });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Store operation failed';
-    res.status(400).json({ error: message });
+  } catch {
+    res.status(400).json({ error: 'Store operation failed' });
   }
 }
