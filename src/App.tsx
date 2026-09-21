@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { flushSync } from 'react-dom'
+import { Analytics } from '@vercel/analytics/react'
 import { SearchScreen } from './screens/SearchScreen'
 import { CastScreen } from './screens/CastScreen'
 import { FilmographyScreen } from './screens/FilmographyScreen'
@@ -256,6 +257,7 @@ export default function App() {
         />
       )}
       {current.kind === 'history' && <HistoryScreen />}
+      <Analytics />
     </div>
   )
 }
