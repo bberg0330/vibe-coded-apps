@@ -5,11 +5,19 @@ export type ScoreData = {
 
 export type ScoreMap = Record<string, ScoreData>
 
+/**
+ * What the shared cache can actually hold. Entries written before the
+ * { critic, audience } shape existed are still in there: a bare number
+ * (the tomatometer) or a bare null meaning "OMDb has no RT score".
+ */
+export type StoredScore = ScoreData | number | null
+export type StoredScoreMap = Record<string, StoredScore>
+
 const ENDPOINT = '/api/scores'
 
-let cache: ScoreMap = {}
+let cache: StoredScoreMap = {}
 
-export function resetScoresForTests(next: ScoreMap = {}): void {
+export function resetScoresForTests(next: StoredScoreMap = {}): void {
   cache = next
 }
 
@@ -21,7 +29,7 @@ export async function loadScores(): Promise<void> {
   try {
     const res = await fetch(ENDPOINT)
     if (!res.ok) return
-    const parsed = (await res.json()) as ScoreMap
+    const parsed = (await res.json()) as StoredScoreMap
     if (parsed && typeof parsed === 'object') cache = parsed
   } catch {
     // Leave the cache empty; scores will simply be re-fetched.
@@ -30,10 +38,21 @@ export async function loadScores(): Promise<void> {
 
 /**
  * Returns cached score data, or undefined if never looked up.
+ *
+ * Legacy entries are widened to ScoreData here so no caller has to know the
+ * cache ever held anything else. This matters: a bare null used to flow out
+ * of here untouched and crash `getTomatometer` on `.critic`.
  */
 export function getCachedScores(tmdbId: number): ScoreData | undefined {
   const key = String(tmdbId)
-  return key in cache ? cache[key] : undefined
+  if (!(key in cache)) return undefined
+  return widen(cache[key])
+}
+
+function widen(entry: StoredScore): ScoreData {
+  if (entry === null) return { critic: null, audience: null }
+  if (typeof entry === 'number') return { critic: entry, audience: null }
+  return entry
 }
 
 /**
