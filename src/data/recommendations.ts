@@ -1,7 +1,9 @@
 import { getMovieCredits, getActorFilmography } from '../api/tmdb'
 import { getHistory } from './history'
 import { getAllWatchingTonight, getRecentlyWatchedBy } from './watching'
-import type { Movie } from '../types'
+import type { Movie, CastMember } from '../types'
+
+export type RecommendationWithAttribution = Movie & { recommendedViaActor?: CastMember }
 
 /** How many top-billed cast members to pull filmographies for. */
 const CAST_SAMPLE_SIZE = 5
@@ -42,12 +44,17 @@ export async function getRecommendationsFor(profileId: string): Promise<Movie[]>
     sourceMovie.tmdbId,
   ])
 
-  const deduped = new Map<number, Movie>()
-  for (const filmography of filmographies) {
-    for (const movie of filmography) {
+  const deduped = new Map<number, RecommendationWithAttribution>()
+  for (let i = 0; i < filmographies.length; i++) {
+    const actor = topCast[i]
+    for (const movie of filmographies[i]) {
       if (excluded.has(movie.tmdbId)) continue
       if (deduped.has(movie.tmdbId)) continue
-      deduped.set(movie.tmdbId, movie)
+      const withAttribution: RecommendationWithAttribution = {
+        ...movie,
+        recommendedViaActor: actor,
+      }
+      deduped.set(movie.tmdbId, withAttribution)
     }
   }
 

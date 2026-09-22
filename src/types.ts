@@ -105,6 +105,7 @@ export function emptyStore(): Store {
 export type StoreOp =
   | { type: 'logWatch'; entry: WatchEntry }
   | { type: 'undoLastWatch'; tmdbId: number }
+  | { type: 'deleteWatch'; tmdbId: number; watchedAt: string }
   | { type: 'setService'; key: ServiceKey; enabled: boolean }
   | { type: 'replaceHistory'; entries: WatchEntry[] }
   | { type: 'seed'; history: WatchEntry[]; enabledServices: ServiceKey[] }

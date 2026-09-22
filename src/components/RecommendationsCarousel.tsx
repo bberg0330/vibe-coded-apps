@@ -1,8 +1,9 @@
 import { MovieCard } from './MovieCard'
 import type { Movie } from '../types'
+import type { RecommendationWithAttribution } from '../data/recommendations'
 
 type Props = {
-  movies: Movie[]
+  movies: (Movie | RecommendationWithAttribution)[]
   title: string
   onOpen?: (movie: Movie) => void
   onToggleWatched: (movie: Movie) => void
@@ -28,20 +29,27 @@ export function RecommendationsCarousel({
     <section className="recommendations" aria-label={title}>
       <h2>{title}</h2>
       <div className="recommendations-row">
-        {movies.map((movie) => (
-          <div className="recommendation-item" key={movie.tmdbId}>
-            <MovieCard
-              movie={movie}
-              watched={watchCountFor(movie.tmdbId) > 0}
-              pending={isPending?.(movie.tmdbId) ?? false}
-              onOpen={onOpen}
-              onToggleWatched={onToggleWatched}
-              onStartWatching={onStartWatching}
-              watchingLabel={watchingLabelFor?.(movie.tmdbId) ?? null}
-              startWatchingDisabled={startWatchingDisabled}
-            />
-          </div>
-        ))}
+        {movies.map((movie) => {
+          const withAttribution = movie as RecommendationWithAttribution
+          const tooltip = withAttribution.recommendedViaActor
+            ? `Why recommended: ${withAttribution.recommendedViaActor.name} from source film`
+            : null
+          return (
+            <div className="recommendation-item" key={movie.tmdbId}>
+              <MovieCard
+                movie={movie}
+                watched={watchCountFor(movie.tmdbId) > 0}
+                pending={isPending?.(movie.tmdbId) ?? false}
+                onOpen={onOpen}
+                onToggleWatched={onToggleWatched}
+                onStartWatching={onStartWatching}
+                watchingLabel={watchingLabelFor?.(movie.tmdbId) ?? null}
+                startWatchingDisabled={startWatchingDisabled}
+                recommendationTooltip={tooltip}
+              />
+            </div>
+          )
+        })}
       </div>
     </section>
   )

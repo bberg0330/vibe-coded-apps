@@ -36,6 +36,11 @@ export async function undoLastWatch(tmdbId: number): Promise<void> {
   await applyRemoteOp({ type: 'undoLastWatch', tmdbId })
 }
 
+/** Removes a specific watch entry by timestamp. For deleting individual duplicate watches. */
+export async function deleteWatch(tmdbId: number, watchedAt: string): Promise<void> {
+  await applyRemoteOp({ type: 'deleteWatch', tmdbId, watchedAt })
+}
+
 export function exportJson(): string {
   return JSON.stringify(getStoreSnapshot().history, null, 2)
 }

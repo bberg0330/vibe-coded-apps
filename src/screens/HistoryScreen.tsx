@@ -1,4 +1,5 @@
-import { getHistory, exportJson } from '../data/history'
+import { useState } from 'react'
+import { getHistory, exportJson, deleteWatch } from '../data/history'
 import { getAllWatchingTonight, effectiveStatus } from '../data/watching'
 import { posterUrl } from '../api/tmdb'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
@@ -128,10 +129,23 @@ export function HistoryScreen({
 }: Props = {}) {
   useScrollRestoration(HISTORY_ROUTE_KEY, true)
 
+  const [openMenuKey, setOpenMenuKey] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState<string | null>(null)
+
   const entries = getHistory()
   const groups = groupByFilm(entries)
   const tonight = getAllWatchingTonight()
     .filter((entry) => !optimisticallyCancelled?.has(`${entry.profileId}:${entry.movie.tmdbId}`))
+
+  const handleDeleteWatch = async (tmdbId: number, watchedAt: string) => {
+    setDeleting(`${tmdbId}:${watchedAt}`)
+    try {
+      await deleteWatch(tmdbId, watchedAt)
+    } finally {
+      setDeleting(null)
+      setOpenMenuKey(null)
+    }
+  }
 
   if (entries.length === 0 && tonight.length === 0) {
     return (
@@ -169,38 +183,93 @@ export function HistoryScreen({
 
       {groups.map(({ entry, count }) => {
         const poster = posterUrl(entry.movie.posterPath)
+        const menuKey = `${entry.movie.tmdbId}:${entry.watchedAt}`
+        const isMenuOpen = openMenuKey === menuKey
+        const isDeleting = deleting === menuKey
+
         return (
-          <button
-            className="card"
-            key={entry.movie.tmdbId}
-            onClick={() => onOpenMovie?.(entry.movie)}
-            style={{ cursor: onOpenMovie ? 'pointer' : 'default' }}
-          >
-            <div className="card-main">
-              {poster
-                ? <img className="poster" src={poster} alt="" loading="lazy" />
-                : <div className="poster poster-empty" aria-hidden="true" />}
-              <div className="card-body">
-                <div className="card-title" data-testid="history-title">{entry.movie.title}</div>
-                <div className="card-meta">
-                  <span>{new Date(entry.watchedAt).toLocaleDateString()}</span>
-                  {entry.movie.tomatometer !== null && (
-                    <span className="score" title="Critic score">🍅 {entry.movie.tomatometer}%</span>
-                  )}
-                  {entry.movie.popcornmeter !== null && (
-                    <span className="score" title="IMDb rating">🍿 {entry.movie.popcornmeter}%</span>
-                  )}
-                  {count > 1 && <span className="rewatch">watched {count}×</span>}
-                </div>
-                {entry.discoveredVia && (
+          <div key={entry.movie.tmdbId} style={{ position: 'relative' }}>
+            <button
+              className="card"
+              onClick={() => onOpenMovie?.(entry.movie)}
+              style={{ cursor: onOpenMovie ? 'pointer' : 'default' }}
+            >
+              <div className="card-main">
+                {poster
+                  ? <img className="poster" src={poster} alt="" loading="lazy" />
+                  : <div className="poster poster-empty" aria-hidden="true" />}
+                <div className="card-body">
+                  <div className="card-title" data-testid="history-title">{entry.movie.title}</div>
                   <div className="card-meta">
-                    via {entry.discoveredVia.viaActor.name},
-                    {' '}from {entry.discoveredVia.fromMovie.title}
+                    <span>{new Date(entry.watchedAt).toLocaleDateString()}</span>
+                    {entry.movie.tomatometer !== null && (
+                      <span className="score" title="Critic score">🍅 {entry.movie.tomatometer}%</span>
+                    )}
+                    {entry.movie.popcornmeter !== null && (
+                      <span className="score" title="IMDb rating">🍿 {entry.movie.popcornmeter}%</span>
+                    )}
+                    {count > 1 && <span className="rewatch">watched {count}×</span>}
                   </div>
-                )}
+                  {entry.discoveredVia && (
+                    <div className="card-meta">
+                      via {entry.discoveredVia.viaActor.name},
+                      {' '}from {entry.discoveredVia.fromMovie.title}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </button>
+
+              <div className="card-actions">
+                <button
+                  className="watch-btn"
+                  aria-label={`Menu for ${entry.movie.title}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setOpenMenuKey(isMenuOpen ? null : menuKey)
+                  }}
+                  style={{ fontSize: '18px' }}
+                >
+                  ⋮
+                </button>
+              </div>
+            </button>
+
+            {isMenuOpen && (
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                background: 'var(--surface)',
+                border: '1px solid #2a2f3a',
+                borderRadius: '8px',
+                marginTop: '4px',
+                zIndex: 10,
+                minWidth: '150px',
+              }}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleDeleteWatch(entry.movie.tmdbId, entry.watchedAt)
+                  }}
+                  disabled={isDeleting}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '10px 12px',
+                    border: 'none',
+                    background: 'none',
+                    color: 'inherit',
+                    cursor: isDeleting ? 'default' : 'pointer',
+                    textAlign: 'left',
+                    fontSize: '14px',
+                    opacity: isDeleting ? 0.5 : 1,
+                  }}
+                >
+                  {isDeleting ? 'Deleting…' : 'Delete this watch'}
+                </button>
+              </div>
+            )}
+          </div>
         )
       })}
     </div>

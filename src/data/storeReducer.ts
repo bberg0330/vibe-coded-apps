@@ -56,6 +56,13 @@ export function applyOp(store: Store, op: StoreOp): Store {
       return { ...store, history }
     }
 
+    case 'deleteWatch': {
+      const history = [...store.history]
+      const idx = history.findIndex((e) => e.movie.tmdbId === op.tmdbId && e.watchedAt === op.watchedAt)
+      if (idx >= 0) history.splice(idx, 1)
+      return { ...store, history }
+    }
+
     case 'setService': {
       const set = new Set(store.enabledServices)
       if (op.enabled) set.add(op.key)
