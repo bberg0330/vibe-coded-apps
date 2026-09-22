@@ -1,8 +1,12 @@
 // vite-plugins/store-file.test.ts
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, readFile, writeFile, readdir } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+const execFileAsync = promisify(execFile)
 import { readStore, writeStoreAtomic, commitStore, commitMessageFor } from './store-file'
 import { emptyStore } from '../src/types'
 import type { WatchEntry } from '../src/types'
@@ -110,8 +114,68 @@ describe('writeStoreAtomic', () => {
 })
 
 describe('commitStore', () => {
+  const git = (args: string[], cwd: string) => execFileAsync('git', ['-C', cwd, ...args])
+
+  /** A throwaway repo with one commit, so HEAD is on a real branch. */
+  async function initRepo(at: string, branch: string): Promise<void> {
+    await git(['init', '-q', '-b', branch], at)
+    await git(['config', 'user.email', 'test@example.com'], at)
+    await git(['config', 'user.name', 'Test'], at)
+    await writeFile(join(at, 'README'), 'seed\n')
+    await git(['add', '.'], at)
+    await git(['commit', '-q', '--no-verify', '-m', 'seed'], at)
+  }
+
+  const commitCount = async (at: string): Promise<number> => {
+    const { stdout } = await git(['rev-list', '--count', 'HEAD'], at)
+    return Number(stdout.trim())
+  }
+
   it('resolves false instead of throwing when the directory is not a git repo', async () => {
     await writeStoreAtomic(dir, emptyStore())
+    await expect(commitStore(dir, 'watch: test')).resolves.toBe(false)
+  })
+
+  it('commits when the default branch is checked out', async () => {
+    await initRepo(dir, 'main')
+    await writeStoreAtomic(dir, emptyStore())
+    const before = await commitCount(dir)
+    await expect(commitStore(dir, 'watch: test')).resolves.toBe(true)
+    expect(await commitCount(dir)).toBe(before + 1)
+  })
+
+  /**
+   * The bug this guard exists for: `git commit` writes to whatever HEAD
+   * points at, so a watch logged from a phone while a feature branch was
+   * checked out landed on that branch — real data on a code branch,
+   * invisible on main until it merged.
+   */
+  it('skips the commit when a feature branch is checked out, but still leaves the write on disk', async () => {
+    await initRepo(dir, 'main')
+    await git(['checkout', '-q', '-b', 'feat/something'], dir)
+    await writeStoreAtomic(dir, emptyStore())
+    const before = await commitCount(dir)
+
+    await expect(commitStore(dir, 'watch: test')).resolves.toBe(false)
+
+    expect(await commitCount(dir)).toBe(before)
+    // The data itself must survive — only the version-history entry is skipped.
+    expect(JSON.parse(await readFile(join(dir, 'store.json'), 'utf8'))).toEqual(emptyStore())
+  })
+
+  it('skips the commit on a detached HEAD', async () => {
+    await initRepo(dir, 'main')
+    const { stdout } = await git(['rev-parse', 'HEAD'], dir)
+    await git(['checkout', '-q', stdout.trim()], dir)
+    await writeStoreAtomic(dir, emptyStore())
+    await expect(commitStore(dir, 'watch: test')).resolves.toBe(false)
+  })
+
+  it('honours a default branch that is not named main', async () => {
+    await initRepo(dir, 'trunk')
+    await writeStoreAtomic(dir, emptyStore())
+    // No origin/HEAD to resolve, so the fallback is "main" — a repo whose
+    // only branch is "trunk" must therefore skip rather than misfire.
     await expect(commitStore(dir, 'watch: test')).resolves.toBe(false)
   })
 })
