@@ -28,11 +28,14 @@ type Props = {
   watchingLabel?: string | null
   /** True when there's no active profile to attribute a "watching" tap to. */
   startWatchingDisabled?: boolean
+  /** Optional tooltip explaining why this is recommended (e.g. actor name) */
+  recommendationTooltip?: string | null
 }
 
 export function MovieCard({
   movie, onOpen, onToggleWatched, watched, noOpen, pending = false,
   onStartWatching, watchingLabel = null, startWatchingDisabled = false,
+  recommendationTooltip = null,
 }: Props) {
   const poster = posterUrl(movie.posterPath)
   const badges = [
@@ -46,7 +49,7 @@ export function MovieCard({
         ? <img className="poster" src={poster} alt="" loading="lazy" />
         : <div className="poster poster-empty" aria-hidden="true" />}
       <div className="card-body">
-        <div className="card-title">{movie.title}</div>
+        <div className="card-title" title={recommendationTooltip ?? undefined}>{movie.title}</div>
         <div className="card-meta">
           {movie.year !== null && <span>{movie.year}</span>}
           <span className={movie.tomatometer === null ? 'score-none' : 'score'} title="Critic score">
