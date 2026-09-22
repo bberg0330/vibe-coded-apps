@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { HistoryScreen } from './HistoryScreen'
 import { logWatch } from '../data/history'
-import { startWatching, WATCHING_WINDOW_MS } from '../data/watching'
+import { startWatching, cancelWatching, WATCHING_WINDOW_MS } from '../data/watching'
 import { resetStoreForTests, getStoreSnapshot } from '../data/store'
 import { applyOp } from '../../vite-plugins/store-ops'
 import type { Movie, StoreOp } from '../types'
@@ -194,6 +194,56 @@ describe('HistoryScreen', () => {
 
       expect(screen.getByText('Tonight')).toBeInTheDocument()
       expect(screen.getByText(/nothing logged yet/i)).toBeInTheDocument()
+    })
+
+    it('does not render a cancel control when onCancelWatching is omitted', async () => {
+      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      render(<HistoryScreen />)
+
+      expect(screen.queryByRole('button', { name: /undo watching/i })).not.toBeInTheDocument()
+    })
+
+    it('calls onCancelWatching with the tapped entry', async () => {
+      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      const onCancelWatching = vi.fn()
+      render(<HistoryScreen onCancelWatching={onCancelWatching} />)
+
+      fireEvent.click(screen.getByRole('button', { name: /undo watching rushmore tonight/i }))
+      expect(onCancelWatching).toHaveBeenCalledWith(
+        expect.objectContaining({ profileId: 'laura', movie: expect.objectContaining({ tmdbId: 1585 }) }),
+      )
+    })
+
+    it('hides an optimistically-cancelled row even before the store write lands', async () => {
+      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      render(
+        <HistoryScreen
+          onCancelWatching={vi.fn()}
+          optimisticallyCancelled={new Set(['laura:1585'])}
+        />,
+      )
+
+      expect(screen.queryByTestId('tonight-title')).not.toBeInTheDocument()
+    })
+
+    it('disables the cancel button for a key marked as cancelling', async () => {
+      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      render(
+        <HistoryScreen
+          onCancelWatching={vi.fn()}
+          cancellingKeys={new Set(['laura:1585'])}
+        />,
+      )
+
+      expect(screen.getByRole('button', { name: /undo watching rushmore tonight/i })).toBeDisabled()
+    })
+
+    it('actually removes the entry from the store when cancelWatching resolves', async () => {
+      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      await cancelWatching('laura', 1585)
+
+      render(<HistoryScreen />)
+      expect(screen.queryByTestId('tonight-title')).not.toBeInTheDocument()
     })
   })
 })

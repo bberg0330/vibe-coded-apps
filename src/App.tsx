@@ -7,14 +7,14 @@ import { FilmographyScreen } from './screens/FilmographyScreen'
 import { HistoryScreen } from './screens/HistoryScreen'
 import { SettingsSheet } from './screens/SettingsSheet'
 import { logWatch, undoLastWatch, watchCount } from './data/history'
-import { startWatching, getNowWatching } from './data/watching'
+import { startWatching, getNowWatching, cancelWatching } from './data/watching'
 import { loadStore } from './data/store'
 import { loadScores } from './data/scores'
 import { migrateFromLocalStorage } from './data/migrate'
 import { PROFILES, type ProfileId } from './data/profiles'
 import { getActiveProfileId, setActiveProfileId } from './data/activeProfile'
 import { hashFor, parseHash, rehydrate, RehydrationError } from './router'
-import type { Movie, WatchEntry, Screen } from './types'
+import type { Movie, WatchEntry, WatchingEntry, Screen } from './types'
 
 export default function App() {
   const [entries, setEntries] = useState<Screen[]>([{ kind: 'search' }])
@@ -32,6 +32,9 @@ export default function App() {
   const selectProfile = (id: ProfileId) => {
     setActiveProfileIdState(id)
     setActiveProfileId(id)
+    // A stale "pick who's watching first" error (from a previous tap with no
+    // profile selected) is no longer accurate once a profile is picked.
+    setWatchingError(null)
   }
 
   const navigate = (screen: Screen) => {
@@ -76,6 +79,15 @@ export default function App() {
   const [pendingStart, setPendingStart] = useState<Set<number>>(new Set())
   const [optimisticWatching, setOptimisticWatching] = useState<Set<number>>(new Set())
   const [watchingError, setWatchingError] = useState<string | null>(null)
+
+  // Same in-flight-guard + optimistic-update + revert-on-error pattern as
+  // toggleWatched/startWatchingTonight, for cancelling a misfired "watching
+  // tonight" tap from HistoryScreen's Tonight rows. Keyed by
+  // `${profileId}:${tmdbId}` since, unlike a single tmdbId, more than one
+  // profile can be watching the same film at once.
+  const pendingCancelRef = useRef<Set<string>>(new Set())
+  const [pendingCancel, setPendingCancel] = useState<Set<string>>(new Set())
+  const [optimisticallyCancelled, setOptimisticallyCancelled] = useState<Set<string>>(new Set())
 
   const [booting, setBooting] = useState(true)
   const [bootError, setBootError] = useState<string | null>(null)
@@ -258,6 +270,35 @@ export default function App() {
     }
   }
 
+  const cancelWatchingTonight = async (entry: WatchingEntry) => {
+    const key = `${entry.profileId}:${entry.movie.tmdbId}`
+
+    if (pendingCancelRef.current.has(key)) return
+    pendingCancelRef.current.add(key)
+    setPendingCancel(new Set(pendingCancelRef.current))
+    setWatchingError(null)
+
+    // Optimistic: the row should disappear the instant it's tapped, not
+    // once the round trip to the store completes.
+    setOptimisticallyCancelled((prev) => new Set(prev).add(key))
+
+    try {
+      await cancelWatching(entry.profileId, entry.movie.tmdbId)
+      setHistoryVersion((v) => v + 1)
+    } catch {
+      // Revert: never let the UI claim a save that did not happen.
+      setOptimisticallyCancelled((prev) => {
+        const next = new Set(prev)
+        next.delete(key)
+        return next
+      })
+      setWatchingError("Couldn't save that — is the Movie Night server still running?")
+    } finally {
+      pendingCancelRef.current.delete(key)
+      setPendingCancel(new Set(pendingCancelRef.current))
+    }
+  }
+
   // Any profile currently (or optimistically, about to be) watching this
   // film tonight. Recomputed on every render, including the ones forced by
   // `historyVersion` bumps after a store write — the same mechanism
@@ -290,7 +331,7 @@ export default function App() {
         {pointer > 0
           ? <button className="link" onClick={goBack}>← Back</button>
           : <span />}
-        <span className="profile-switcher" role="group" aria-label="Watching tonight">
+        <span className="profile-switcher" role="group" aria-label="Who's watching">
           {PROFILES.map((profile) => (
             <button
               key={profile.id}
@@ -362,9 +403,14 @@ export default function App() {
         />
       )}
       {current.kind === 'history' && (
-        <HistoryScreen onOpenMovie={(movie) =>
-          navigate({ kind: 'cast', movie: { ...movie, popularity: 0, availability: { streaming: [], rent: [] } } })
-        } />
+        <HistoryScreen
+          onOpenMovie={(movie) =>
+            navigate({ kind: 'cast', movie: { ...movie, popularity: 0, availability: { streaming: [], rent: [] } } })
+          }
+          onCancelWatching={cancelWatchingTonight}
+          optimisticallyCancelled={optimisticallyCancelled}
+          cancellingKeys={pendingCancel}
+        />
       )}
       <Analytics />
     </div>

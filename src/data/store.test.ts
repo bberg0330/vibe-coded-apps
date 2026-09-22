@@ -55,6 +55,25 @@ describe('loadStore', () => {
   })
 })
 
+describe('loadStore tolerates a pre-migration row missing nowWatching', () => {
+  it('accepts a body with no nowWatching field, defaulting it to []', async () => {
+    // Simulates a deploy landing before the Supabase `now_watching` column
+    // migration is applied: the row is otherwise a valid Store shape, just
+    // missing that field entirely.
+    stubJson({ version: 2, history: [], enabledServices: [] })
+
+    await loadStore()
+
+    expect(getStoreSnapshot().nowWatching).toEqual([])
+  })
+
+  it('still rejects a body missing a genuinely required field (history)', async () => {
+    stubJson({ version: 2, enabledServices: [], nowWatching: [] })
+
+    await expect(loadStore()).rejects.toBeInstanceOf(StoreUnavailableError)
+  })
+})
+
 describe('applyRemoteOp', () => {
   it('posts the operation and adopts the server response as truth', async () => {
     const updated = { ...emptyStore(), history: [entry('Rushmore')] }

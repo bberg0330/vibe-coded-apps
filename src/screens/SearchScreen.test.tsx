@@ -229,6 +229,21 @@ describe('recommendations carousel', () => {
     expect(await screen.findByText('Fantastic Mr. Fox')).toBeInTheDocument()
   })
 
+  it('resolves gracefully (no unhandled rejection, no carousel) when getRecommendationsFor rejects', async () => {
+    vi.mocked(getRecommendationsFor).mockRejectedValue(new Error('TMDB unreachable'))
+    const { container } = render(
+      <SearchScreen
+        onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0}
+        activeProfileId="laura"
+      />,
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.recommendations')).toBeNull()
+    })
+    expect(screen.queryByText(/because laura watched/i)).not.toBeInTheDocument()
+  })
+
   it('renders no carousel section and never fetches when there is no active profile', async () => {
     const { container } = render(
       <SearchScreen

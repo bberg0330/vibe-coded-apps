@@ -390,3 +390,48 @@ describe('write failure', () => {
       .toHaveAttribute('aria-pressed', 'false')
   })
 })
+
+describe('App - cancelWatchingTonight', () => {
+  it('removes the Tonight row from HistoryScreen when its cancel control is tapped', async () => {
+    render(<App />)
+    await screen.findByRole('searchbox')
+    await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
+    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await userEvent.click(await screen.findByRole('button', { name: /start watching rushmore tonight/i }))
+    await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
+
+    await userEvent.click(screen.getByRole('button', { name: /^history$/i }))
+    expect(await screen.findByTestId('tonight-title')).toHaveTextContent('Rushmore')
+
+    await userEvent.click(screen.getByRole('button', { name: /undo watching rushmore tonight/i }))
+
+    await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(0))
+    expect(screen.queryByTestId('tonight-title')).not.toBeInTheDocument()
+  })
+
+  it('reverts the row and shows an error when the cancel save fails', async () => {
+    render(<App />)
+    await screen.findByRole('searchbox')
+    await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
+    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await userEvent.click(await screen.findByRole('button', { name: /start watching rushmore tonight/i }))
+    await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
+
+    await userEvent.click(screen.getByRole('button', { name: /^history$/i }))
+    await screen.findByTestId('tonight-title')
+
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).startsWith('/api/store') && init?.method === 'POST') {
+        throw new Error('offline')
+      }
+      return { ok: true, status: 200, json: async () => getStoreSnapshot() }
+    }))
+
+    await userEvent.click(screen.getByRole('button', { name: /undo watching rushmore tonight/i }))
+
+    expect(await screen.findByText(/couldn't save/i)).toBeInTheDocument()
+    // The entry must reappear — the cancel did not actually happen.
+    expect(await screen.findByTestId('tonight-title')).toHaveTextContent('Rushmore')
+    expect(getAllWatchingTonight()).toHaveLength(1)
+  })
+})
