@@ -37,7 +37,9 @@ describe('MovieCard', () => {
       <MovieCard movie={{ ...movie, popcornmeter: 82 }} onOpen={vi.fn()}
         onToggleWatched={vi.fn()} watched={false} />,
     )
-    expect(screen.getByText('🍿 82%')).toBeInTheDocument()
+    // ⭐, not 🍿: the number is IMDb's user rating scaled to a percentage,
+    // not Rotten Tomatoes' Popcornmeter, which has no public API.
+    expect(screen.getByText('⭐ 82%')).toBeInTheDocument()
   })
 
   it('opens the film when the card is tapped', async () => {

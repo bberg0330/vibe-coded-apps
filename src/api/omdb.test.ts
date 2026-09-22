@@ -178,30 +178,76 @@ describe('getRottenTomatoesScores audience score (IMDb rating)', () => {
     expect(scores.audience).toBeNull()
   })
 
-  it('is absent alongside an absent critic score when the film is not found', async () => {
+  it('records an explicit null for both halves when the film is not found', async () => {
+    // Null, not undefined: "we asked, OMDb has nothing" has to be
+    // distinguishable from "we never asked", or the cached answer reads as
+    // incomplete on the next call and re-fetches forever.
     stub({ Response: 'False', Error: 'Movie not found!' })
     const scores = await getRottenTomatoesScores(777, 'Nonexistent', 2020)
-    expect(scores.critic).toBeUndefined()
-    expect(scores.audience).toBeUndefined()
+    expect(scores).toEqual({ critic: null, audience: null })
+  })
+
+  it('does not re-fetch a film OMDb has already said it does not have', async () => {
+    const f = stub({ Response: 'False', Error: 'Movie not found!' })
+    await getRottenTomatoesScores(777, 'Nonexistent', 2020)
+    await getRottenTomatoesScores(777, 'Nonexistent', 2020)
+    expect(f).toHaveBeenCalledTimes(1)
   })
 })
 
 describe('legacy cache entries', () => {
   // data/scores.json predates the { critic, audience } shape: most of its
   // entries are still a bare tomatometer number, or a bare null meaning
-  // "OMDb has no RT score for this film".
-  it('reads a legacy bare-number entry as the critic score', async () => {
+  // "OMDb has no RT score for this film". Either way the audience half was
+  // never looked up, so these entries are incomplete and must be re-fetched
+  // once — widening them to `audience: null` would mark them complete and
+  // leave the audience score permanently unfillable.
+  it('re-fetches a legacy bare-number entry to fill in the missing audience half', async () => {
     resetScoresForTests({ '949': 87 } as never)
-    expect(await getTomatometer(949, 'Heat', 1995)).toBe(87)
+    const f = stub(omdbResponse('Heat', '1995', '84%', '8.3'))
+    expect(await getRottenTomatoesScores(949, 'Heat', 1995)).toEqual({ critic: 84, audience: 83 })
+    expect(f).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-fetches a legacy bare-null entry too', async () => {
+    resetScoresForTests({ '247': null } as never)
+    const f = stub(omdbResponse('The Crossing Guard', '1995', '43%', '6.4'))
+    expect(await getRottenTomatoesScores(247, 'The Crossing Guard', 1995))
+      .toEqual({ critic: 43, audience: 64 })
+    expect(f).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-fetches a legacy entry only once, then trusts the completed record', async () => {
+    resetScoresForTests({ '949': 87 } as never)
+    const f = stub(omdbResponse('Heat', '1995', '84%', '8.3'))
+    await getRottenTomatoesScores(949, 'Heat', 1995)
+    await getRottenTomatoesScores(949, 'Heat', 1995)
+    expect(f).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the legacy critic score when the re-fetch fails', async () => {
+    // The whole point of re-fetching is to gain the audience half. Losing the
+    // critic score we already had to a transient network failure would make
+    // the fix a net regression.
+    resetScoresForTests({ '949': 87 } as never)
+    vi.stubGlobal('fetch', (url: string) => {
+      if (typeof url === 'string' && url.startsWith('/api/scores')) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
+      }
+      return Promise.reject(new Error('network down'))
+    })
+    expect(await getRottenTomatoesScores(949, 'Heat', 1995)).toEqual({ critic: 87 })
+  })
+
+  it('still reads a legacy bare-number entry as the critic score via getTomatometer', async () => {
+    resetScoresForTests({ '949': 87 } as never)
+    stub(omdbResponse('Heat', '1995', '84%', '8.3'))
+    expect(await getTomatometer(949, 'Heat', 1995)).toBe(84)
   })
 
   it('treats a legacy bare-null entry as "no score" rather than throwing', async () => {
     resetScoresForTests({ '247': null } as never)
+    stub({ Response: 'False', Error: 'Movie not found!' })
     await expect(getTomatometer(247, 'The Crossing Guard', 1995)).resolves.toBeNull()
-  })
-
-  it('exposes a legacy bare-number entry through the full score shape', async () => {
-    resetScoresForTests({ '949': 87 } as never)
-    expect(await getRottenTomatoesScores(949, 'Heat', 1995)).toEqual({ critic: 87, audience: null })
   })
 })

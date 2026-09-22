@@ -49,9 +49,18 @@ export function getCachedScores(tmdbId: number): ScoreData | undefined {
   return widen(cache[key])
 }
 
+/**
+ * Legacy entries leave `audience` ABSENT, not null — the two mean different
+ * things and the difference is load-bearing. `audience: null` says "looked it
+ * up, OMDb has none"; an absent key says "never looked". Widening a legacy
+ * critic-only entry to `audience: null` would make it look complete, and
+ * getRottenTomatoesScores would return it as a cache hit forever — so the
+ * audience half of every film cached by the old version could never be
+ * filled in. That is a real bug this function used to cause.
+ */
 function widen(entry: StoredScore): ScoreData {
-  if (entry === null) return { critic: null, audience: null }
-  if (typeof entry === 'number') return { critic: entry, audience: null }
+  if (entry === null) return { critic: null }
+  if (typeof entry === 'number') return { critic: entry }
   return entry
 }
 

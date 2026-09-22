@@ -212,13 +212,14 @@ export function HistoryScreen({
                       <span className="score" title="Critic score">🍅 {entry.movie.tomatometer}%</span>
                     )}
                     {/*
-                      * Guard on the value, not just on null. A popcornmeter of
-                      * undefined — which is what older stored entries carry —
-                      * passed the `!== null` check and rendered as a bare
-                      * "🍿 %" with no number.
+                      * Guard on the value, not just on null: entries written
+                      * before this field existed have no key at all, and
+                      * `undefined !== null` used to render a bare "%".
+                      * ⭐ rather than 🍿 — the number is IMDb's user rating,
+                      * not Rotten Tomatoes' Popcornmeter.
                       */}
                     {typeof entry.movie.popcornmeter === 'number' && (
-                      <span className="score" title="IMDb rating">🍿 {entry.movie.popcornmeter}%</span>
+                      <span className="score" title="IMDb user rating">⭐ {entry.movie.popcornmeter}%</span>
                     )}
                     {count > 1 && <span className="rewatch">watched {count}×</span>}
                   </div>

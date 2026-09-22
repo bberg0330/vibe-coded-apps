@@ -55,8 +55,16 @@ export function MovieCard({
           <span className={movie.tomatometer === null ? 'score-none' : 'score'} title="Critic score">
             {movie.tomatometer === null ? 'No critic score' : `🍅 ${movie.tomatometer}%`}
           </span>
-          {movie.popcornmeter !== null && (
-            <span className="score" title="IMDb rating">🍿 {movie.popcornmeter}%</span>
+          {/*
+            * ⭐, not 🍿. This value is IMDb's user rating scaled to a
+            * percentage (see parseImdbRating) — not Rotten Tomatoes'
+            * Popcornmeter, which has no public API. The popcorn icon claimed
+            * a source the number doesn't come from. The `popcornmeter` field
+            * name is left alone deliberately: renaming it would mean
+            * migrating every stored history and watching entry.
+            */}
+          {typeof movie.popcornmeter === 'number' && (
+            <span className="score" title="IMDb user rating">⭐ {movie.popcornmeter}%</span>
           )}
           {watchingLabel && <span className="pill">{watchingLabel}</span>}
         </div>

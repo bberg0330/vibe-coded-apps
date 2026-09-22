@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { searchMovies } from '../api/tmdb'
-import { getTomatometer, getRottenTomatoesScores } from '../api/omdb'
+import { getRottenTomatoesScores } from '../api/omdb'
 import { MissingKeyError } from '../api/http'
 import { MovieCard } from '../components/MovieCard'
 import { RecommendationsCarousel } from '../components/RecommendationsCarousel'
@@ -63,12 +63,26 @@ export function SearchScreen({
         setResults(found)
         setStatus('done')
 
+        // getRottenTomatoesScores, not getTomatometer: the wrapper calls this
+        // exact function and throws the audience half away, so asking for both
+        // costs nothing extra. Asking for only the critic score is why search
+        // results never showed an audience score — and why anything logged
+        // from a search result was persisted without one.
         for (const movie of found) {
-          getTomatometer(movie.tmdbId, movie.title, movie.year).then((score) => {
-            if (cancelled || score === null) return
+          getRottenTomatoesScores(movie.tmdbId, movie.title, movie.year).then((scores) => {
+            if (cancelled) return
             setResults((prev) =>
-              prev.map((m) => m.tmdbId === movie.tmdbId ? { ...m, tomatometer: score } : m),
+              prev.map((m) => m.tmdbId === movie.tmdbId
+                ? {
+                    ...m,
+                    tomatometer: scores.critic ?? m.tomatometer,
+                    popcornmeter: scores.audience ?? m.popcornmeter,
+                  }
+                : m),
             )
+          }).catch(() => {
+            // Per-result score enrichment is supplementary; a failure leaves
+            // that row's scores as they are rather than failing the search.
           })
         }
       } catch (err) {
