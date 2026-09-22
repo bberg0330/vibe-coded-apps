@@ -1,8 +1,9 @@
 import { getHistory, exportJson } from '../data/history'
+import { getAllWatchingTonight, effectiveStatus } from '../data/watching'
 import { posterUrl } from '../api/tmdb'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { HISTORY_ROUTE_KEY } from '../router'
-import type { WatchEntry } from '../types'
+import type { WatchEntry, WatchingEntry } from '../types'
 
 function download(): void {
   const blob = new Blob([exportJson()], { type: 'application/json' })
@@ -45,13 +46,48 @@ type Props = {
   onOpenMovie?: (movie: WatchEntry['movie']) => void
 }
 
+/**
+ * Renders one "watching tonight" entry as a compact row: poster, title, and
+ * its own computed status tag. `nowWatching` entries are never migrated
+ * into `history` — there's no archival step in this plan — so this reads
+ * from `getAllWatchingTonight()` (every entry, any status), not
+ * `getNowWatching()` (in-progress only). Otherwise, the instant a session's
+ * 12h window elapses it would vanish from the UI entirely instead of aging
+ * into a "Watched" tag here.
+ */
+function TonightRow({ entry, onOpenMovie }: { entry: WatchingEntry; onOpenMovie?: Props['onOpenMovie'] }) {
+  const poster = posterUrl(entry.movie.posterPath)
+  const status = effectiveStatus(entry)
+
+  return (
+    <button
+      className="card"
+      onClick={() => onOpenMovie?.(entry.movie)}
+      style={{ cursor: onOpenMovie ? 'pointer' : 'default' }}
+    >
+      <div className="card-main">
+        {poster
+          ? <img className="poster" src={poster} alt="" loading="lazy" />
+          : <div className="poster poster-empty" aria-hidden="true" />}
+        <div className="card-body">
+          <div className="card-title" data-testid="tonight-title">{entry.movie.title}</div>
+          <div className="card-meta">
+            <span className="pill" data-testid="tonight-status">{status === 'watching' ? 'Watching' : 'Watched'}</span>
+          </div>
+        </div>
+      </div>
+    </button>
+  )
+}
+
 export function HistoryScreen({ onOpenMovie }: Props = {}) {
   useScrollRestoration(HISTORY_ROUTE_KEY, true)
 
   const entries = getHistory()
   const groups = groupByFilm(entries)
+  const tonight = getAllWatchingTonight()
 
-  if (entries.length === 0) {
+  if (entries.length === 0 && tonight.length === 0) {
     return (
       <div className="screen">
         <h1>History</h1>
@@ -63,7 +99,21 @@ export function HistoryScreen({ onOpenMovie }: Props = {}) {
   return (
     <div className="screen">
       <h1>History</h1>
-      <button className="link" onClick={download}>Download JSON</button>
+
+      {tonight.length > 0 && (
+        <>
+          <h2>Tonight</h2>
+          {tonight.map((entry, i) => (
+            <TonightRow key={`${entry.profileId}-${entry.movie.tmdbId}-${i}`} entry={entry} onOpenMovie={onOpenMovie} />
+          ))}
+        </>
+      )}
+
+      {entries.length === 0 && (
+        <p className="empty">Nothing logged yet. Tap ✓ on a movie to record it.</p>
+      )}
+
+      {entries.length > 0 && <button className="link" onClick={download}>Download JSON</button>}
 
       {groups.map(({ entry, count }) => {
         const poster = posterUrl(entry.movie.posterPath)
