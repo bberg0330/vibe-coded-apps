@@ -188,13 +188,19 @@ export function HistoryScreen({
         const isDeleting = deleting === menuKey
 
         return (
-          <div key={entry.movie.tmdbId} style={{ position: 'relative' }}>
-            <button
-              className="card"
-              onClick={() => onOpenMovie?.(entry.movie)}
-              style={{ cursor: onOpenMovie ? 'pointer' : 'default' }}
-            >
-              <div className="card-main">
+          <div key={entry.movie.tmdbId} className="history-row">
+            {/*
+              * A div, not a <button class="card">. As a button every row
+              * inherited the UA default border and shrank to fit its own
+              * content, so the list rendered as a ragged staircase. The tap
+              * target is the .card-main button inside, matching MovieCard.
+              */}
+            <div className="card">
+              <button
+                className="card-main"
+                onClick={() => onOpenMovie?.(entry.movie)}
+                style={{ cursor: onOpenMovie ? 'pointer' : 'default' }}
+              >
                 {poster
                   ? <img className="poster" src={poster} alt="" loading="lazy" />
                   : <div className="poster poster-empty" aria-hidden="true" />}
@@ -205,7 +211,13 @@ export function HistoryScreen({
                     {entry.movie.tomatometer !== null && (
                       <span className="score" title="Critic score">🍅 {entry.movie.tomatometer}%</span>
                     )}
-                    {entry.movie.popcornmeter !== null && (
+                    {/*
+                      * Guard on the value, not just on null. A popcornmeter of
+                      * undefined — which is what older stored entries carry —
+                      * passed the `!== null` check and rendered as a bare
+                      * "🍿 %" with no number.
+                      */}
+                    {typeof entry.movie.popcornmeter === 'number' && (
                       <span className="score" title="IMDb rating">🍿 {entry.movie.popcornmeter}%</span>
                     )}
                     {count > 1 && <span className="rewatch">watched {count}×</span>}
@@ -217,7 +229,7 @@ export function HistoryScreen({
                     </div>
                   )}
                 </div>
-              </div>
+              </button>
 
               <div className="card-actions">
                 <button
@@ -232,38 +244,16 @@ export function HistoryScreen({
                   ⋮
                 </button>
               </div>
-            </button>
+            </div>
 
             {isMenuOpen && (
-              <div style={{
-                position: 'absolute',
-                top: '100%',
-                right: 0,
-                background: 'var(--surface)',
-                border: '1px solid #2a2f3a',
-                borderRadius: '8px',
-                marginTop: '4px',
-                zIndex: 10,
-                minWidth: '150px',
-              }}>
+              <div className="history-menu">
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
                     handleDeleteWatch(entry.movie.tmdbId, entry.watchedAt)
                   }}
                   disabled={isDeleting}
-                  style={{
-                    display: 'block',
-                    width: '100%',
-                    padding: '10px 12px',
-                    border: 'none',
-                    background: 'none',
-                    color: 'inherit',
-                    cursor: isDeleting ? 'default' : 'pointer',
-                    textAlign: 'left',
-                    fontSize: '14px',
-                    opacity: isDeleting ? 0.5 : 1,
-                  }}
                 >
                   {isDeleting ? 'Deleting…' : 'Delete this watch'}
                 </button>
