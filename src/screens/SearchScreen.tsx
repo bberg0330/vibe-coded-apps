@@ -117,8 +117,23 @@ export function SearchScreen({
               ? { ...m, tomatometer: scores.critic ?? m.tomatometer, popcornmeter: scores.audience ?? m.popcornmeter }
               : m),
           )
+        }).catch(() => {
+          // Supplementary per-card score enrichment for the recommendations
+          // carousel — a TMDB/OMDb hiccup here should just leave that card's
+          // scores as-is, not surface an error or an unhandled rejection.
         })
       }
+    }).catch(() => {
+      // Recommendations are a supplementary homepage feature, not the
+      // primary search task (unlike the main search effect above, which
+      // does surface errors). A TMDB failure while fetching them (e.g. a
+      // missing key or a non-2xx response bubbling up from getMovieCredits/
+      // getActorFilmography) should fail silently: the carousel simply
+      // doesn't render, matching the "no active profile" behavior, rather
+      // than producing an unhandled promise rejection.
+      if (cancelled) return
+      setRecommendations([])
+      setRecommendationsFor(null)
     })
 
     return () => { cancelled = true }

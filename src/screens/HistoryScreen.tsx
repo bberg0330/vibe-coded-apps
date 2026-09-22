@@ -44,6 +44,26 @@ function groupByFilm(entries: WatchEntry[]): Group[] {
 
 type Props = {
   onOpenMovie?: (movie: WatchEntry['movie']) => void
+  /**
+   * Cancels a misfired "watching tonight" tap. Omitted, the Tonight rows
+   * render without the cancel/undo control — mirrors how `onOpenMovie` is
+   * optional and simply disables its own affordance when absent.
+   */
+  onCancelWatching?: (entry: WatchingEntry) => void
+  /**
+   * Keys (`${profileId}:${tmdbId}`) of Tonight rows to hide immediately —
+   * an optimistic overlay for a cancel that's in flight, so the row
+   * disappears the instant it's tapped rather than waiting on the round
+   * trip to the store. Mirrors App's `optimisticWatching` overlay for
+   * "start watching."
+   */
+  optimisticallyCancelled?: Set<string>
+  /**
+   * Keys (`${profileId}:${tmdbId}`) whose cancel is currently in flight —
+   * disables that row's cancel button so a second tap can't race the first,
+   * mirroring `isPending` elsewhere in the app.
+   */
+  cancellingKeys?: Set<string>
 }
 
 /**
@@ -55,17 +75,24 @@ type Props = {
  * 12h window elapses it would vanish from the UI entirely instead of aging
  * into a "Watched" tag here.
  */
-function TonightRow({ entry, onOpenMovie }: { entry: WatchingEntry; onOpenMovie?: Props['onOpenMovie'] }) {
+function TonightRow({
+  entry, onOpenMovie, onCancelWatching, cancelling = false,
+}: {
+  entry: WatchingEntry
+  onOpenMovie?: Props['onOpenMovie']
+  onCancelWatching?: Props['onCancelWatching']
+  cancelling?: boolean
+}) {
   const poster = posterUrl(entry.movie.posterPath)
   const status = effectiveStatus(entry)
 
   return (
-    <button
-      className="card"
-      onClick={() => onOpenMovie?.(entry.movie)}
-      style={{ cursor: onOpenMovie ? 'pointer' : 'default' }}
-    >
-      <div className="card-main">
+    <div className="card">
+      <button
+        className="card-main"
+        onClick={() => onOpenMovie?.(entry.movie)}
+        style={{ cursor: onOpenMovie ? 'pointer' : 'default' }}
+      >
         {poster
           ? <img className="poster" src={poster} alt="" loading="lazy" />
           : <div className="poster poster-empty" aria-hidden="true" />}
@@ -75,17 +102,36 @@ function TonightRow({ entry, onOpenMovie }: { entry: WatchingEntry; onOpenMovie?
             <span className="pill" data-testid="tonight-status">{status === 'watching' ? 'Watching' : 'Watched'}</span>
           </div>
         </div>
-      </div>
-    </button>
+      </button>
+
+      {onCancelWatching && (
+        <div className="card-actions">
+          <button
+            className="watching-btn"
+            aria-label={`Undo watching ${entry.movie.title} tonight`}
+            disabled={cancelling}
+            onClick={(e) => {
+              e.stopPropagation()
+              onCancelWatching(entry)
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
-export function HistoryScreen({ onOpenMovie }: Props = {}) {
+export function HistoryScreen({
+  onOpenMovie, onCancelWatching, optimisticallyCancelled, cancellingKeys,
+}: Props = {}) {
   useScrollRestoration(HISTORY_ROUTE_KEY, true)
 
   const entries = getHistory()
   const groups = groupByFilm(entries)
   const tonight = getAllWatchingTonight()
+    .filter((entry) => !optimisticallyCancelled?.has(`${entry.profileId}:${entry.movie.tmdbId}`))
 
   if (entries.length === 0 && tonight.length === 0) {
     return (
@@ -104,7 +150,13 @@ export function HistoryScreen({ onOpenMovie }: Props = {}) {
         <>
           <h2>Tonight</h2>
           {tonight.map((entry, i) => (
-            <TonightRow key={`${entry.profileId}-${entry.movie.tmdbId}-${i}`} entry={entry} onOpenMovie={onOpenMovie} />
+            <TonightRow
+              key={`${entry.profileId}-${entry.movie.tmdbId}-${i}`}
+              entry={entry}
+              onOpenMovie={onOpenMovie}
+              onCancelWatching={onCancelWatching}
+              cancelling={cancellingKeys?.has(`${entry.profileId}:${entry.movie.tmdbId}`) ?? false}
+            />
           ))}
         </>
       )}
