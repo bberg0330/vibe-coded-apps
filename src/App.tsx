@@ -324,6 +324,7 @@ export default function App() {
           onStartWatching={(movie) => startWatchingTonight(movie, null)}
           watchingLabelFor={watchingLabelFor}
           startWatchingDisabled={!activeProfileId}
+          activeProfileId={activeProfileId}
         />
       )}
       {current.kind === 'cast' && (

@@ -79,6 +79,10 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   background: var(--surface); color: var(--text); font: inherit; margin-bottom: 16px;
 }
 .empty { color: var(--muted); }
+.recommendations-row {
+  display: flex; overflow-x: auto; gap: 8px; padding-bottom: 4px; margin-bottom: 8px;
+}
+.recommendations-row .card { flex: none; width: 220px; margin-bottom: 0; }
 .screen-header { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
 
 .sheet {
