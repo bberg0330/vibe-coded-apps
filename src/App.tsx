@@ -6,6 +6,7 @@ import { CastScreen } from './screens/CastScreen'
 import { FilmographyScreen } from './screens/FilmographyScreen'
 import { HistoryScreen } from './screens/HistoryScreen'
 import { SettingsSheet } from './screens/SettingsSheet'
+import { ProfileGate } from './components/ProfileGate'
 import { logWatch, undoLastWatch, watchCount } from './data/history'
 import { startWatching, getNowWatching, cancelWatching } from './data/watching'
 import { loadStore } from './data/store'
@@ -323,6 +324,15 @@ export default function App() {
         </div>
       </div>
     )
+  }
+
+  // No profile chosen yet for this device — ask before showing the
+  // homepage, rather than letting search/recommendations render with no
+  // one attributed. Reuses selectProfile, so confirming here is the exact
+  // same state/localStorage write as tapping a topbar chip, just forced up
+  // front instead of left optional.
+  if (!activeProfileId) {
+    return <ProfileGate profiles={PROFILES} onSelect={selectProfile} />
   }
 
   return (

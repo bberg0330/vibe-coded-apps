@@ -162,6 +162,43 @@ body {
   font: inherit; font-size: 13px; cursor: pointer; padding: 6px 12px;
 }
 .chip[aria-pressed="true"] { background: var(--accent); color: #0f1115; }
+
+/*
+ * Full-screen "who's watching" gate — Figma page 05, "Who's watching -
+ * Landing" / "Who's watching - Profile selected". Fixed + full viewport
+ * rather than living inside .app's max-width column, so the decorative
+ * icon layer lines up with the 375x812 reference frame regardless of
+ * viewport width; the frame itself is capped and centered to match.
+ */
+.profile-gate { position: fixed; inset: 0; background: var(--bg); overflow: hidden; z-index: 50; }
+.profile-gate-frame {
+  position: relative; max-width: 375px; height: 100%; margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px; padding: 24px; box-sizing: border-box;
+}
+.profile-gate-deco { position: absolute; inset: 0; pointer-events: none; }
+.profile-gate-deco img { position: absolute; display: block; }
+.profile-gate-title {
+  font-size: 32px; font-weight: 700; text-align: center; margin: 0; line-height: 1.2;
+  position: relative;
+}
+.profile-gate-header { text-align: center; position: relative; }
+.profile-gate-question { font-size: 28px; font-weight: 700; margin: 0; }
+.profile-gate-subtitle { font-size: 16px; color: var(--muted); margin: 8px 0 0; }
+.profile-gate-options {
+  display: flex; flex-direction: column; gap: 12px; width: 100%; position: relative;
+}
+.profile-card {
+  width: 100%; padding: 16px; border-radius: 8px; border: 0;
+  background: var(--surface); color: var(--text); font: inherit; font-size: 18px;
+  text-align: center; cursor: pointer;
+}
+/* #0f1115, not var(--text)/var(--bg): text sitting on the accent FILL always
+   needs dark ink since --accent itself never changes between modes — same
+   reasoning as .btn and .chip[aria-pressed="true"] below. */
+.profile-card[aria-checked="true"] { background: var(--accent); color: #0f1115; }
+.profile-gate-continue { width: 100%; position: relative; }
+.profile-gate .btn:disabled { background: var(--control-bg); color: var(--text); opacity: 1; cursor: default; }
 h1 { font-size: 22px; margin: 4px 0 12px; }
 h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
 .search-input {
