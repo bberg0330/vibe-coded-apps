@@ -41,32 +41,42 @@ export function FilmographyScreen({
     setStreaming([])
     setRent([])
 
-    getActorMovies(actor.tmdbId)
-      .then(async (result) => {
-        if (cancelled) return
-        // Stage one: show the list immediately, unranked.
-        setStreaming(result.streaming)
-        setRent(result.rent)
-        setStatus('done')
-
-        // Stage two: score, then reorder. Failures leave the list unranked.
-        const score = async (movies: Movie[]) =>
-          Promise.all(movies.map(async (m) => ({
-            ...m,
-            tomatometer: await getTomatometer(m.tmdbId, m.title, m.year),
-          })))
-
-        const [scoredStreaming, scoredRent] = await Promise.all([
-          score(result.streaming),
-          score(result.rent),
-        ])
-        if (cancelled) return
-        setStreaming(rankByTomatometer(scoredStreaming))
-        setRent(rankByTomatometer(scoredRent))
-      })
-      .catch(() => {
+    void (async () => {
+      // Stage one. Its failure is the only thing allowed to show the error
+      // state: at this point there is nothing on screen to lose.
+      let result: Awaited<ReturnType<typeof getActorMovies>>
+      try {
+        result = await getActorMovies(actor.tmdbId)
+      } catch {
         if (!cancelled) setStatus('error')
-      })
+        return
+      }
+      if (cancelled) return
+
+      // Show the list immediately, unranked.
+      setStreaming(result.streaming)
+      setRent(result.rent)
+      setStatus('done')
+
+      // Stage two: score, then reorder. Deliberately outside the catch above
+      // — once the list is on screen nothing here may take it away. Each
+      // lookup is caught individually, so one bad film costs its own score
+      // (it ranks last as unscored) rather than the whole batch: a shared
+      // Promise.all reject used to flip the whole screen to the error state.
+      const score = (movies: Movie[]) =>
+        Promise.all(movies.map(async (m) => ({
+          ...m,
+          tomatometer: await getTomatometer(m.tmdbId, m.title, m.year).catch(() => null),
+        })))
+
+      const [scoredStreaming, scoredRent] = await Promise.all([
+        score(result.streaming),
+        score(result.rent),
+      ])
+      if (cancelled) return
+      setStreaming(rankByTomatometer(scoredStreaming))
+      setRent(rankByTomatometer(scoredRent))
+    })()
 
     return () => { cancelled = true }
   }, [actor.tmdbId, attempt])

@@ -185,3 +185,23 @@ describe('getRottenTomatoesScores audience score (IMDb rating)', () => {
     expect(scores.audience).toBeUndefined()
   })
 })
+
+describe('legacy cache entries', () => {
+  // data/scores.json predates the { critic, audience } shape: most of its
+  // entries are still a bare tomatometer number, or a bare null meaning
+  // "OMDb has no RT score for this film".
+  it('reads a legacy bare-number entry as the critic score', async () => {
+    resetScoresForTests({ '949': 87 } as never)
+    expect(await getTomatometer(949, 'Heat', 1995)).toBe(87)
+  })
+
+  it('treats a legacy bare-null entry as "no score" rather than throwing', async () => {
+    resetScoresForTests({ '247': null } as never)
+    await expect(getTomatometer(247, 'The Crossing Guard', 1995)).resolves.toBeNull()
+  })
+
+  it('exposes a legacy bare-number entry through the full score shape', async () => {
+    resetScoresForTests({ '949': 87 } as never)
+    expect(await getRottenTomatoesScores(949, 'Heat', 1995)).toEqual({ critic: 87, audience: null })
+  })
+})
