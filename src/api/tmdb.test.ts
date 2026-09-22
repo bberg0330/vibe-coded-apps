@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { searchMovies, getMovieCredits, posterUrl, getMovieDetails, getPerson } from './tmdb'
+import {
+  searchMovies, getMovieCredits, posterUrl, getMovieDetails, getPerson, getActorFilmography,
+} from './tmdb'
 import { clearHttpCache } from './http'
 
 const SEARCH_FIXTURE = {
@@ -28,7 +30,9 @@ beforeEach(() => {
 })
 
 function stub(body: unknown) {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => body }))
+  const f = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => body })
+  vi.stubGlobal('fetch', f)
+  return f
 }
 
 describe('searchMovies', () => {
@@ -75,6 +79,30 @@ describe('getMovieCredits', () => {
     expect(cast[1]).toMatchObject({
       tmdbId: 1532, character: 'Herman Blume', profilePath: '/bm.jpg',
     })
+  })
+})
+
+describe('getActorFilmography', () => {
+  const CREDITS = {
+    cast: [
+      { id: 1585, title: 'Rushmore', release_date: '1998-10-09', poster_path: '/abc.jpg', popularity: 18.4 },
+      { id: 9425, title: 'Untitled', release_date: '', poster_path: null, popularity: 2.1 },
+    ],
+  }
+
+  it('maps the cast array through toMovie, same shape as search results', async () => {
+    stub(CREDITS)
+    const movies = await getActorFilmography(1532)
+    expect(movies).toEqual([
+      expect.objectContaining({ tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: '/abc.jpg', popularity: 18.4 }),
+      expect.objectContaining({ tmdbId: 9425, title: 'Untitled', year: null, posterPath: null, popularity: 2.1 }),
+    ])
+  })
+
+  it('requests the person movie_credits endpoint', async () => {
+    const f = stub(CREDITS)
+    await getActorFilmography(1532)
+    expect((f.mock.calls[0][0] as string)).toContain('/person/1532/movie_credits')
   })
 })
 
