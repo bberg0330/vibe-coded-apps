@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { searchMovies } from '../api/tmdb'
-import { getTomatometer } from '../api/omdb'
+import { getTomatometer, getRottenTomatoesScores } from '../api/omdb'
 import { MissingKeyError } from '../api/http'
 import { MovieCard } from '../components/MovieCard'
+import { RecommendationsCarousel } from '../components/RecommendationsCarousel'
 import { ErrorRetry } from '../components/ErrorRetry'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { SEARCH_ROUTE_KEY } from '../router'
+import { getRecommendationsFor } from '../data/recommendations'
+import { getRecentlyWatchedBy } from '../data/watching'
+import { PROFILES, type ProfileId } from '../data/profiles'
 import type { Movie } from '../types'
 
 const QUERY_STORAGE_KEY = 'mn.searchQuery'
@@ -18,16 +22,20 @@ type Props = {
   onStartWatching?: (movie: Movie) => void
   watchingLabelFor?: (tmdbId: number) => string | null
   startWatchingDisabled?: boolean
+  activeProfileId?: ProfileId | null
 }
 
 export function SearchScreen({
   onOpenMovie, onToggleWatched, watchCountFor, isPending,
-  onStartWatching, watchingLabelFor, startWatchingDisabled,
+  onStartWatching, watchingLabelFor, startWatchingDisabled, activeProfileId = null,
 }: Props) {
   const [query, setQuery] = useState(() => sessionStorage.getItem(QUERY_STORAGE_KEY) ?? '')
   const [results, setResults] = useState<Movie[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>('idle')
   const [attempt, setAttempt] = useState(0)
+
+  const [recommendations, setRecommendations] = useState<Movie[]>([])
+  const [recommendationsFor, setRecommendationsFor] = useState<{ profileName: string; movieTitle: string } | null>(null)
 
   useScrollRestoration(SEARCH_ROUTE_KEY, status === 'done' || status === 'error' || status === 'nokey')
 
@@ -75,9 +83,65 @@ export function SearchScreen({
     }
   }, [query, attempt])
 
+  // Independent of the search query: only depends on who's watching
+  // tonight. No active profile means nothing to derive recommendations
+  // from, so this deliberately skips the fetch entirely rather than
+  // calling getRecommendationsFor with a null id.
+  useEffect(() => {
+    if (!activeProfileId) {
+      setRecommendations([])
+      setRecommendationsFor(null)
+      return
+    }
+
+    let cancelled = false
+    const recent = getRecentlyWatchedBy(activeProfileId)
+    if (!recent) {
+      setRecommendations([])
+      setRecommendationsFor(null)
+      return
+    }
+
+    const profileName = PROFILES.find((p) => p.id === activeProfileId)?.name ?? activeProfileId
+
+    getRecommendationsFor(activeProfileId).then((found) => {
+      if (cancelled) return
+      setRecommendations(found)
+      setRecommendationsFor({ profileName, movieTitle: recent.movie.title })
+
+      for (const movie of found) {
+        getRottenTomatoesScores(movie.tmdbId, movie.title, movie.year).then((scores) => {
+          if (cancelled) return
+          setRecommendations((prev) =>
+            prev.map((m) => m.tmdbId === movie.tmdbId
+              ? { ...m, tomatometer: scores.critic ?? m.tomatometer, popcornmeter: scores.audience ?? m.popcornmeter }
+              : m),
+          )
+        })
+      }
+    })
+
+    return () => { cancelled = true }
+  }, [activeProfileId])
+
   return (
     <div className="screen">
       <h1>Movie Night</h1>
+
+      {query === '' && recommendationsFor && (
+        <RecommendationsCarousel
+          movies={recommendations}
+          title={`Because ${recommendationsFor.profileName} watched ${recommendationsFor.movieTitle}`}
+          onOpen={onOpenMovie}
+          watchCountFor={watchCountFor}
+          isPending={isPending}
+          onToggleWatched={onToggleWatched}
+          onStartWatching={onStartWatching}
+          watchingLabelFor={watchingLabelFor}
+          startWatchingDisabled={startWatchingDisabled}
+        />
+      )}
+
       <input
         type="search"
         className="search-input"
