@@ -60,6 +60,18 @@
         "popcornmeter": 71
       },
       "discoveredVia": null
+    },
+    {
+      "watchedAt": "2026-09-22T17:37:59.039Z",
+      "movie": {
+        "tmdbId": 1273196,
+        "title": "Jim Henson Idea Man",
+        "year": 2024,
+        "posterPath": "/w1IYhFVW2XyKfkIyZ65jZ2Uyn6Y.jpg",
+        "tomatometer": 98,
+        "popcornmeter": 77
+      },
+      "discoveredVia": null
     }
   ],
   "enabledServices": [
