@@ -66,14 +66,20 @@ describe('cacheScores', () => {
 })
 
 describe('getCachedScores legacy normalisation', () => {
-  it('normalises a bare-number entry to the critic field', () => {
+  // `audience` is deliberately ABSENT rather than null on both of these.
+  // A legacy entry never had the audience half looked up, and null would
+  // claim otherwise — which callers read as a complete record, short-circuit
+  // on, and therefore never fill in.
+  it('normalises a bare-number entry to the critic field, leaving audience unknown', () => {
     resetScoresForTests({ '1585': 90 } as never)
-    expect(getCachedScores(1585)).toEqual({ critic: 90, audience: null })
+    expect(getCachedScores(1585)).toEqual({ critic: 90 })
+    expect('audience' in getCachedScores(1585)!).toBe(false)
   })
 
-  it('normalises a bare-null entry to an empty-but-known result', () => {
+  it('normalises a bare-null entry to a known-absent critic, leaving audience unknown', () => {
     resetScoresForTests({ '1585': null } as never)
-    expect(getCachedScores(1585)).toEqual({ critic: null, audience: null })
+    expect(getCachedScores(1585)).toEqual({ critic: null })
+    expect('audience' in getCachedScores(1585)!).toBe(false)
   })
 
   it('still reports a never-looked-up film as undefined', () => {
