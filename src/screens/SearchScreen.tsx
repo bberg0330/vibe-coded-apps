@@ -15,9 +15,15 @@ type Props = {
   onToggleWatched: (movie: Movie) => void
   watchCountFor: (tmdbId: number) => number
   isPending?: (tmdbId: number) => boolean
+  onStartWatching?: (movie: Movie) => void
+  watchingLabelFor?: (tmdbId: number) => string | null
+  startWatchingDisabled?: boolean
 }
 
-export function SearchScreen({ onOpenMovie, onToggleWatched, watchCountFor, isPending }: Props) {
+export function SearchScreen({
+  onOpenMovie, onToggleWatched, watchCountFor, isPending,
+  onStartWatching, watchingLabelFor, startWatchingDisabled,
+}: Props) {
   const [query, setQuery] = useState(() => sessionStorage.getItem(QUERY_STORAGE_KEY) ?? '')
   const [results, setResults] = useState<Movie[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>('idle')
@@ -102,6 +108,9 @@ export function SearchScreen({ onOpenMovie, onToggleWatched, watchCountFor, isPe
           pending={isPending?.(movie.tmdbId) ?? false}
           onOpen={onOpenMovie}
           onToggleWatched={onToggleWatched}
+          onStartWatching={onStartWatching}
+          watchingLabel={watchingLabelFor?.(movie.tmdbId) ?? null}
+          startWatchingDisabled={startWatchingDisabled}
         />
       ))}
     </div>

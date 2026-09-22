@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { HistoryScreen } from './HistoryScreen'
 import { logWatch } from '../data/history'
+import { startWatching, WATCHING_WINDOW_MS } from '../data/watching'
 import { resetStoreForTests, getStoreSnapshot } from '../data/store'
 import { applyOp } from '../../vite-plugins/store-ops'
 import type { Movie, StoreOp } from '../types'
@@ -135,5 +136,64 @@ describe('HistoryScreen', () => {
     vi.runAllTimers()
 
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock-url')
+  })
+
+  describe('Tonight section', () => {
+    it('shows a still-in-progress entry tagged "Watching"', async () => {
+      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      render(<HistoryScreen />)
+
+      expect(screen.getByText('Tonight')).toBeInTheDocument()
+      expect(screen.getByTestId('tonight-title')).toHaveTextContent('Rushmore')
+      expect(screen.getByTestId('tonight-status')).toHaveTextContent('Watching')
+    })
+
+    it(
+      'keeps showing an entry tagged "Watched" once its 12h window has elapsed, ' +
+      'since nowWatching entries are never migrated into history',
+      async () => {
+        await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+        vi.setSystemTime(new Date(Date.now() + WATCHING_WINDOW_MS))
+
+        render(<HistoryScreen />)
+
+        expect(screen.getByTestId('tonight-title')).toHaveTextContent('Rushmore')
+        expect(screen.getByTestId('tonight-status')).toHaveTextContent('Watched')
+      },
+    )
+
+    it('lists entries newest startedAt first, across every profile', async () => {
+      await startWatching(movie(1, 'Older'), 'laura', null)
+      vi.setSystemTime(new Date('2026-08-08T21:00:00Z'))
+      await startWatching(movie(2, 'Newer'), 'brian', null)
+
+      render(<HistoryScreen />)
+      const titles = screen.getAllByTestId('tonight-title').map((n) => n.textContent)
+      expect(titles).toEqual(['Newer', 'Older'])
+    })
+
+    it('opens the movie when a Tonight row is tapped', async () => {
+      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      const onOpenMovie = vi.fn()
+      render(<HistoryScreen onOpenMovie={onOpenMovie} />)
+
+      fireEvent.click(screen.getByTestId('tonight-title'))
+      expect(onOpenMovie).toHaveBeenCalledWith(
+        expect.objectContaining({ tmdbId: 1585, title: 'Rushmore' }),
+      )
+    })
+
+    it('does not render a Tonight section when nothing has been started', () => {
+      render(<HistoryScreen />)
+      expect(screen.queryByText('Tonight')).not.toBeInTheDocument()
+    })
+
+    it('shows the Tonight section even when permanent history is empty', async () => {
+      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      render(<HistoryScreen />)
+
+      expect(screen.getByText('Tonight')).toBeInTheDocument()
+      expect(screen.getByText(/nothing logged yet/i)).toBeInTheDocument()
+    })
   })
 })

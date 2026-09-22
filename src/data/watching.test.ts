@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   WATCHING_WINDOW_MS, effectiveStatus, startWatching, cancelWatching,
-  getNowWatching, getRecentlyWatchedBy,
+  getNowWatching, getRecentlyWatchedBy, getAllWatchingTonight,
 } from './watching'
 import { resetStoreForTests, getStoreSnapshot } from './store'
 import { applyOp } from '../../vite-plugins/store-ops'
@@ -175,5 +175,41 @@ describe('getRecentlyWatchedBy', () => {
 
   it('returns null when the profile has no entries at all', () => {
     expect(getRecentlyWatchedBy('laura', Date.parse('2026-08-08T20:00:00.000Z'))).toBeNull()
+  })
+})
+
+describe('getAllWatchingTonight', () => {
+  it('includes entries regardless of status, unlike getNowWatching', () => {
+    resetStoreForTests({
+      version: 2,
+      history: [],
+      enabledServices: [],
+      nowWatching: [
+        watchingEntry('laura', 1, 'Still watching', '2026-08-08T15:00:00.000Z'), // 5h ago
+        watchingEntry('brian', 2, 'Long since watched', '2026-08-01T00:00:00.000Z'), // days ago
+      ],
+    })
+
+    const titles = getAllWatchingTonight().map((e) => e.movie.title)
+    expect(titles).toEqual(expect.arrayContaining(['Still watching', 'Long since watched']))
+    expect(titles).toHaveLength(2)
+  })
+
+  it('orders entries newest startedAt first', () => {
+    resetStoreForTests({
+      version: 2,
+      history: [],
+      enabledServices: [],
+      nowWatching: [
+        watchingEntry('laura', 1, 'Older', '2026-08-07T00:00:00.000Z'),
+        watchingEntry('brian', 2, 'Newer', '2026-08-08T12:00:00.000Z'),
+      ],
+    })
+
+    expect(getAllWatchingTonight().map((e) => e.movie.title)).toEqual(['Newer', 'Older'])
+  })
+
+  it('returns an empty array when nothing has ever been started', () => {
+    expect(getAllWatchingTonight()).toEqual([])
   })
 })

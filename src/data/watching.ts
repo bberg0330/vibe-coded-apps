@@ -52,6 +52,21 @@ export function getNowWatching(now = Date.now()): WatchingEntry[] {
 }
 
 /**
+ * Every "watching tonight" entry regardless of status, newest first.
+ *
+ * Unlike `getNowWatching`, this is NOT filtered to `'watching'` — entries
+ * are never migrated into `history` (there is no archival step in this
+ * plan), so a UI that only reads `getNowWatching()` would silently lose an
+ * entry the instant its 12h window elapses. Callers that need to keep
+ * "what she watched tonight" visible after it ages into `'watched'` (e.g.
+ * HistoryScreen's "Tonight" section) should read this instead.
+ */
+export function getAllWatchingTonight(): WatchingEntry[] {
+  return [...getStoreSnapshot().nowWatching]
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
+}
+
+/**
  * The given profile's most recently started entry that has aged into
  * "watched" (i.e. its 12h window has elapsed), or null if it has none.
  */
