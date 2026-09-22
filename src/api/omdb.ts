@@ -23,19 +23,33 @@ export async function getRottenTomatoesScores(
   title: string,
   year: number | null,
 ): Promise<ScoreData> {
+  // A hit only counts when it actually answers both halves. Entries cached by
+  // the old critic-only version have no `audience` key at all, and treating
+  // those as complete is what made the audience score unfillable for every
+  // film already in the cache. `audience: null` is a real answer and does
+  // count — it means OMDb has no rating, not that we never asked.
   const hit = getCachedScores(tmdbId)
-  if (hit !== undefined) return hit
+  if (hit !== undefined && 'audience' in hit) return hit
+
+  // A legacy hit is incomplete, not worthless: it still holds a real critic
+  // score. Every bail-out below falls back to it rather than to {}, so a
+  // failed re-fetch costs the audience half we never had — not the critic
+  // half we already did.
+  const fallback: ScoreData = hit ?? {}
 
   const apiKey = import.meta.env.VITE_OMDB_KEY
-  if (!apiKey) return {}
+  if (!apiKey) return fallback
 
   try {
     const qs = new URLSearchParams({ apikey: apiKey, t: title })
     const res = await fetch(`https://www.omdbapi.com/?${qs}`)
-    if (!res.ok) return {}
+    if (!res.ok) return fallback
 
     const data = (await res.json()) as OmdbResponse
-    let scores: ScoreData = {}
+    // Both keys present, so a definitive "OMDb doesn't have this film" is
+    // cached as a complete answer. Left as `{}` it would read as "never
+    // looked up" on the next call and re-fetch forever.
+    let scores: ScoreData = { critic: null, audience: null }
     if (data.Response === 'True' && yearMatches(data.Year, year)) {
       scores = {
         critic: parseCriticScore(data.Ratings),
@@ -46,7 +60,7 @@ export async function getRottenTomatoesScores(
     cacheScores(tmdbId, scores)
     return scores
   } catch {
-    return {}
+    return fallback
   }
 }
 
