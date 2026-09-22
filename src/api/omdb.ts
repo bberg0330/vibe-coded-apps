@@ -57,7 +57,9 @@ export async function getTomatometer(
   year: number | null,
 ): Promise<number | null> {
   const scores = await getRottenTomatoesScores(tmdbId, title, year)
-  return scores.critic ?? null
+  // Optional chaining, not a bare `.critic`: this is the last line of defence
+  // for callers that batch these lookups, where one throw loses the batch.
+  return scores?.critic ?? null
 }
 
 /** Tolerates the one-year drift between IMDb's and TMDB's release years. */
