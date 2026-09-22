@@ -15,10 +15,14 @@ type Props = {
   onToggleWatched: (movie: Movie) => void
   watchCountFor: (tmdbId: number) => number
   isPending?: (tmdbId: number) => boolean
+  onStartWatching?: (movie: Movie) => void
+  watchingLabelFor?: (tmdbId: number) => string | null
+  startWatchingDisabled?: boolean
 }
 
 export function FilmographyScreen({
   actor, fromMovie, onOpenMovie, onToggleWatched, watchCountFor, isPending,
+  onStartWatching, watchingLabelFor, startWatchingDisabled,
 }: Props) {
   const [streaming, setStreaming] = useState<Movie[]>([])
   const [rent, setRent] = useState<Movie[]>([])
@@ -78,6 +82,9 @@ export function FilmographyScreen({
       pending={isPending?.(movie.tmdbId) ?? false}
       onOpen={onOpenMovie}
       onToggleWatched={onToggleWatched}
+      onStartWatching={onStartWatching}
+      watchingLabel={watchingLabelFor?.(movie.tmdbId) ?? null}
+      startWatchingDisabled={startWatchingDisabled}
     />
   )
 

@@ -2,11 +2,20 @@
 import { describe, it, expect } from 'vitest'
 import { applyOp, parseStore, SeedRejectedError } from './store-ops'
 import { emptyStore } from '../src/types'
-import type { ServiceKey, Store, WatchEntry } from '../src/types'
+import type { ServiceKey, Store, WatchEntry, WatchingEntry } from '../src/types'
 
 const entry = (tmdbId: number, title: string, watchedAt: string): WatchEntry => ({
   watchedAt,
   movie: { tmdbId, title, year: 1998, posterPath: null, tomatometer: 90 },
+  discoveredVia: null,
+})
+
+const watchingEntry = (
+  profileId: string, tmdbId: number, title: string, startedAt: string,
+): WatchingEntry => ({
+  startedAt,
+  profileId,
+  movie: { tmdbId, title, year: 1998, posterPath: null, tomatometer: 90, popcornmeter: null },
   discoveredVia: null,
 })
 
@@ -142,6 +151,55 @@ describe('applyOp: seed', () => {
   })
 })
 
+describe('applyOp: startWatching', () => {
+  it('appends an entry to nowWatching', () => {
+    const next = applyOp(emptyStore(), {
+      type: 'startWatching', entry: watchingEntry('laura', 1, 'Rushmore', '2026-08-08T20:00:00.000Z'),
+    })
+    expect(next.nowWatching).toHaveLength(1)
+    expect(next.nowWatching[0].movie.title).toBe('Rushmore')
+  })
+
+  it('does not mutate the input store', () => {
+    const before = emptyStore()
+    applyOp(before, {
+      type: 'startWatching', entry: watchingEntry('laura', 1, 'X', '2026-08-08T20:00:00.000Z'),
+    })
+    expect(before.nowWatching).toHaveLength(0)
+  })
+})
+
+describe('applyOp: cancelWatching', () => {
+  it('removes the most recent matching (profileId, tmdbId) entry', () => {
+    let store = applyOp(emptyStore(), {
+      type: 'startWatching', entry: watchingEntry('laura', 1, 'A', '2026-01-01T00:00:00.000Z'),
+    })
+    store = applyOp(store, { type: 'cancelWatching', profileId: 'laura', tmdbId: 1 })
+    expect(store.nowWatching).toHaveLength(0)
+  })
+
+  it('leaves a different profile watching the same film alone', () => {
+    let store = applyOp(emptyStore(), {
+      type: 'startWatching', entry: watchingEntry('laura', 1, 'A', '2026-01-01T00:00:00.000Z'),
+    })
+    store = applyOp(store, {
+      type: 'startWatching', entry: watchingEntry('brian', 1, 'A', '2026-01-01T00:00:00.000Z'),
+    })
+    store = applyOp(store, { type: 'cancelWatching', profileId: 'laura', tmdbId: 1 })
+
+    expect(store.nowWatching).toHaveLength(1)
+    expect(store.nowWatching[0].profileId).toBe('brian')
+  })
+
+  it('is a no-op for a non-matching pair', () => {
+    let store = applyOp(emptyStore(), {
+      type: 'startWatching', entry: watchingEntry('laura', 1, 'A', '2026-01-01T00:00:00.000Z'),
+    })
+    store = applyOp(store, { type: 'cancelWatching', profileId: 'laura', tmdbId: 999 })
+    expect(store.nowWatching).toHaveLength(1)
+  })
+})
+
 describe('applyOp: unknown operation', () => {
   it('throws rather than silently doing nothing', () => {
     expect(() => applyOp(emptyStore(), { type: 'bogus' } as never)).toThrow()
@@ -167,8 +225,19 @@ describe('parseStore', () => {
       version: 1,
       history: [entry(1, 'Kept', '2026-01-01T00:00:00.000Z')],
       enabledServices: ['netflix'],
+      nowWatching: [watchingEntry('laura', 2, 'Watching', '2026-01-02T00:00:00.000Z')],
     }
     expect(parseStore(JSON.stringify(store))).toEqual(store)
+  })
+
+  it('defaults a missing nowWatching to an empty array', () => {
+    const parsed = parseStore('{"version":1,"history":[]}')
+    expect(parsed.nowWatching).toEqual([])
+  })
+
+  it('defaults an invalid (non-array) nowWatching to an empty array', () => {
+    const parsed = parseStore('{"version":1,"history":[],"nowWatching":"nope"}')
+    expect(parsed.nowWatching).toEqual([])
   })
 
   it('defaults a missing enabledServices to all six rather than none', () => {
