@@ -319,7 +319,7 @@ export default function App() {
         <div className="error" role="alert">
           <p>{bootError}</p>
           <p>Make sure <code>npm run dev</code> is still running on the Mac.</p>
-          <button onClick={() => setBootAttempt((a) => a + 1)}>Try again</button>
+          <button className="btn" onClick={() => setBootAttempt((a) => a + 1)}>Try again</button>
         </div>
       </div>
     )

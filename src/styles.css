@@ -1,11 +1,74 @@
+/*
+ * Every colour is a variable, and every variable is redefined in the light
+ * block below. Values that used to be hardcoded hex (border, badge, watched,
+ * error, poster placeholder) are tokens now — not tidiness for its own sake:
+ * a hardcoded dark hex is invisible in light mode, so each one had to become
+ * something a media query can override.
+ */
 :root {
   --bg: #0f1115;
   --surface: #191c23;
   --text: #f2f4f8;
   --muted: #9aa3b2;
-  --accent: #f5c518;
-  color-scheme: dark;
+
+  /*
+   * The brand gold does two jobs that cannot share one value once there is a
+   * light mode: it is a FILL behind pills and the active chip, and it is TEXT
+   * for links and scores. #f5c518 on white is 1.63:1 — unreadable — so the
+   * text role darkens while the fill role stays on brand. Dark text on the
+   * gold fill clears AA in either mode (11.3:1+), so --accent never changes.
+   */
+  --accent: #f5c518;       /* fill only — never use as a text colour */
+  --accent-text: #f5c518;  /* text only — links, scores, Download JSON */
+
+  /*
+   * Resting background of the ✓ / 🕐 / ⋮ buttons. Identical to --bg in dark
+   * mode, which is why the app never needed a separate token — but that same
+   * value on a white card is invisible, so the role needs its own variable.
+   */
+  --control-bg: #0f1115;
+
+  --border: #2a2f3a;
+  --poster-empty: #2a2f3a;
+  --badge-bg: #262b35;
+  --watched-bg: #1f3a24;
+  --watched-fg: #7ee29b;
+  --error-bg: #33222a;
+  --scrim: rgba(0, 0, 0, .5);
+  --sheet-shadow: 0 -8px 32px rgba(0, 0, 0, .5);
+
+  /* "light dark" is what lets the OS Automatic setting reach this app at all. */
+  color-scheme: light dark;
 }
+
+/*
+ * Cards invert: dark mode raises a lighter card off a near-black page, light
+ * mode drops a white card onto a soft grey one. Same hierarchy, opposite
+ * direction. Every pair below was measured — the weakest is 5.01:1.
+ */
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --text: #12141a;
+    --muted: #5a6270;
+
+    --accent: #f5c518;
+    --accent-text: #8a6500;  /* 5.33:1 on white; the brand gold is 1.63:1 */
+
+    --control-bg: #e5e8ed;
+
+    --border: #d8dce3;
+    --poster-empty: #e5e8ed;
+    --badge-bg: #eceef2;
+    --watched-bg: #e3f5e9;
+    --watched-fg: #1c6b39;
+    --error-bg: #fdeaef;
+    --scrim: rgba(0, 0, 0, .35);
+    --sheet-shadow: 0 -8px 32px rgba(18, 20, 26, .18);
+  }
+}
+
 * { box-sizing: border-box; }
 body {
   margin: 0;
@@ -31,24 +94,24 @@ body {
   min-width: 0;
 }
 .poster { width: 54px; height: 81px; object-fit: cover; border-radius: 6px; flex: none; }
-.poster-empty { background: #2a2f3a; }
+.poster-empty { background: var(--poster-empty); }
 .card-body { min-width: 0; }
 .card-title {
   font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .card-meta { display: flex; gap: 8px; color: var(--muted); font-size: 14px; }
-.score { color: var(--accent); font-weight: 600; }
+.score { color: var(--accent-text); font-weight: 600; }
 .score-none { color: var(--muted); }
-.rewatch { color: var(--accent); }
+.rewatch { color: var(--accent-text); }
 .badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .badge {
   font-size: 12px; padding: 2px 6px; border-radius: 999px;
-  background: #262b35; color: var(--muted);
+  background: var(--badge-bg); color: var(--muted);
 }
 .pill {
   font-size: 12px; padding: 2px 6px; border-radius: 999px; white-space: nowrap;
-  background: var(--accent); color: var(--bg); font-weight: 600;
+  background: var(--accent); color: #0f1115; font-weight: 600;
 }
 /* Narrow trailing column holding the ✓ and clock buttons, stacked. */
 .card-actions {
@@ -57,26 +120,39 @@ body {
 }
 .watch-btn, .watching-btn {
   flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px;
-  background: var(--bg); color: var(--muted); font-size: 16px; cursor: pointer;
+  background: var(--control-bg); color: var(--muted); font-size: 16px; cursor: pointer;
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
-.watch-btn.watched { background: #1f3a24; color: #7ee29b; }
+.watch-btn.watched { background: var(--watched-bg); color: var(--watched-fg); }
 .watch-btn:disabled, .watching-btn:disabled { opacity: .5; cursor: default; }
-.error { background: #33222a; border-radius: 10px; padding: 12px; }
+.error { background: var(--error-bg); border-radius: 10px; padding: 12px; }
+
+/*
+ * "Try again" was a raw UA button — light grey with black text sitting on the
+ * dark error surface. 44px tall is Apple's minimum touch target, which the
+ * 22px default was less than half of.
+ */
+.btn {
+  appearance: none; border: 0; border-radius: 8px;
+  background: var(--accent); color: #0f1115;
+  font: inherit; font-size: 15px; font-weight: 600;
+  min-height: 44px; padding: 0 16px; cursor: pointer;
+}
+.btn:disabled { opacity: .5; cursor: default; }
 
 .app { max-width: 640px; margin: 0 auto; padding: 12px; padding-top: max(12px, env(safe-area-inset-top)); }
 .topbar { display: flex; justify-content: space-between; margin-bottom: 8px; }
-.link { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; padding: 8px; }
+.link { background: none; border: 0; color: var(--accent-text); font: inherit; cursor: pointer; padding: 8px; }
 .profile-switcher { display: flex; gap: 6px; align-items: center; }
 .chip {
   background: var(--surface); color: var(--muted); border: 0; border-radius: 999px;
   font: inherit; font-size: 13px; cursor: pointer; padding: 6px 12px;
 }
-.chip[aria-pressed="true"] { background: var(--accent); color: var(--bg); }
+.chip[aria-pressed="true"] { background: var(--accent); color: #0f1115; }
 h1 { font-size: 22px; margin: 4px 0 12px; }
 h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
 .search-input {
-  width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #2a2f3a;
+  width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border);
   background: var(--surface); color: var(--text); font: inherit; margin-bottom: 16px;
 }
 .empty { color: var(--muted); }
@@ -86,10 +162,39 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 .recommendations-row .card { flex: none; width: 220px; margin-bottom: 0; }
 .screen-header { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
 
+/*
+ * The sheet had no z-index and no scrim, so History rows — which sit in
+ * position:relative wrappers so their menus can escape — painted straight
+ * over the top of it.
+ */
+.scrim {
+  position: fixed; inset: 0; background: var(--scrim); z-index: 20;
+  border: 0; padding: 0; width: 100%; cursor: pointer;
+}
 .sheet {
   position: fixed; inset: auto 0 0 0; background: var(--surface);
   border-radius: 16px 16px 0 0; padding: 16px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom));
-  box-shadow: 0 -8px 32px rgba(0,0,0,.5);
+  box-shadow: var(--sheet-shadow);
+  z-index: 21;
 }
 .toggle-row { display: flex; gap: 10px; align-items: center; padding: 10px 0; }
+
+/*
+ * History rows used to be <button class="card">, which inherited the UA
+ * default border and shrink-to-fit width — every row rendered a little
+ * narrower than the one above it. The row is a div now, with the tap handled
+ * by the .card-main button inside it, exactly like MovieCard.
+ */
+.history-row { position: relative; }
+.history-menu {
+  position: absolute; top: 100%; right: 0; margin-top: 4px; z-index: 10;
+  min-width: 150px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px;
+}
+.history-menu button {
+  display: block; width: 100%; padding: 10px 12px; text-align: left;
+  border: 0; background: none; color: inherit; font: inherit; font-size: 14px;
+  cursor: pointer;
+}
+.history-menu button:disabled { opacity: .5; cursor: default; }
