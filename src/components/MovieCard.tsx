@@ -18,9 +18,22 @@ type Props = {
   noOpen?: boolean
   /** True while a save for this film is in flight. Disables the button so a second tap can't race the first. */
   pending?: boolean
+  /** Marks the active profile as watching this film right now. Omitted where "watching tonight" doesn't apply. */
+  onStartWatching?: (movie: Movie) => void
+  /**
+   * Short nowrap pill shown next to the badges (e.g. "Watching tonight") —
+   * null/undefined renders nothing. The caller decides the text and when it
+   * applies; MovieCard only renders it.
+   */
+  watchingLabel?: string | null
+  /** True when there's no active profile to attribute a "watching" tap to. */
+  startWatchingDisabled?: boolean
 }
 
-export function MovieCard({ movie, onOpen, onToggleWatched, watched, noOpen, pending = false }: Props) {
+export function MovieCard({
+  movie, onOpen, onToggleWatched, watched, noOpen, pending = false,
+  onStartWatching, watchingLabel = null, startWatchingDisabled = false,
+}: Props) {
   const poster = posterUrl(movie.posterPath)
   const badges = [
     ...movie.availability.streaming.map((k) => SERVICES[k].label),
@@ -42,6 +55,7 @@ export function MovieCard({ movie, onOpen, onToggleWatched, watched, noOpen, pen
           {movie.popcornmeter !== null && (
             <span className="score" title="IMDb rating">🍿 {movie.popcornmeter}%</span>
           )}
+          {watchingLabel && <span className="pill">{watchingLabel}</span>}
         </div>
         <div className="badges">
           {badges.map((label) => <span className="badge" key={label}>{label}</span>)}
@@ -56,20 +70,37 @@ export function MovieCard({ movie, onOpen, onToggleWatched, watched, noOpen, pen
         ? <div className="card-main">{body}</div>
         : <button className="card-main" onClick={() => onOpen?.(movie)}>{body}</button>}
 
-      <button
-        className={`watch-btn${watched ? ' watched' : ''}`}
-        aria-label={watched
-          ? `Undo watched for ${movie.title}`
-          : `Mark ${movie.title} as watched`}
-        aria-pressed={watched}
-        disabled={pending}
-        onClick={(e) => {
-          e.stopPropagation()
-          onToggleWatched(movie)
-        }}
-      >
-        ✓
-      </button>
+      <div className="card-actions">
+        <button
+          className={`watch-btn${watched ? ' watched' : ''}`}
+          aria-label={watched
+            ? `Undo watched for ${movie.title}`
+            : `Mark ${movie.title} as watched`}
+          aria-pressed={watched}
+          disabled={pending}
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleWatched(movie)
+          }}
+        >
+          ✓
+        </button>
+
+        {onStartWatching && (
+          <button
+            className="watching-btn"
+            aria-label={`Start watching ${movie.title} tonight`}
+            title={startWatchingDisabled ? "Pick who's watching first" : undefined}
+            disabled={pending || startWatchingDisabled}
+            onClick={(e) => {
+              e.stopPropagation()
+              onStartWatching(movie)
+            }}
+          >
+            🕐
+          </button>
+        )}
+      </div>
     </div>
   )
 }

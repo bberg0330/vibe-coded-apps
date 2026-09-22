@@ -1,0 +1,51 @@
+import { getMovieCredits, getActorFilmography } from '../api/tmdb'
+import { getHistory } from './history'
+import { getAllWatchingTonight, getRecentlyWatchedBy } from './watching'
+import type { Movie } from '../types'
+
+/** How many top-billed cast members to pull filmographies for. */
+const CAST_SAMPLE_SIZE = 5
+
+/** Cap on the number of recommendations returned. */
+const MAX_RESULTS = 12
+
+/**
+ * Recommendations for `profileId`, derived from the last film they finished
+ * watching: films sharing a top-billed cast member, ranked by popularity.
+ *
+ * Excludes anything the household has already seen — via the shared
+ * `history` array, via any profile's `nowWatching` entry (which never gets
+ * archived into `history`, so it's the only record of a "watched via
+ * watching tonight" film), or the source film itself — and dedupes overlapping
+ * actor filmographies by tmdbId.
+ */
+export async function getRecommendationsFor(profileId: string): Promise<Movie[]> {
+  const recent = getRecentlyWatchedBy(profileId)
+  if (!recent) return []
+
+  const cast = await getMovieCredits(recent.movie.tmdbId)
+  const topCast = cast.slice(0, CAST_SAMPLE_SIZE)
+
+  const filmographies = await Promise.all(
+    topCast.map((actor) => getActorFilmography(actor.tmdbId)),
+  )
+
+  const excluded = new Set<number>([
+    ...getHistory().map((e) => e.movie.tmdbId),
+    ...getAllWatchingTonight().map((e) => e.movie.tmdbId),
+    recent.movie.tmdbId,
+  ])
+
+  const deduped = new Map<number, Movie>()
+  for (const filmography of filmographies) {
+    for (const movie of filmography) {
+      if (excluded.has(movie.tmdbId)) continue
+      if (deduped.has(movie.tmdbId)) continue
+      deduped.set(movie.tmdbId, movie)
+    }
+  }
+
+  return [...deduped.values()]
+    .sort((a, b) => b.popularity - a.popularity)
+    .slice(0, MAX_RESULTS)
+}

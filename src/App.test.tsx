@@ -4,11 +4,13 @@ import userEvent from '@testing-library/user-event'
 import App from './App'
 import { clearHttpCache } from './api/http'
 import { getHistory } from './data/history'
+import { getAllWatchingTonight } from './data/watching'
 import { resetStoreForTests, getStoreSnapshot } from './data/store'
 import { applyOp } from '../vite-plugins/store-ops'
 import { emptyStore } from './types'
 import type { StoreOp, Movie } from './types'
 import { hashFor } from './router'
+import { PROFILES } from './data/profiles'
 
 const rushmoreSearchResults = {
   results: [{
@@ -40,6 +42,7 @@ beforeEach(() => {
   window.location.hash = ''
   clearHttpCache()
   resetStoreForTests()
+  localStorage.clear()
   vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
   stubAppServer()
 })
@@ -250,6 +253,117 @@ describe('App - URL navigation', () => {
   })
 })
 
+describe('App - profile switcher', () => {
+  it('shows a chip for every configured profile', async () => {
+    render(<App />)
+    await screen.findByRole('searchbox')
+
+    for (const profile of PROFILES) {
+      expect(screen.getByRole('button', { name: profile.name })).toBeInTheDocument()
+    }
+  })
+
+  it('persists the selected profile across a simulated reload', async () => {
+    const { unmount } = render(<App />)
+    await screen.findByRole('searchbox')
+
+    const chip = screen.getByRole('button', { name: PROFILES[1].name })
+    expect(chip).toHaveAttribute('aria-pressed', 'false')
+    await userEvent.click(chip)
+    expect(chip).toHaveAttribute('aria-pressed', 'true')
+
+    // Simulate a fresh app load: unmount and remount, re-reading whatever
+    // was persisted to localStorage rather than any in-memory state.
+    unmount()
+    render(<App />)
+    await screen.findByRole('searchbox')
+
+    expect(screen.getByRole('button', { name: PROFILES[1].name }))
+      .toHaveAttribute('aria-pressed', 'true')
+  })
+})
+
+describe('App - startWatchingTonight', () => {
+  async function tapStartWatchingButton() {
+    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    const button = await screen.findByRole('button', { name: /start watching rushmore tonight/i })
+    await userEvent.click(button)
+  }
+
+  it(
+    'disables the clock button and never calls watching.ts when no profile is selected ' +
+    '(the button is disabled from first render, so the click never reaches the handler — ' +
+    "the handler's own no-profile guard, asserted below via the button's state, is what backs " +
+    'that up if it is ever invoked some other way)',
+    async () => {
+      render(<App />)
+      await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+      const button = await screen.findByRole('button', { name: /start watching rushmore tonight/i })
+
+      expect(button).toBeDisabled()
+      await userEvent.click(button)
+
+      expect(getAllWatchingTonight()).toHaveLength(0)
+      expect(screen.queryByText('Watching tonight')).not.toBeInTheDocument()
+    },
+  )
+
+  it('marks the active profile as watching, and shows the "Watching tonight" pill', async () => {
+    render(<App />)
+    await screen.findByRole('searchbox')
+    await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
+
+    await tapStartWatchingButton()
+
+    await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
+    expect(getAllWatchingTonight()[0].profileId).toBe(PROFILES[0].id)
+    expect(await screen.findByText('Watching tonight')).toBeInTheDocument()
+  })
+
+  it(
+    'ignores a rapid second tap while the first save is still in flight ' +
+    '(mirrors the toggleWatched double-tap guard)',
+    async () => {
+      render(<App />)
+      await screen.findByRole('searchbox')
+      await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
+      await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+      const button = await screen.findByRole('button', { name: /start watching rushmore tonight/i })
+
+      // fireEvent, not userEvent: both taps must land in the same tick,
+      // before either's async work resolves, to actually exercise the race.
+      fireEvent.click(button)
+      fireEvent.click(button)
+
+      await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
+    },
+  )
+
+  it('reverts the pill and shows an error when the save fails', async () => {
+    const movie = {
+      id: 1585, title: 'Rushmore', release_date: '1998-10-09',
+      poster_path: null, popularity: 18,
+    }
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).startsWith('/api/store') && init?.method === 'POST') {
+        throw new Error('offline')
+      }
+      if (String(url).startsWith('/api/store')) {
+        return { ok: true, status: 200, json: async () => emptyStore() }
+      }
+      return { ok: true, status: 200, json: async () => ({ results: [movie] }) }
+    }))
+
+    render(<App />)
+    await screen.findByRole('searchbox')
+    await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
+    await tapStartWatchingButton()
+
+    expect(await screen.findByText(/couldn't save/i)).toBeInTheDocument()
+    expect(screen.queryByText('Watching tonight')).not.toBeInTheDocument()
+  })
+})
+
 describe('write failure', () => {
   it('reverts the watch button and tells the user when the save fails', async () => {
     const movie = {
@@ -274,5 +388,50 @@ describe('write failure', () => {
     // The button must NOT look logged.
     expect(screen.getByRole('button', { name: /mark rushmore as watched/i }))
       .toHaveAttribute('aria-pressed', 'false')
+  })
+})
+
+describe('App - cancelWatchingTonight', () => {
+  it('removes the Tonight row from HistoryScreen when its cancel control is tapped', async () => {
+    render(<App />)
+    await screen.findByRole('searchbox')
+    await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
+    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await userEvent.click(await screen.findByRole('button', { name: /start watching rushmore tonight/i }))
+    await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
+
+    await userEvent.click(screen.getByRole('button', { name: /^history$/i }))
+    expect(await screen.findByTestId('tonight-title')).toHaveTextContent('Rushmore')
+
+    await userEvent.click(screen.getByRole('button', { name: /undo watching rushmore tonight/i }))
+
+    await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(0))
+    expect(screen.queryByTestId('tonight-title')).not.toBeInTheDocument()
+  })
+
+  it('reverts the row and shows an error when the cancel save fails', async () => {
+    render(<App />)
+    await screen.findByRole('searchbox')
+    await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
+    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await userEvent.click(await screen.findByRole('button', { name: /start watching rushmore tonight/i }))
+    await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
+
+    await userEvent.click(screen.getByRole('button', { name: /^history$/i }))
+    await screen.findByTestId('tonight-title')
+
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).startsWith('/api/store') && init?.method === 'POST') {
+        throw new Error('offline')
+      }
+      return { ok: true, status: 200, json: async () => getStoreSnapshot() }
+    }))
+
+    await userEvent.click(screen.getByRole('button', { name: /undo watching rushmore tonight/i }))
+
+    expect(await screen.findByText(/couldn't save/i)).toBeInTheDocument()
+    // The entry must reappear — the cancel did not actually happen.
+    expect(await screen.findByTestId('tonight-title')).toHaveTextContent('Rushmore')
+    expect(getAllWatchingTonight()).toHaveLength(1)
   })
 })

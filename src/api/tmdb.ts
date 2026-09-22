@@ -63,6 +63,19 @@ export async function getMovieCredits(movieId: number): Promise<CastMember[]> {
     .sort((a, b) => a.order - b.order)
 }
 
+/**
+ * Films this actor has appeared in, per TMDB's `/person/{id}/movie_credits`.
+ *
+ * A sibling to `getActorMovies` — that function filters by watch provider
+ * for the filmography screen and must not change. This one is unfiltered
+ * (no provider/region constraints) and feeds the recommendation engine,
+ * which ranks by popularity rather than by where a film can be watched.
+ */
+export async function getActorFilmography(personId: number): Promise<Movie[]> {
+  const data = await tmdbGet<{ cast: TmdbMovie[] }>(`/person/${personId}/movie_credits`, {})
+  return data.cast.map(toMovie)
+}
+
 export function posterUrl(path: string | null, size: 'w185' | 'w342' = 'w185'): string | null {
   return path ? `https://image.tmdb.org/t/p/${size}${path}` : null
 }

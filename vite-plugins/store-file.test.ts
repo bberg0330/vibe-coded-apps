@@ -140,4 +140,21 @@ describe('commitMessageFor', () => {
     expect(commitMessageFor({ type: 'seed', history: [], enabledServices: [] }))
       .toBe('history: seed from localStorage')
   })
+
+  it('names the film and profile for starting to watch', () => {
+    expect(commitMessageFor({
+      type: 'startWatching',
+      entry: {
+        startedAt: '2026-08-08T20:00:00.000Z',
+        profileId: 'laura',
+        movie: { tmdbId: 1, title: 'Rushmore', year: 1998, posterPath: null, tomatometer: 90, popcornmeter: null },
+        discoveredVia: null,
+      },
+    })).toBe('watching: Rushmore (laura)')
+  })
+
+  it('names the film for cancelling', () => {
+    expect(commitMessageFor({ type: 'cancelWatching', profileId: 'laura', tmdbId: 1 }))
+      .toBe('watching: cancel (tmdb 1)')
+  })
 })
