@@ -10,7 +10,8 @@ import { applyOp } from '../vite-plugins/store-ops'
 import { emptyStore } from './types'
 import type { StoreOp, Movie } from './types'
 import { hashFor } from './router'
-import { PROFILES } from './data/profiles'
+import { PROFILES, type ProfileId } from './data/profiles'
+import { getActiveProfileId, setActiveProfileId } from './data/activeProfile'
 
 const rushmoreSearchResults = {
   results: [{
@@ -47,6 +48,19 @@ beforeEach(() => {
   stubAppServer()
 })
 
+/**
+ * Renders the app past the "who's watching" gate, exactly as if this
+ * device had already confirmed a profile on a previous visit — most tests
+ * care about screens beyond the gate, not the gate itself (see the
+ * dedicated "App - profile gate" suite below for that).
+ */
+async function renderApp(profileId: ProfileId = PROFILES[0].id) {
+  setActiveProfileId(profileId)
+  const utils = render(<App />)
+  await screen.findByRole('searchbox')
+  return utils
+}
+
 // The watch button's label reflects real lifetime watchCount (via MovieCard's
 // `watched` prop), not session state — so after a remount with existing
 // history it already reads "Undo watched", even though tapping it must
@@ -62,8 +76,7 @@ async function tapWatchButton() {
 
 describe('App - toggleWatched session scoping', () => {
   it('undoes a same-session tap, removing the entry it just added', async () => {
-    render(<App />)
-    await screen.findByRole('searchbox')
+    await renderApp()
     await tapWatchButton()
     await waitFor(() => expect(getHistory()).toHaveLength(1))
 
@@ -75,8 +88,8 @@ describe('App - toggleWatched session scoping', () => {
     'ignores a rapid second tap while the first save is still in flight ' +
     '(reproduces the production bug: two taps landing in the same tick double-logged a watch)',
     async () => {
-      render(<App />)
-      await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+      await renderApp()
+      await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
       const button = await screen.findByRole('button', { name: /mark rushmore as watched/i })
 
       // fireEvent, not userEvent: userEvent awaits each click to full
@@ -94,15 +107,15 @@ describe('App - toggleWatched session scoping', () => {
     'appends rather than deletes when the film was logged in a PREVIOUS session ' +
     '(the exact data-loss bug: logging last year then tapping tonight must not erase last year\'s entry)',
     async () => {
-      const { unmount } = render(<App />)
-      await screen.findByRole('searchbox')
+      const { unmount } = await renderApp()
       await tapWatchButton()
       await waitFor(() => expect(getHistory()).toHaveLength(1))
 
       // Simulate a new session: unmount and remount, which resets the
       // in-session "logged this session" tracking but leaves the shared
       // store's history intact — exactly what happens when the app is
-      // reopened later.
+      // reopened later. The profile is still persisted from before, same
+      // as a real reopen.
       unmount()
       render(<App />)
       await screen.findByRole('searchbox')
@@ -123,7 +136,9 @@ describe('App startup', () => {
     }))
 
     render(<App />)
-    expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+    // No profile persisted yet, so the app past boot is the "who's
+    // watching" gate, not the homepage — this only asserts boot finished.
+    expect(await screen.findByText(/who's watching\?/i)).toBeInTheDocument()
   })
 
   it('shows a clear error, NOT an empty history, when the server is unreachable', async () => {
@@ -144,20 +159,19 @@ describe('App startup', () => {
     render(<App />)
     await userEvent.click(await screen.findByRole('button', { name: /try again/i }))
 
-    expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+    expect(await screen.findByText(/who's watching\?/i)).toBeInTheDocument()
   })
 })
 
 describe('App - URL navigation', () => {
   it('normalizes an empty hash to the root route on first load', async () => {
-    render(<App />)
-    await screen.findByRole('searchbox')
+    await renderApp()
     expect(window.location.hash).toBe('#/')
   })
 
   it('pushes a hash when navigating to a movie', async () => {
-    render(<App />)
-    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await renderApp()
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     await userEvent.click(await screen.findByRole('button', { name: /^rushmore/i }))
 
     expect(window.location.hash).toBe(hashFor({
@@ -184,6 +198,7 @@ describe('App - URL navigation', () => {
       return { ok: true, status: 200, json: async () => rushmoreSearchResults }
     }))
     window.location.hash = '#/movie/rushmore-1585'
+    setActiveProfileId(PROFILES[0].id)
 
     render(<App />)
 
@@ -200,6 +215,7 @@ describe('App - URL navigation', () => {
       throw new Error('not found')
     }))
     window.location.hash = '#/movie/rushmore-1585'
+    setActiveProfileId(PROFILES[0].id)
 
     render(<App />)
 
@@ -208,8 +224,8 @@ describe('App - URL navigation', () => {
   })
 
   it('moves back via popstate without refetching an already-visited screen', async () => {
-    render(<App />)
-    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await renderApp()
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     await userEvent.click(await screen.findByRole('button', { name: /^rushmore/i }))
     await screen.findByRole('button', { name: /mark rushmore as watched/i })
 
@@ -222,8 +238,8 @@ describe('App - URL navigation', () => {
   })
 
   it('moves back via a raw popstate event, identically to the Back button', async () => {
-    render(<App />)
-    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await renderApp()
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     await userEvent.click(await screen.findByRole('button', { name: /^rushmore/i }))
     await screen.findByRole('button', { name: /mark rushmore as watched/i })
 
@@ -241,8 +257,7 @@ describe('App - URL navigation', () => {
   })
 
   it('closes Settings on back rather than navigating the screen stack', async () => {
-    render(<App />)
-    await screen.findByRole('searchbox')
+    await renderApp()
     await userEvent.click(screen.getByRole('button', { name: /settings/i }))
     expect(await screen.findByText('Our subscriptions')).toBeInTheDocument()
 
@@ -253,19 +268,67 @@ describe('App - URL navigation', () => {
   })
 })
 
-describe('App - profile switcher', () => {
-  it('shows a chip for every configured profile', async () => {
+describe('App - profile gate', () => {
+  it('blocks the homepage until a profile is picked and confirmed', async () => {
     render(<App />)
-    await screen.findByRole('searchbox')
+
+    expect(await screen.findByText(/who's watching\?/i)).toBeInTheDocument()
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    for (const profile of PROFILES) {
+      expect(screen.getByRole('radio', { name: profile.name })).toBeInTheDocument()
+    }
+  })
+
+  it('keeps Continue disabled, and does nothing on click, until a profile is picked', async () => {
+    render(<App />)
+    await screen.findByText(/who's watching\?/i)
+
+    const continueButton = screen.getByRole('button', { name: /continue/i })
+    expect(continueButton).toBeDisabled()
+
+    await userEvent.click(continueButton)
+    expect(screen.getByText(/who's watching\?/i)).toBeInTheDocument()
+    expect(getActiveProfileId()).toBeNull()
+  })
+
+  it('highlights the tapped profile without committing it until Continue is pressed', async () => {
+    render(<App />)
+    await screen.findByText(/who's watching\?/i)
+
+    const laura = screen.getByRole('radio', { name: PROFILES[0].name })
+    await userEvent.click(laura)
+
+    expect(laura).toHaveAttribute('aria-checked', 'true')
+    // Still gated — tapping a name only stages the choice.
+    expect(screen.getByText(/who's watching\?/i)).toBeInTheDocument()
+    expect(getActiveProfileId()).toBeNull()
+  })
+
+  it('commits the picked profile and reveals the homepage on Continue', async () => {
+    render(<App />)
+    await screen.findByText(/who's watching\?/i)
+
+    await userEvent.click(screen.getByRole('radio', { name: PROFILES[0].name }))
+    await userEvent.click(screen.getByRole('button', { name: /continue/i }))
+
+    expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+    expect(screen.queryByText(/who's watching\?/i)).not.toBeInTheDocument()
+    expect(getActiveProfileId()).toBe(PROFILES[0].id)
+    expect(screen.getByRole('button', { name: PROFILES[0].name })).toHaveAttribute('aria-pressed', 'true')
+  })
+})
+
+describe('App - profile switcher', () => {
+  it('shows a chip for every configured profile once past the gate', async () => {
+    await renderApp()
 
     for (const profile of PROFILES) {
       expect(screen.getByRole('button', { name: profile.name })).toBeInTheDocument()
     }
   })
 
-  it('persists the selected profile across a simulated reload', async () => {
-    const { unmount } = render(<App />)
-    await screen.findByRole('searchbox')
+  it('persists a topbar profile switch across a simulated reload', async () => {
+    const { unmount } = await renderApp(PROFILES[0].id)
 
     const chip = screen.getByRole('button', { name: PROFILES[1].name })
     expect(chip).toHaveAttribute('aria-pressed', 'false')
@@ -285,33 +348,13 @@ describe('App - profile switcher', () => {
 
 describe('App - startWatchingTonight', () => {
   async function tapStartWatchingButton() {
-    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     const button = await screen.findByRole('button', { name: /start watching rushmore tonight/i })
     await userEvent.click(button)
   }
 
-  it(
-    'disables the clock button and never calls watching.ts when no profile is selected ' +
-    '(the button is disabled from first render, so the click never reaches the handler — ' +
-    "the handler's own no-profile guard, asserted below via the button's state, is what backs " +
-    'that up if it is ever invoked some other way)',
-    async () => {
-      render(<App />)
-      await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
-      const button = await screen.findByRole('button', { name: /start watching rushmore tonight/i })
-
-      expect(button).toBeDisabled()
-      await userEvent.click(button)
-
-      expect(getAllWatchingTonight()).toHaveLength(0)
-      expect(screen.queryByText('Watching tonight')).not.toBeInTheDocument()
-    },
-  )
-
   it('marks the active profile as watching, and shows the "Watching tonight" pill', async () => {
-    render(<App />)
-    await screen.findByRole('searchbox')
-    await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
+    await renderApp(PROFILES[0].id)
 
     await tapStartWatchingButton()
 
@@ -324,10 +367,8 @@ describe('App - startWatchingTonight', () => {
     'ignores a rapid second tap while the first save is still in flight ' +
     '(mirrors the toggleWatched double-tap guard)',
     async () => {
-      render(<App />)
-      await screen.findByRole('searchbox')
-      await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
-      await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+      await renderApp(PROFILES[0].id)
+      await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
       const button = await screen.findByRole('button', { name: /start watching rushmore tonight/i })
 
       // fireEvent, not userEvent: both taps must land in the same tick,
@@ -354,9 +395,7 @@ describe('App - startWatchingTonight', () => {
       return { ok: true, status: 200, json: async () => ({ results: [movie] }) }
     }))
 
-    render(<App />)
-    await screen.findByRole('searchbox')
-    await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
+    await renderApp(PROFILES[0].id)
     await tapStartWatchingButton()
 
     expect(await screen.findByText(/couldn't save/i)).toBeInTheDocument()
@@ -380,8 +419,8 @@ describe('write failure', () => {
       return { ok: true, status: 200, json: async () => ({ results: [movie] }) }
     }))
 
-    render(<App />)
-    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await renderApp()
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
 
     expect(await screen.findByText(/couldn't save/i)).toBeInTheDocument()
@@ -393,10 +432,8 @@ describe('write failure', () => {
 
 describe('App - cancelWatchingTonight', () => {
   it('removes the Tonight row from HistoryScreen when its cancel control is tapped', async () => {
-    render(<App />)
-    await screen.findByRole('searchbox')
-    await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
-    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await renderApp(PROFILES[0].id)
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     await userEvent.click(await screen.findByRole('button', { name: /start watching rushmore tonight/i }))
     await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
 
@@ -410,10 +447,8 @@ describe('App - cancelWatchingTonight', () => {
   })
 
   it('reverts the row and shows an error when the cancel save fails', async () => {
-    render(<App />)
-    await screen.findByRole('searchbox')
-    await userEvent.click(screen.getByRole('button', { name: PROFILES[0].name }))
-    await userEvent.type(await screen.findByRole('searchbox'), 'rushmore')
+    await renderApp(PROFILES[0].id)
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     await userEvent.click(await screen.findByRole('button', { name: /start watching rushmore tonight/i }))
     await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
 
