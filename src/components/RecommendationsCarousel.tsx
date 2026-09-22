@@ -1,4 +1,4 @@
-import { MovieCard } from './MovieCard'
+import { RecommendationCard } from './RecommendationCard'
 import type { Movie } from '../types'
 import type { RecommendationWithAttribution } from '../data/recommendations'
 
@@ -15,13 +15,13 @@ type Props = {
 }
 
 /**
- * Horizontal-scrolling row of recommended films. Reuses `MovieCard` as-is —
- * poster, critic/audience scores, and the watched/watching-tonight buttons
- * all keep working exactly as they do for a search result.
+ * Horizontal-scrolling row of recommended films. Uses `RecommendationCard`
+ * rather than `MovieCard`: the row form needs horizontal room this rail does
+ * not have, and squeezing it truncated nearly every title.
  */
 export function RecommendationsCarousel({
   movies, title, onOpen, onToggleWatched, watchCountFor, isPending,
-  onStartWatching, watchingLabelFor, startWatchingDisabled,
+  onStartWatching, startWatchingDisabled,
 }: Props) {
   if (movies.length === 0) return null
 
@@ -36,14 +36,13 @@ export function RecommendationsCarousel({
             : null
           return (
             <div className="recommendation-item" key={movie.tmdbId}>
-              <MovieCard
+              <RecommendationCard
                 movie={movie}
                 watched={watchCountFor(movie.tmdbId) > 0}
                 pending={isPending?.(movie.tmdbId) ?? false}
                 onOpen={onOpen}
                 onToggleWatched={onToggleWatched}
                 onStartWatching={onStartWatching}
-                watchingLabel={watchingLabelFor?.(movie.tmdbId) ?? null}
                 startWatchingDisabled={startWatchingDisabled}
                 recommendationTooltip={tooltip}
               />
