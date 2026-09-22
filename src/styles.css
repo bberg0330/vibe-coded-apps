@@ -64,7 +64,7 @@ body {
 .watch-btn:disabled, .watching-btn:disabled { opacity: .5; cursor: default; }
 .error { background: #33222a; border-radius: 10px; padding: 12px; }
 
-.app { max-width: 640px; margin: 0 auto; padding: 12px; }
+.app { max-width: 640px; margin: 0 auto; padding: 12px; padding-top: max(12px, env(safe-area-inset-top)); }
 .topbar { display: flex; justify-content: space-between; margin-bottom: 8px; }
 .link { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; padding: 8px; }
 .profile-switcher { display: flex; gap: 6px; align-items: center; }
