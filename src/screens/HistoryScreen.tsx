@@ -239,7 +239,7 @@ export function HistoryScreen({
                     e.stopPropagation()
                     setOpenMenuKey(isMenuOpen ? null : menuKey)
                   }}
-                  style={{ fontSize: '18px' }}
+                  style={{ fontSize: '21px' }}
                 >
                   ⋮
                 </button>
