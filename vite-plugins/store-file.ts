@@ -99,18 +99,67 @@ export async function writeStoreAtomic(dir: string, store: Store): Promise<void>
   }
 }
 
+/** The branch HEAD is on, or null when detached or not a git repo. */
+async function currentBranch(dir: string): Promise<string | null> {
+  try {
+    const { stdout } = await run('git', ['-C', dir, 'rev-parse', '--abbrev-ref', 'HEAD'])
+    const name = stdout.trim()
+    // Detached HEAD reports the literal string "HEAD" — not a branch.
+    return name === '' || name === 'HEAD' ? null : name
+  } catch {
+    return null
+  }
+}
+
+/**
+ * The repo's default branch, from origin's HEAD, falling back to "main".
+ * Resolved rather than hardcoded so this keeps working in a clone whose
+ * default is named something else.
+ */
+async function defaultBranch(dir: string): Promise<string> {
+  try {
+    const { stdout } = await run('git', ['-C', dir, 'symbolic-ref', '--short', 'refs/remotes/origin/HEAD'])
+    const name = stdout.trim().replace(/^origin\//, '')
+    return name || 'main'
+  } catch {
+    return 'main'
+  }
+}
+
 /**
  * Best-effort git commit of the store file only.
  *
  * Resolves false on any failure and NEVER rejects: losing version history
  * is an inconvenience, but failing the user's write is the outcome this
  * whole design exists to prevent.
+ *
+ * Commits ONLY when the default branch is checked out. `git commit` writes
+ * to whatever HEAD points at, so a watch logged from someone's phone while
+ * a feature branch happened to be checked out used to land there — real
+ * data committed onto a code branch, invisible on main until that branch
+ * merged, and gone entirely if it never did. Skipping is safe because the
+ * write itself already happened: writeStoreAtomic runs first and is not
+ * conditional. Only the version-history entry is lost, which is exactly the
+ * tradeoff the rest of this function already makes on any git failure.
  */
 export async function commitStore(dir: string, message: string): Promise<boolean> {
-  const file = join(dir, FILE)
+  const [branch, target] = await Promise.all([currentBranch(dir), defaultBranch(dir)])
+  if (branch !== target) {
+    console.warn(
+      `[store] HEAD is on ${branch ?? 'a detached commit'}, not ${target} — ` +
+      `skipping the git commit. ${FILE} was written, but this change is not versioned.`,
+    )
+    return false
+  }
+
+  // -C dir, and FILE relative to it, so every git call in this function acts
+  // on the same repository the branch check just inspected. Without it the
+  // check reads the repo containing `dir` while add/commit act on whatever
+  // repo the process happens to be running in — identical in production,
+  // where dir is 'data' inside the repo, but silently divergent otherwise.
   try {
-    await run('git', ['add', '--', file])
-    await run('git', ['commit', '--no-verify', '-m', message, '--', file])
+    await run('git', ['-C', dir, 'add', '--', FILE])
+    await run('git', ['-C', dir, 'commit', '--no-verify', '-m', message, '--', FILE])
     return true
   } catch {
     return false
