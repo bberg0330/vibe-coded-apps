@@ -11,7 +11,8 @@ const MAX_RESULTS = 12
 
 /**
  * Recommendations for `profileId`, derived from the last film they finished
- * watching: films sharing a top-billed cast member, ranked by popularity.
+ * watching (via "watching tonight" if available, otherwise from history):
+ * films sharing a top-billed cast member, ranked by popularity.
  *
  * Excludes anything the household has already seen — via the shared
  * `history` array, via any profile's `nowWatching` entry (which never gets
@@ -20,10 +21,15 @@ const MAX_RESULTS = 12
  * actor filmographies by tmdbId.
  */
 export async function getRecommendationsFor(profileId: string): Promise<Movie[]> {
-  const recent = getRecentlyWatchedBy(profileId)
-  if (!recent) return []
+  // Try "watching tonight" first, then fall back to most recent from history
+  let sourceMovie = getRecentlyWatchedBy(profileId)?.movie
+  if (!sourceMovie) {
+    const history = getHistory()
+    if (history.length === 0) return []
+    sourceMovie = history[0].movie
+  }
 
-  const cast = await getMovieCredits(recent.movie.tmdbId)
+  const cast = await getMovieCredits(sourceMovie.tmdbId)
   const topCast = cast.slice(0, CAST_SAMPLE_SIZE)
 
   const filmographies = await Promise.all(
@@ -33,7 +39,7 @@ export async function getRecommendationsFor(profileId: string): Promise<Movie[]>
   const excluded = new Set<number>([
     ...getHistory().map((e) => e.movie.tmdbId),
     ...getAllWatchingTonight().map((e) => e.movie.tmdbId),
-    recent.movie.tmdbId,
+    sourceMovie.tmdbId,
   ])
 
   const deduped = new Map<number, Movie>()

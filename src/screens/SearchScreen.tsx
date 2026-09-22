@@ -9,6 +9,7 @@ import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { SEARCH_ROUTE_KEY } from '../router'
 import { getRecommendationsFor } from '../data/recommendations'
 import { getRecentlyWatchedBy } from '../data/watching'
+import { getHistory } from '../data/history'
 import { PROFILES, type ProfileId } from '../data/profiles'
 import type { Movie } from '../types'
 
@@ -95,11 +96,16 @@ export function SearchScreen({
     }
 
     let cancelled = false
-    const recent = getRecentlyWatchedBy(activeProfileId)
-    if (!recent) {
-      setRecommendations([])
-      setRecommendationsFor(null)
-      return
+    // Try "watching tonight" first, then fall back to history
+    let sourceMovie = getRecentlyWatchedBy(activeProfileId)?.movie
+    if (!sourceMovie) {
+      const history = getHistory()
+      if (history.length === 0) {
+        setRecommendations([])
+        setRecommendationsFor(null)
+        return
+      }
+      sourceMovie = history[0].movie
     }
 
     const profileName = PROFILES.find((p) => p.id === activeProfileId)?.name ?? activeProfileId
@@ -107,7 +113,7 @@ export function SearchScreen({
     getRecommendationsFor(activeProfileId).then((found) => {
       if (cancelled) return
       setRecommendations(found)
-      setRecommendationsFor({ profileName, movieTitle: recent.movie.title })
+      setRecommendationsFor({ profileName, movieTitle: sourceMovie.title })
 
       for (const movie of found) {
         getRottenTomatoesScores(movie.tmdbId, movie.title, movie.year).then((scores) => {
