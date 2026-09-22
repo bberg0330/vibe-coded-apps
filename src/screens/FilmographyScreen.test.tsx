@@ -3,7 +3,17 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { FilmographyScreen } from './FilmographyScreen'
 import { clearHttpCache } from '../api/http'
 import { resetScoresForTests } from '../data/scores'
+import { getTomatometer } from '../api/omdb'
 import type { Person, Movie } from '../types'
+
+// Only `getTomatometer` is stubbable, and it delegates to the real
+// implementation unless a test overrides it (see beforeEach). That lets one
+// test inject a rejecting score lookup without changing how the others behave.
+vi.mock('../api/omdb', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api/omdb')>()),
+  getTomatometer: vi.fn(),
+}))
+const realOmdb = await vi.importActual<typeof import('../api/omdb')>('../api/omdb')
 
 const actor: Person = {
   tmdbId: 1532, name: 'Bill Murray', profilePath: null,
@@ -46,6 +56,7 @@ function stubApis(opts: { films?: Record<string, unknown[]>; scores?: Record<str
 beforeEach(() => {
   clearHttpCache()
   resetScoresForTests()
+  vi.mocked(getTomatometer).mockImplementation(realOmdb.getTomatometer)
   vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
   vi.stubEnv('VITE_OMDB_KEY', 'test-key')
 })
@@ -161,4 +172,37 @@ describe('FilmographyScreen', () => {
     resolveB({ ok: true, status: 200, json: async () => ({ results: [] }) })
     expect(await screen.findByText(/nothing from owen wilson/i)).toBeInTheDocument()
   })
+
+  it('keeps the list rendered when one film\'s score lookup rejects', async () => {
+    stubApis({ films: { '8': [film(1, 'Survivor'), film(2, 'Rejects')] } })
+    // Reproduces production: one film's lookup throws while the rest resolve.
+    // The list has already rendered by the time that happens, so the failure
+    // must leave it standing rather than replace it with the error state.
+    vi.mocked(getTomatometer).mockImplementation(async (tmdbId) => {
+      if (tmdbId === 2) throw new TypeError("Cannot read properties of null (reading 'critic')")
+      return 90
+    })
+
+    renderScreen()
+
+    // The survivor's score landing proves stage two ran to completion.
+    expect(await screen.findByText('\u{1F345} 90%')).toBeInTheDocument()
+    expect(screen.getByText('Survivor')).toBeInTheDocument()
+    expect(screen.getByText('Rejects')).toBeInTheDocument()
+    expect(screen.queryByText(/couldn't load this filmography/i)).not.toBeInTheDocument()
+  })
+
+  it('leaves the film whose score rejected in the list, unscored', async () => {
+    stubApis({ films: { '8': [film(1, 'Survivor'), film(2, 'Rejects')] } })
+    vi.mocked(getTomatometer).mockImplementation(async (tmdbId) => {
+      if (tmdbId === 2) throw new Error('scores unavailable')
+      return 90
+    })
+
+    renderScreen()
+
+    expect(await screen.findByText('\u{1F345} 90%')).toBeInTheDocument()
+    expect(screen.getByText('No critic score')).toBeInTheDocument()
+  })
+
 })

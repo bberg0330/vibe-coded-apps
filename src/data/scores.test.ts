@@ -64,3 +64,20 @@ describe('cacheScores', () => {
     expect(getCachedScores(1585)).toEqual({ critic: 90, audience: 77 })
   })
 })
+
+describe('getCachedScores legacy normalisation', () => {
+  it('normalises a bare-number entry to the critic field', () => {
+    resetScoresForTests({ '1585': 90 } as never)
+    expect(getCachedScores(1585)).toEqual({ critic: 90, audience: null })
+  })
+
+  it('normalises a bare-null entry to an empty-but-known result', () => {
+    resetScoresForTests({ '1585': null } as never)
+    expect(getCachedScores(1585)).toEqual({ critic: null, audience: null })
+  })
+
+  it('still reports a never-looked-up film as undefined', () => {
+    resetScoresForTests({ '1585': null } as never)
+    expect(getCachedScores(999)).toBeUndefined()
+  })
+})
