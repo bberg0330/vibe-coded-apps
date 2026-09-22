@@ -8,7 +8,8 @@
         "title": "The Founder",
         "year": 2016,
         "posterPath": "/8gLIksu5ggdfBL1UbeTeonHquxl.jpg",
-        "tomatometer": null
+        "tomatometer": 80,
+        "popcornmeter": 72
       },
       "discoveredVia": null
     },
@@ -19,7 +20,8 @@
         "title": "The Fault in Our Stars",
         "year": 2014,
         "posterPath": "/kcVuktIlrn9SAN1uBmPDnocTQmF.jpg",
-        "tomatometer": null
+        "tomatometer": 81,
+        "popcornmeter": 76
       },
       "discoveredVia": null
     },
@@ -30,7 +32,8 @@
         "title": "Dumb Money",
         "year": 2023,
         "posterPath": "/e9u7luSxFKOZgPTB9XHFnPArGdP.jpg",
-        "tomatometer": null
+        "tomatometer": 84,
+        "popcornmeter": 68
       },
       "discoveredVia": null
     },
@@ -41,7 +44,8 @@
         "title": "Good Fortune",
         "year": 2025,
         "posterPath": "/rywxUbd4zvHiRP7nOHeDzuQSLIZ.jpg",
-        "tomatometer": 79
+        "tomatometer": 79,
+        "popcornmeter": 65
       },
       "discoveredVia": null
     },
@@ -52,7 +56,8 @@
         "title": "Parenthood",
         "year": 1989,
         "posterPath": "/29Y6yg0gSurkFYTh54yxDzLBmrT.jpg",
-        "tomatometer": 92
+        "tomatometer": 92,
+        "popcornmeter": 71
       },
       "discoveredVia": null
     }
@@ -64,5 +69,6 @@
     "prime",
     "appletv",
     "peacock"
-  ]
+  ],
+  "nowWatching": []
 }
