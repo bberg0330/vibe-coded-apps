@@ -8,7 +8,7 @@ export class StoreUnavailableError extends Error {
   }
 }
 
-const ENDPOINT = '/api/store'
+const ENDPOINT = import.meta.env.VITE_API_ENDPOINT || (import.meta.env.DEV ? '/api/store' : 'https://lb-movie-night-app.vercel.app/api/store')
 
 /**
  * The in-memory copy. Reads are synchronous against this, which is what
