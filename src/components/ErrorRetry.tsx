@@ -4,7 +4,7 @@ export function ErrorRetry({
   return (
     <div className="error" role="alert">
       <p>{message}</p>
-      <button onClick={onRetry}>Try again</button>
+      <button className="btn" onClick={onRetry}>Try again</button>
     </div>
   )
 }

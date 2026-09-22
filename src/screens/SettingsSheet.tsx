@@ -19,7 +19,14 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="sheet">
+    <>
+      {/*
+        * Without this the sheet had no scrim and no stacking context of its
+        * own, so History rows painted over the top of it. It doubles as a
+        * tap-outside-to-close target, which the sheet never had.
+        */}
+      <button className="scrim" aria-label="Close settings" onClick={onClose} />
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="Our subscriptions">
       <div className="topbar">
         <h2>Our subscriptions</h2>
         <button className="link" onClick={onClose}>Done</button>
@@ -35,6 +42,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           {SERVICES[key].label}
         </label>
       ))}
-    </div>
+      </div>
+    </>
   )
 }
