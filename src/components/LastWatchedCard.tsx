@@ -1,5 +1,7 @@
 import { posterUrl } from '../api/tmdb'
 import { SERVICES, RENT_SERVICES } from '../data/providers'
+import { Badge } from './Badge'
+import { Poster } from './Poster'
 import type { WatchEntry, Availability } from '../types'
 
 type Props = {
@@ -26,9 +28,7 @@ export function LastWatchedCard({ movie }: Props) {
   return (
     <div className="card last-watched-card">
       <div className="card-main">
-        {poster
-          ? <img className="poster" src={poster} alt="" loading="lazy" />
-          : <div className="poster poster-empty" aria-hidden="true" />}
+        <Poster src={poster} />
         <div className="card-body">
           <div className="card-title">{movie.title}</div>
           <div className="card-meta">
@@ -36,7 +36,7 @@ export function LastWatchedCard({ movie }: Props) {
             {movie.tomatometer !== null && (
               <span className="score" title="Critic score">🍅 {movie.tomatometer}%</span>
             )}
-            {badgeLabel && <span className="badge">{badgeLabel}</span>}
+            {badgeLabel && <Badge label={badgeLabel} />}
           </div>
         </div>
       </div>

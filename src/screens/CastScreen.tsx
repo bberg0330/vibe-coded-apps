@@ -4,6 +4,7 @@ import { getRottenTomatoesScores } from '../api/omdb'
 import { MovieCard } from '../components/MovieCard'
 import { PersonCard } from '../components/PersonCard'
 import { ErrorRetry } from '../components/ErrorRetry'
+import { SectionHeading } from '../components/SectionHeading'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { castRouteKey } from '../router'
 import type { CastMember, Movie } from '../types'
@@ -86,12 +87,12 @@ export function CastScreen({
 
       {displayMovie.overview && (
         <>
-          <h2>Synopsis</h2>
+          <SectionHeading>Synopsis</SectionHeading>
           <p className="synopsis">{displayMovie.overview}</p>
         </>
       )}
 
-      <h2>Cast</h2>
+      <SectionHeading>Cast</SectionHeading>
       {status === 'loading' && <p className="empty">Loading cast…</p>}
       {status === 'error' && (
         <ErrorRetry message="Couldn't load the cast." onRetry={() => setAttempt((a) => a + 1)} />

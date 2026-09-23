@@ -140,13 +140,20 @@ body {
   flex: none; width: 44px; display: flex; flex-direction: column; gap: 8px;
   align-items: center; justify-content: center;
 }
-.watch-btn, .watching-btn {
+/*
+ * One class for every glyph button (✓ 🕐 × ⋮) — .watch-btn and .watching-btn
+ * used to be separate classes with identical rules except for this one
+ * modifier, which only the checkmark ever used. Two names for one visual
+ * component was a code-side accident; Figma's IconButton has always been a
+ * single component with a State variant, not two.
+ */
+.icon-btn {
   flex: none; width: 44px; height: 44px; border: 0; border-radius: 8px;
   background: var(--control-bg); color: var(--muted); font-size: 19px; cursor: pointer;
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
-.watch-btn.watched { background: var(--watched-bg); color: var(--watched-fg); }
-.watch-btn:disabled, .watching-btn:disabled { opacity: .5; cursor: default; }
+.icon-btn.watched { background: var(--watched-bg); color: var(--watched-fg); }
+.icon-btn:disabled { opacity: .5; cursor: default; }
 .error { background: var(--error-bg); border-radius: 10px; padding: 12px; }
 
 /*

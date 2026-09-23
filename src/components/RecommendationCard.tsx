@@ -1,4 +1,5 @@
 import { posterUrl } from '../api/tmdb'
+import { IconButton } from './IconButton'
 import type { Movie } from '../types'
 
 type Props = {
@@ -53,34 +54,29 @@ export function RecommendationCard({
       </button>
 
       <div className="rec-actions">
-        <button
-          className={`watch-btn${watched ? ' watched' : ''}`}
-          aria-label={watched
-            ? `Undo watched for ${movie.title}`
-            : `Mark ${movie.title} as watched`}
-          aria-pressed={watched}
+        <IconButton
+          icon="✓"
+          watched={watched}
+          ariaLabel={watched ? `Undo watched for ${movie.title}` : `Mark ${movie.title} as watched`}
+          ariaPressed={watched}
           disabled={pending}
           onClick={(e) => {
             e.stopPropagation()
             onToggleWatched(movie)
           }}
-        >
-          ✓
-        </button>
+        />
 
         {onStartWatching && (
-          <button
-            className="watching-btn"
-            aria-label={`Start watching ${movie.title} tonight`}
+          <IconButton
+            icon="🕐"
+            ariaLabel={`Start watching ${movie.title} tonight`}
             title={startWatchingDisabled ? "Pick who's watching first" : undefined}
             disabled={pending || startWatchingDisabled}
             onClick={(e) => {
               e.stopPropagation()
               onStartWatching(movie)
             }}
-          >
-            🕐
-          </button>
+          />
         )}
       </div>
     </div>

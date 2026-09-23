@@ -4,6 +4,8 @@ import { getTomatometer } from '../api/omdb'
 import { rankByTomatometer } from '../lib/ranking'
 import { MovieCard } from '../components/MovieCard'
 import { ErrorRetry } from '../components/ErrorRetry'
+import { Poster } from '../components/Poster'
+import { SectionHeading } from '../components/SectionHeading'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { filmographyRouteKey } from '../router'
 import type { Person, Movie } from '../types'
@@ -101,7 +103,7 @@ export function FilmographyScreen({
   return (
     <div className="screen">
       <div className="screen-header">
-        {photo && <img className="poster" src={photo} alt="" />}
+        {photo && <Poster src={photo} />}
         <div>
           <h1>{actor.name}</h1>
           <p className="empty">from {fromMovie.title}</p>
@@ -123,13 +125,13 @@ export function FilmographyScreen({
 
       {status === 'done' && streaming.length > 0 && (
         <>
-          <h2>Streaming now</h2>
+          <SectionHeading>Streaming now</SectionHeading>
           {streaming.map(renderMovie)}
         </>
       )}
       {status === 'done' && rent.length > 0 && (
         <>
-          <h2>Rent</h2>
+          <SectionHeading>Rent</SectionHeading>
           {rent.map(renderMovie)}
         </>
       )}
