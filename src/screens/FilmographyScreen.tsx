@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getActorMovies, posterUrl } from '../api/tmdb'
-import { getTomatometer } from '../api/omdb'
+import { getRottenTomatoesScores } from '../api/omdb'
 import { rankByTomatometer } from '../lib/ranking'
 import { MovieCard } from '../components/MovieCard'
 import { ErrorRetry } from '../components/ErrorRetry'
@@ -66,10 +66,14 @@ export function FilmographyScreen({
       // (it ranks last as unscored) rather than the whole batch: a shared
       // Promise.all reject used to flip the whole screen to the error state.
       const score = (movies: Movie[]) =>
-        Promise.all(movies.map(async (m) => ({
-          ...m,
-          tomatometer: await getTomatometer(m.tmdbId, m.title, m.year).catch(() => null),
-        })))
+        Promise.all(movies.map(async (m) => {
+          const scores = await getRottenTomatoesScores(m.tmdbId, m.title, m.year).catch(() => null)
+          return {
+            ...m,
+            tomatometer: scores?.critic ?? null,
+            popcornmeter: scores?.audience ?? null,
+          }
+        }))
 
       const [scoredStreaming, scoredRent] = await Promise.all([
         score(result.streaming),

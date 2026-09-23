@@ -3,15 +3,15 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { FilmographyScreen } from './FilmographyScreen'
 import { clearHttpCache } from '../api/http'
 import { resetScoresForTests } from '../data/scores'
-import { getTomatometer } from '../api/omdb'
+import { getRottenTomatoesScores } from '../api/omdb'
 import type { Person, Movie } from '../types'
 
-// Only `getTomatometer` is stubbable, and it delegates to the real
+// Only `getRottenTomatoesScores` is stubbable, and it delegates to the real
 // implementation unless a test overrides it (see beforeEach). That lets one
 // test inject a rejecting score lookup without changing how the others behave.
 vi.mock('../api/omdb', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/omdb')>()),
-  getTomatometer: vi.fn(),
+  getRottenTomatoesScores: vi.fn(),
 }))
 const realOmdb = await vi.importActual<typeof import('../api/omdb')>('../api/omdb')
 
@@ -31,7 +31,11 @@ const film = (id: number, title: string) => ({
   id, title, release_date: '2000-01-01', poster_path: null, popularity: 10,
 })
 
-function stubApis(opts: { films?: Record<string, unknown[]>; scores?: Record<string, string> } = {}) {
+function stubApis(opts: {
+  films?: Record<string, unknown[]>
+  scores?: Record<string, string>
+  imdbRatings?: Record<string, string>
+} = {}) {
   vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
     if (url.startsWith('/api/scores')) {
       return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
@@ -42,7 +46,11 @@ function stubApis(opts: { films?: Record<string, unknown[]>; scores?: Record<str
       return Promise.resolve({
         ok: true, status: 200,
         json: async () => rt
-          ? { Response: 'True', Title: title, Year: '2000', Ratings: [{ Source: 'Rotten Tomatoes', Value: rt }] }
+          ? {
+            Response: 'True', Title: title, Year: '2000',
+            Ratings: [{ Source: 'Rotten Tomatoes', Value: rt }],
+            imdbRating: opts.imdbRatings?.[title],
+          }
           : { Response: 'False', Error: 'Movie not found!' },
       })
     }
@@ -57,7 +65,7 @@ function stubApis(opts: { films?: Record<string, unknown[]>; scores?: Record<str
 beforeEach(() => {
   clearHttpCache()
   resetScoresForTests()
-  vi.mocked(getTomatometer).mockImplementation(realOmdb.getTomatometer)
+  vi.mocked(getRottenTomatoesScores).mockImplementation(realOmdb.getRottenTomatoesScores)
   vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
   vi.stubEnv('VITE_OMDB_KEY', 'test-key')
 })
@@ -95,6 +103,17 @@ describe('FilmographyScreen', () => {
         .map((b) => b.textContent ?? '')
       expect(titles[0]).toContain('Better')
     })
+  })
+
+  it('shows the audience score alongside the critic score', async () => {
+    stubApis({
+      films: { '8': [film(1, 'Groundhog Day')] },
+      scores: { 'Groundhog Day': '96%' },
+      imdbRatings: { 'Groundhog Day': '8.0' },
+    })
+    renderScreen()
+
+    expect(await screen.findByText('⭐ 80%')).toBeInTheDocument()
   })
 
   it('keeps unscored films in the list, at the bottom', async () => {
@@ -179,9 +198,9 @@ describe('FilmographyScreen', () => {
     // Reproduces production: one film's lookup throws while the rest resolve.
     // The list has already rendered by the time that happens, so the failure
     // must leave it standing rather than replace it with the error state.
-    vi.mocked(getTomatometer).mockImplementation(async (tmdbId) => {
+    vi.mocked(getRottenTomatoesScores).mockImplementation(async (tmdbId) => {
       if (tmdbId === 2) throw new TypeError("Cannot read properties of null (reading 'critic')")
-      return 90
+      return { critic: 90, audience: null }
     })
 
     renderScreen()
@@ -195,9 +214,9 @@ describe('FilmographyScreen', () => {
 
   it('leaves the film whose score rejected in the list, unscored', async () => {
     stubApis({ films: { '8': [film(1, 'Survivor'), film(2, 'Rejects')] } })
-    vi.mocked(getTomatometer).mockImplementation(async (tmdbId) => {
+    vi.mocked(getRottenTomatoesScores).mockImplementation(async (tmdbId) => {
       if (tmdbId === 2) throw new Error('scores unavailable')
-      return 90
+      return { critic: 90, audience: null }
     })
 
     renderScreen()
