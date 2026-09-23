@@ -1,6 +1,9 @@
 import { tmdbGet } from './http'
-import { SERVICES, RENT_SERVICES, getEnabledServices } from '../data/providers'
-import type { Movie, CastMember, Person, ServiceKey, RentKey } from '../types'
+import {
+  SERVICES, RENT_SERVICES, getEnabledServices,
+  serviceForProviderId, rentServiceForProviderId,
+} from '../data/providers'
+import type { Movie, CastMember, Person, ServiceKey, RentKey, Availability } from '../types'
 
 type TmdbMovie = {
   id: number
@@ -155,6 +158,33 @@ export async function getActorMovies(
 export async function getMovieDetails(movieId: number): Promise<Movie> {
   const raw = await tmdbGet<TmdbMovie>(`/movie/${movieId}`, {})
   return toMovie(raw)
+}
+
+type TmdbWatchProviders = {
+  results?: Record<string, {
+    flatrate?: { provider_id: number }[]
+    rent?: { provider_id: number }[]
+  }>
+}
+
+/** Where a single film can be watched, per TMDB's `/movie/{id}/watch/providers` (US region only). */
+export async function getWatchProviders(movieId: number): Promise<Availability> {
+  const data = await tmdbGet<TmdbWatchProviders>(`/movie/${movieId}/watch/providers`, {})
+  const region = data.results?.US
+
+  const streaming: ServiceKey[] = []
+  for (const { provider_id } of region?.flatrate ?? []) {
+    const key = serviceForProviderId(provider_id)
+    if (key && !streaming.includes(key)) streaming.push(key)
+  }
+
+  const rent: RentKey[] = []
+  for (const { provider_id } of region?.rent ?? []) {
+    const key = rentServiceForProviderId(provider_id)
+    if (key && !rent.includes(key)) rent.push(key)
+  }
+
+  return { streaming, rent }
 }
 
 type TmdbPerson = {

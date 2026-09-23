@@ -171,6 +171,7 @@ describe('recommendations carousel', () => {
     tmdbId: 999, title: 'Fantastic Mr. Fox', year: 2009, posterPath: null,
     popularity: 20, tomatometer: null, popcornmeter: null,
     availability: { streaming: [], rent: [] },
+    overview: null,
   }
 
   beforeEach(() => {
@@ -193,7 +194,7 @@ describe('recommendations carousel', () => {
     )
 
     expect(await screen.findByText('Fantastic Mr. Fox')).toBeInTheDocument()
-    expect(screen.getByText(/because laura watched rushmore/i)).toBeInTheDocument()
+    expect(screen.getByText(/recommended for you/i)).toBeInTheDocument()
     expect(getRecommendationsFor).toHaveBeenCalledWith('laura')
   })
 
@@ -241,7 +242,7 @@ describe('recommendations carousel', () => {
     await waitFor(() => {
       expect(container.querySelector('.recommendations')).toBeNull()
     })
-    expect(screen.queryByText(/because laura watched/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/recommended for you/i)).not.toBeInTheDocument()
   })
 
   it('renders no carousel section and never fetches when there is no active profile', async () => {
