@@ -1,7 +1,7 @@
 // vite-plugins/store-ops.ts
-import { emptyStore, ALL_SERVICE_KEYS, CURRENT_STORE_VERSION } from '../src/types'
-import type { Store, ServiceKey, WatchEntry, WatchingEntry } from '../src/types'
-import { applyOp, sanitizeEnabledServices, SeedRejectedError } from '../src/data/storeReducer'
+import { emptyStore, ALL_SERVICE_KEYS, CURRENT_STORE_VERSION } from '../src/types.ts'
+import type { Store, ServiceKey, WatchEntry, WatchingEntry } from '../src/types.ts'
+import { applyOp, sanitizeEnabledServices, SeedRejectedError } from '../src/data/storeReducer.ts'
 
 // Re-exported so existing importers (this file's own tests, and
 // src/data/history.test.ts's fake-server stub) keep working unchanged —

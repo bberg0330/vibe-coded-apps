@@ -1,7 +1,7 @@
 import type { Plugin } from 'vite'
-import { applyOp } from './store-ops'
-import { readStore, writeStoreAtomic, commitStore, commitMessageFor } from './store-file'
-import type { Store, StoreOp } from '../src/types'
+import { applyOp } from './store-ops.ts'
+import { readStore, writeStoreAtomic, commitStore, commitMessageFor } from './store-file.ts'
+import type { Store, StoreOp } from '../src/types.ts'
 
 const DEFAULT_DIR = 'data'
 
