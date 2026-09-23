@@ -11,6 +11,7 @@ type TmdbMovie = {
   release_date?: string
   poster_path: string | null
   popularity: number
+  overview?: string
 }
 
 type TmdbCast = {
@@ -38,6 +39,7 @@ export function toMovie(raw: TmdbMovie): Movie {
     tomatometer: null,
     popcornmeter: null,
     availability: { streaming: [], rent: [] },
+    overview: raw.overview?.trim() || null,
   }
 }
 

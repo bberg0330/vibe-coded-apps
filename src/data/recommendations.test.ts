@@ -20,6 +20,7 @@ vi.mock('../api/tmdb', () => ({
 const movie = (tmdbId: number, popularity = 10): Movie => ({
   tmdbId, title: `Movie ${tmdbId}`, year: 2000, posterPath: null, popularity,
   tomatometer: null, popcornmeter: null, availability: { streaming: [], rent: [] },
+  overview: null,
 })
 
 const castMember = (tmdbId: number, order: number): CastMember => ({

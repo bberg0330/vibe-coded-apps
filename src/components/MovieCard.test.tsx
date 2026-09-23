@@ -8,6 +8,7 @@ const movie: Movie = {
   tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: '/p.jpg',
   popularity: 18, tomatometer: 90, popcornmeter: null,
   availability: { streaming: ['netflix', 'hbomax'], rent: [] },
+  overview: null,
 }
 
 describe('MovieCard', () => {

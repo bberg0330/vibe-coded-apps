@@ -8,11 +8,13 @@ import type { Movie } from '../types'
 const movie: Movie = {
   tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null,
   popularity: 18, tomatometer: 90, popcornmeter: null, availability: { streaming: [], rent: [] },
+  overview: 'A precocious teenager forms an unlikely bond with a wealthy industrialist.',
 }
 
 const movieB: Movie = {
   tmdbId: 9999, title: 'The Life Aquatic', year: 2004, posterPath: null,
   popularity: 12, tomatometer: 56, popcornmeter: null, availability: { streaming: [], rent: [] },
+  overview: null,
 }
 
 const cast = Array.from({ length: 20 }, (_, i) => ({
@@ -37,6 +39,18 @@ describe('CastScreen', () => {
   it('shows the movie title', async () => {
     render(<CastScreen movie={movie} onOpenActor={vi.fn()} onToggleWatched={vi.fn()} watchedCount={0} />)
     expect(await screen.findByText('Rushmore')).toBeInTheDocument()
+  })
+
+  it('shows the synopsis when the movie has one', async () => {
+    render(<CastScreen movie={movie} onOpenActor={vi.fn()} onToggleWatched={vi.fn()} watchedCount={0} />)
+    expect(await screen.findByText('Synopsis')).toBeInTheDocument()
+    expect(screen.getByText(movie.overview!)).toBeInTheDocument()
+  })
+
+  it('omits the synopsis section when the movie has none', async () => {
+    render(<CastScreen movie={movieB} onOpenActor={vi.fn()} onToggleWatched={vi.fn()} watchedCount={0} />)
+    await screen.findByText('The Life Aquatic')
+    expect(screen.queryByText('Synopsis')).not.toBeInTheDocument()
   })
 
   it('shows only the first 15 billed actors initially', async () => {
