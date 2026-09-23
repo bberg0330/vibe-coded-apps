@@ -10,6 +10,7 @@ import type { Movie, StoreOp } from '../types'
 const movie = (tmdbId: number, title: string): Movie => ({
   tmdbId, title, year: 1998, posterPath: null, popularity: 10,
   tomatometer: 90, popcornmeter: null, availability: { streaming: [], rent: [] },
+  overview: null,
 })
 
 const via = {

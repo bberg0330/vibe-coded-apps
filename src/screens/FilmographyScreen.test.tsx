@@ -24,6 +24,7 @@ const actorB: Person = {
 const fromMovie: Movie = {
   tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null,
   popularity: 18, tomatometer: null, popcornmeter: null, availability: { streaming: [], rent: [] },
+  overview: null,
 }
 
 const film = (id: number, title: string) => ({

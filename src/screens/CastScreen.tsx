@@ -84,6 +84,13 @@ export function CastScreen({
         startWatchingDisabled={startWatchingDisabled}
       />
 
+      {displayMovie.overview && (
+        <>
+          <h2>Synopsis</h2>
+          <p className="synopsis">{displayMovie.overview}</p>
+        </>
+      )}
+
       <h2>Cast</h2>
       {status === 'loading' && <p className="empty">Loading cast…</p>}
       {status === 'error' && (

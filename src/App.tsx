@@ -415,7 +415,7 @@ export default function App() {
       {current.kind === 'history' && (
         <HistoryScreen
           onOpenMovie={(movie) =>
-            navigate({ kind: 'cast', movie: { ...movie, popularity: 0, availability: { streaming: [], rent: [] } } })
+            navigate({ kind: 'cast', movie: { ...movie, popularity: 0, availability: { streaming: [], rent: [] }, overview: null } })
           }
           onCancelWatching={cancelWatchingTonight}
           optimisticallyCancelled={optimisticallyCancelled}

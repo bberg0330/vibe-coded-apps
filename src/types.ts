@@ -28,6 +28,8 @@ export type Movie = {
    */
   popcornmeter: number | null
   availability: Availability
+  /** Plot synopsis. null until fetched, or when TMDB has none. */
+  overview: string | null
 }
 
 export type CastMember = {

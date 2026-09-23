@@ -128,6 +128,22 @@ describe('getMovieDetails', () => {
     })
   })
 
+  it('trims the overview', async () => {
+    stub({
+      id: 1585, title: 'Rushmore', release_date: '1998-10-09',
+      poster_path: '/abc.jpg', popularity: 18.4, overview: '  A precocious teenager.  ',
+    })
+    expect((await getMovieDetails(1585)).overview).toBe('A precocious teenager.')
+  })
+
+  it('falls back to null when TMDB has no overview', async () => {
+    stub({
+      id: 1585, title: 'Rushmore', release_date: '1998-10-09',
+      poster_path: '/abc.jpg', popularity: 18.4, overview: '',
+    })
+    expect((await getMovieDetails(1585)).overview).toBeNull()
+  })
+
   it('starts with no score and no known availability, same as search results', async () => {
     stub({
       id: 1585, title: 'Rushmore', release_date: '1998-10-09',
