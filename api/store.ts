@@ -1,7 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import type { Store, StoreOp } from '../src/types';
-import { applyOp } from '../src/data/storeReducer.ts';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -12,6 +11,66 @@ if (!supabaseUrl || !supabaseKey || !writeSecret) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+function applyOp(store: Store, op: StoreOp): Store {
+  switch (op.type) {
+    case 'logWatch': {
+      return {
+        ...store,
+        history: [...store.history, op.entry],
+      };
+    }
+    case 'undoLastWatch': {
+      const idx = store.history.findLastIndex((e) => e.movie.tmdbId === op.tmdbId);
+      if (idx < 0) return store;
+      return {
+        ...store,
+        history: store.history.toSpliced(idx, 1),
+      };
+    }
+    case 'deleteWatch': {
+      const idx = store.history.findIndex(
+        (e) => e.movie.tmdbId === op.tmdbId && e.watchedAt === op.watchedAt
+      );
+      if (idx < 0) return store;
+      return {
+        ...store,
+        history: store.history.toSpliced(idx, 1),
+      };
+    }
+    case 'setService': {
+      const services = [...store.enabledServices];
+      const idx = services.indexOf(op.key);
+      if (op.enabled && idx < 0) services.push(op.key);
+      if (!op.enabled && idx >= 0) services.splice(idx, 1);
+      return { ...store, enabledServices: services };
+    }
+    case 'replaceHistory': {
+      return { ...store, history: op.entries };
+    }
+    case 'seed': {
+      return {
+        ...store,
+        history: op.history,
+        enabledServices: op.enabledServices,
+      };
+    }
+    case 'startWatching': {
+      return {
+        ...store,
+        nowWatching: [...store.nowWatching, op.entry],
+      };
+    }
+    case 'cancelWatching': {
+      return {
+        ...store,
+        nowWatching: store.nowWatching.filter(
+          (e) => !(e.profileId === op.profileId && e.movie.tmdbId === op.tmdbId)
+        ),
+      };
+    }
+  }
+}
 
 export default async function handler(
   req: VercelRequest,
