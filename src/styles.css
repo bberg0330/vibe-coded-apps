@@ -38,10 +38,9 @@
   --sheet-shadow: 0 -8px 32px rgba(0, 0, 0, .5);
 
   /*
-   * The profile-gate/header decorative icons bake stroke="currentColor" into
-   * the SVG and rely on this token for their color — they used to hardcode
-   * #f2f4f8 (this dark mode's --text, coincidentally), which was invisible
-   * once the page background flipped to near-white in light mode.
+   * Colour of the profile-gate/header decorative icons. Reaches them by masking
+   * a background-colour with the SVG's alpha (see .icon-mask) — NOT through
+   * currentColor, which cannot cross into an SVG loaded via <img>.
    */
   --icon-muted: #f2f4f8;
 
@@ -187,7 +186,29 @@ body {
   gap: 20px; padding: 24px; box-sizing: border-box;
 }
 .profile-gate-deco { position: absolute; inset: 0; pointer-events: none; }
-.profile-gate-deco img { position: absolute; display: block; color: var(--icon-muted); }
+.profile-gate-deco .icon-mask { position: absolute; }
+
+/*
+ * These icons are masked rather than coloured. `stroke="currentColor"` inside an
+ * SVG loaded through <img> resolves against that SVG's own document, not this
+ * page, so the strokes rendered pure black whatever --icon-muted said — which on
+ * the near-black page meant invisible (1.03:1). Masking a background-colour with
+ * the SVG's alpha puts the colour back under CSS control in both modes, and the
+ * 28% opacity baked into the assets survives because the mask reads alpha.
+ *
+ * A masked element has no intrinsic size the way an <img> does, so every
+ * callsite must set width and height explicitly.
+ */
+.icon-mask {
+  display: block;
+  background-color: var(--icon-muted);
+  -webkit-mask-image: var(--icon);
+  mask-image: var(--icon);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
 .profile-gate-title {
   font-size: 32px; font-weight: 700; text-align: center; margin: 0; line-height: 1.2;
   position: relative;
@@ -221,7 +242,7 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 .mn-header { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; margin: 4px 0 12px; }
 .mn-header-row { display: flex; gap: 16px; align-items: center; }
 .mn-header-cluster { display: flex; flex-direction: column; gap: 8px; align-items: center; }
-.mn-header-icon { display: block; pointer-events: none; color: var(--icon-muted); }
+.mn-header-icon { pointer-events: none; }
 .mn-header-title { font-size: 22px; font-weight: 700; margin: 0; text-align: center; }
 .mn-header-projector { position: absolute; left: 8px; top: 28px; }
 .mn-header-ticket { position: absolute; right: 8px; top: 26px; }

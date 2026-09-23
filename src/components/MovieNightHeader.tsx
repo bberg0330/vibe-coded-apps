@@ -4,6 +4,7 @@ import iconStar from '../assets/profile-gate/0159f.svg'
 import iconClapperboard from '../assets/profile-gate/ce7e7.svg'
 import iconTicket from '../assets/profile-gate/03377.svg'
 import iconProjector from '../assets/homescreen/projector.svg'
+import type { CSSProperties } from 'react'
 
 /**
  * Reuses the profile-gate's decorative icon set (popcorn, sparkles, star,
@@ -11,20 +12,31 @@ import iconProjector from '../assets/homescreen/projector.svg'
  * as an ambient frame around the wordmark. The projector is the one icon
  * this adds to that set.
  */
+/** Masked rather than an <img> — see .icon-mask. Size is required: a mask has no intrinsic one. */
+function Deco({ src, size, className = '' }: { src: string; size: number; className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`mn-header-icon icon-mask ${className}`.trim()}
+      style={{ width: size, height: size, '--icon': `url("${src}")` } as CSSProperties}
+    />
+  )
+}
+
 export function MovieNightHeader() {
   return (
     <div className="mn-header">
-      <img src={iconProjector} alt="" className="mn-header-icon mn-header-projector" aria-hidden="true" />
-      <img src={iconTicket} alt="" className="mn-header-icon mn-header-ticket" aria-hidden="true" />
+      <Deco src={iconProjector} size={32} className="mn-header-projector" />
+      <Deco src={iconTicket} size={36} className="mn-header-ticket" />
       <div className="mn-header-row">
         <div className="mn-header-cluster">
-          <img src={iconPopcorn} alt="" className="mn-header-icon" width={38} height={38} aria-hidden="true" />
-          <img src={iconSparkles} alt="" className="mn-header-icon" width={32} height={32} aria-hidden="true" />
+          <Deco src={iconPopcorn} size={38} />
+          <Deco src={iconSparkles} size={32} />
         </div>
         <h1 className="mn-header-title">Movie Night</h1>
         <div className="mn-header-cluster">
-          <img src={iconStar} alt="" className="mn-header-icon" width={48} height={48} aria-hidden="true" />
-          <img src={iconClapperboard} alt="" className="mn-header-icon" width={32} height={32} aria-hidden="true" />
+          <Deco src={iconStar} size={48} />
+          <Deco src={iconClapperboard} size={32} />
         </div>
       </div>
     </div>
