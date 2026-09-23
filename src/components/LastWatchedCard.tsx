@@ -6,16 +6,18 @@ import type { WatchEntry, Availability } from '../types'
 
 type Props = {
   movie: WatchEntry['movie'] & { availability: Availability }
+  onOpen?: (movie: WatchEntry['movie'] & { availability: Availability }) => void
 }
 
 /**
- * Read-only summary of the profile's most recently watched film — no watch/
- * watching actions, since logging is what produced this entry in the first
- * place. Unlike MovieCard, the streaming badge sits inline with the year and
- * score rather than in its own row below, so the card's height doesn't
- * depend on whether a badge is present.
+ * Summary of the profile's most recently watched film — no watch/watching
+ * actions, since logging is what produced this entry in the first place, but
+ * tapping the card opens the movie's Cast screen like MovieCard does. Unlike
+ * MovieCard, the streaming badge sits inline with the year and score rather
+ * than in its own row below, so the card's height doesn't depend on whether a
+ * badge is present.
  */
-export function LastWatchedCard({ movie }: Props) {
+export function LastWatchedCard({ movie, onOpen }: Props) {
   const poster = posterUrl(movie.posterPath)
   const streamingKey = movie.availability.streaming[0]
   const rentKey = movie.availability.rent[0]
@@ -27,7 +29,7 @@ export function LastWatchedCard({ movie }: Props) {
 
   return (
     <div className="card last-watched-card">
-      <div className="card-main">
+      <button className="card-main" onClick={() => onOpen?.(movie)}>
         <Poster src={poster} />
         <div className="card-body">
           <div className="card-title">{movie.title}</div>
@@ -39,7 +41,7 @@ export function LastWatchedCard({ movie }: Props) {
             {badgeLabel && <Badge label={badgeLabel} />}
           </div>
         </div>
-      </div>
+      </button>
     </div>
   )
 }
