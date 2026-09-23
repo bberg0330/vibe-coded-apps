@@ -8,7 +8,7 @@
     "strict": true,
     "noUnusedLocals": true,
     "skipLibCheck": true,
-    "types": ["vite/client", "vitest/globals"],
+    "types": ["vite/client", "vitest/globals", "@figma/code-connect/figma-types"],
     "noEmit": true
   },
   "include": ["src"]
