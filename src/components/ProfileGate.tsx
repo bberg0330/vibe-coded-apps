@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { Profile, ProfileId } from '../data/profiles'
 
 import iconPopcorn from '../assets/profile-gate/20641.svg'
@@ -68,8 +69,9 @@ export function ProfileGate({ profiles, onSelect }: Props) {
       <div className="profile-gate-frame">
         <div className="profile-gate-deco" aria-hidden="true">
           {DECORATIONS.map((d, i) => (
-            <img key={i} src={d.src} alt=""
-              style={{ left: d.left, top: d.top, width: d.size, height: d.size }} />
+            <span key={i} className="icon-mask" style={{
+              left: d.left, top: d.top, width: d.size, height: d.size, '--icon': `url("${d.src}")`,
+            } as CSSProperties} />
           ))}
         </div>
 
