@@ -72,6 +72,18 @@
         "popcornmeter": 77
       },
       "discoveredVia": null
+    },
+    {
+      "watchedAt": "2026-09-23T04:30:44.610Z",
+      "movie": {
+        "tmdbId": 150540,
+        "title": "Inside Out",
+        "year": 2015,
+        "posterPath": "/2H1TmgdfNtsKlU9jKdeNyYL5y8T.jpg",
+        "tomatometer": 98,
+        "popcornmeter": 81
+      },
+      "discoveredVia": null
     }
   ],
   "enabledServices": [
