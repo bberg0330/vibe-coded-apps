@@ -192,7 +192,7 @@ export function SearchScreen({
       <SearchInput
         value={query}
         onChange={setQuery}
-        placeholder="What movie did you watch last?"
+        placeholder="Type something lovebug"
         autoFocus
       />
 
