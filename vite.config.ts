@@ -1,8 +1,11 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import { storeApi } from './vite-plugins/store-api'
-import { scoresApi } from './vite-plugins/scores-api'
+// Relative imports reachable from this config carry explicit .ts extensions so
+// Vite's `configLoader: 'native'` can load them — it is slated to become the
+// default in a future major and cannot resolve extensionless specifiers.
+import { storeApi } from './vite-plugins/store-api.ts'
+import { scoresApi } from './vite-plugins/scores-api.ts'
 
 export default defineConfig({
   plugins: [react(), storeApi(), scoresApi()],

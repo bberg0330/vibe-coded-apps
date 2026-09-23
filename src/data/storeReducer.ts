@@ -11,8 +11,8 @@
 // (`op.entry.tmdbId`, `op.entry.rating`) that don't exist on `WatchEntry`,
 // silently no-oping a dedupe check with no test coverage catching it. A
 // single shared implementation means that class of drift can't happen again.
-import { ALL_SERVICE_KEYS } from '../types'
-import type { Store, StoreOp, ServiceKey } from '../types'
+import { ALL_SERVICE_KEYS } from '../types.ts'
+import type { Store, StoreOp, ServiceKey } from '../types.ts'
 
 export class SeedRejectedError extends Error {
   constructor() {

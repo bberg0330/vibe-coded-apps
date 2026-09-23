@@ -4,8 +4,8 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { join } from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { parseStore } from './store-ops'
-import type { Store, StoreOp } from '../src/types'
+import { parseStore } from './store-ops.ts'
+import type { Store, StoreOp } from '../src/types.ts'
 
 const run = promisify(execFile)
 
