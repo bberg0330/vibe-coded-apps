@@ -7,13 +7,14 @@ import { LastWatchedCard } from '../components/LastWatchedCard'
 import { MovieNightHeader } from '../components/MovieNightHeader'
 import { RecommendationsCarousel } from '../components/RecommendationsCarousel'
 import { ErrorRetry } from '../components/ErrorRetry'
+import { SectionHeading } from '../components/SectionHeading'
+import { SearchInput } from '../components/SearchInput'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { SEARCH_ROUTE_KEY } from '../router'
 import { getRecommendationsFor } from '../data/recommendations'
 import { getRecentlyWatchedBy } from '../data/watching'
 import { getHistory } from '../data/history'
 import { PROFILES, type ProfileId } from '../data/profiles'
-import iconSearch from '../assets/homescreen/search.svg'
 import type { Movie, WatchEntry, Availability } from '../types'
 
 const QUERY_STORAGE_KEY = 'mn.searchQuery'
@@ -188,21 +189,16 @@ export function SearchScreen({
     <div className="screen">
       <MovieNightHeader />
 
-      <div className="search-field">
-        <img src={iconSearch} alt="" className="search-icon" aria-hidden="true" />
-        <input
-          type="search"
-          className="search-input"
-          placeholder="What movie did you watch last?"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoFocus
-        />
-      </div>
+      <SearchInput
+        value={query}
+        onChange={setQuery}
+        placeholder="What movie did you watch last?"
+        autoFocus
+      />
 
       {query === '' && lastWatched && (
         <section className="last-watched" aria-label="Last watched">
-          <h2>Last watched</h2>
+          <SectionHeading>Last watched</SectionHeading>
           <LastWatchedCard movie={lastWatched} />
         </section>
       )}

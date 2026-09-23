@@ -1,5 +1,9 @@
 import { posterUrl } from '../api/tmdb'
 import { SERVICES, RENT_SERVICES } from '../data/providers'
+import { Badge } from './Badge'
+import { IconButton } from './IconButton'
+import { Pill } from './Pill'
+import { Poster } from './Poster'
 import type { Movie } from '../types'
 
 type Props = {
@@ -45,9 +49,7 @@ export function MovieCard({
 
   const body = (
     <>
-      {poster
-        ? <img className="poster" src={poster} alt="" loading="lazy" />
-        : <div className="poster poster-empty" aria-hidden="true" />}
+      <Poster src={poster} />
       <div className="card-body">
         <div className="card-title" title={recommendationTooltip ?? undefined}>{movie.title}</div>
         <div className="card-meta">
@@ -66,10 +68,10 @@ export function MovieCard({
           {typeof movie.popcornmeter === 'number' && (
             <span className="score" title="IMDb user rating">⭐ {movie.popcornmeter}%</span>
           )}
-          {watchingLabel && <span className="pill">{watchingLabel}</span>}
+          {watchingLabel && <Pill>{watchingLabel}</Pill>}
         </div>
         <div className="badges">
-          {badges.map((label) => <span className="badge" key={label}>{label}</span>)}
+          {badges.map((label) => <Badge label={label} key={label} />)}
         </div>
       </div>
     </>
@@ -82,34 +84,29 @@ export function MovieCard({
         : <button className="card-main" onClick={() => onOpen?.(movie)}>{body}</button>}
 
       <div className="card-actions">
-        <button
-          className={`watch-btn${watched ? ' watched' : ''}`}
-          aria-label={watched
-            ? `Undo watched for ${movie.title}`
-            : `Mark ${movie.title} as watched`}
-          aria-pressed={watched}
+        <IconButton
+          icon="✓"
+          watched={watched}
+          ariaLabel={watched ? `Undo watched for ${movie.title}` : `Mark ${movie.title} as watched`}
+          ariaPressed={watched}
           disabled={pending}
           onClick={(e) => {
             e.stopPropagation()
             onToggleWatched(movie)
           }}
-        >
-          ✓
-        </button>
+        />
 
         {onStartWatching && (
-          <button
-            className="watching-btn"
-            aria-label={`Start watching ${movie.title} tonight`}
+          <IconButton
+            icon="🕐"
+            ariaLabel={`Start watching ${movie.title} tonight`}
             title={startWatchingDisabled ? "Pick who's watching first" : undefined}
             disabled={pending || startWatchingDisabled}
             onClick={(e) => {
               e.stopPropagation()
               onStartWatching(movie)
             }}
-          >
-            🕐
-          </button>
+          />
         )}
       </div>
     </div>

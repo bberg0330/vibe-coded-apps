@@ -1,4 +1,5 @@
 import { RecommendationCard } from './RecommendationCard'
+import { SectionHeading } from './SectionHeading'
 import type { Movie } from '../types'
 import type { RecommendationWithAttribution } from '../data/recommendations'
 
@@ -27,7 +28,7 @@ export function RecommendationsCarousel({
 
   return (
     <section className="recommendations" aria-label={title}>
-      <h2>{title}</h2>
+      <SectionHeading>{title}</SectionHeading>
       <div className="recommendations-row">
         {movies.map((movie) => {
           const withAttribution = movie as RecommendationWithAttribution

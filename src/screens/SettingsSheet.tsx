@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { SERVICES, getEnabledServices, setServiceEnabled } from '../data/providers'
+import { SectionHeading } from '../components/SectionHeading'
 import type { ServiceKey } from '../types'
 
 export function SettingsSheet({ onClose }: { onClose: () => void }) {
@@ -28,7 +29,7 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
       <button className="scrim" aria-label="Close settings" onClick={onClose} />
       <div className="sheet" role="dialog" aria-modal="true" aria-label="Our subscriptions">
       <div className="topbar">
-        <h2>Our subscriptions</h2>
+        <SectionHeading>Our subscriptions</SectionHeading>
         <button className="link" onClick={onClose}>Done</button>
       </div>
       {error && <p className="error" role="alert">{error}</p>}

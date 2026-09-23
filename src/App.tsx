@@ -7,6 +7,8 @@ import { FilmographyScreen } from './screens/FilmographyScreen'
 import { HistoryScreen } from './screens/HistoryScreen'
 import { SettingsSheet } from './screens/SettingsSheet'
 import { ProfileGate } from './components/ProfileGate'
+import { TopBar } from './components/TopBar'
+import { Button } from './components/Button'
 import { logWatch, undoLastWatch, watchCount } from './data/history'
 import { startWatching, getNowWatching, cancelWatching } from './data/watching'
 import { loadStore } from './data/store'
@@ -320,7 +322,7 @@ export default function App() {
         <div className="error" role="alert">
           <p>{bootError}</p>
           <p>Make sure <code>npm run dev</code> is still running on the Mac.</p>
-          <button className="btn" onClick={() => setBootAttempt((a) => a + 1)}>Try again</button>
+          <Button onClick={() => setBootAttempt((a) => a + 1)}>Try again</Button>
         </div>
       </div>
     )
@@ -337,28 +339,15 @@ export default function App() {
 
   return (
     <div className="app">
-      <nav className="topbar">
-        {pointer > 0
-          ? <button className="link" onClick={goBack}>← Back</button>
-          : <span />}
-        <span className="profile-switcher" role="group" aria-label="Who's watching">
-          {PROFILES.map((profile) => (
-            <button
-              key={profile.id}
-              type="button"
-              className="chip"
-              aria-pressed={activeProfileId === profile.id}
-              onClick={() => selectProfile(profile.id)}
-            >
-              {profile.name}
-            </button>
-          ))}
-        </span>
-        <span>
-          <button className="link" onClick={() => setSettingsOpen(true)}>Settings</button>
-          <button className="link" onClick={() => navigate({ kind: 'history' })}>History</button>
-        </span>
-      </nav>
+      <TopBar
+        showBack={pointer > 0}
+        onBack={goBack}
+        profiles={PROFILES}
+        activeProfileId={activeProfileId}
+        onSelectProfile={selectProfile}
+        onSettings={() => setSettingsOpen(true)}
+        onHistory={() => navigate({ kind: 'history' })}
+      />
 
       {saveError && <div className="error" role="alert">{saveError}</div>}
       {watchingError && <div className="error" role="alert">{watchingError}</div>}

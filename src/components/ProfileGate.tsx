@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import type { CSSProperties } from 'react'
+import { Button } from './Button'
+import { ProfileOption } from './ProfileOption'
 import type { Profile, ProfileId } from '../data/profiles'
 
 import iconPopcorn from '../assets/profile-gate/20641.svg'
@@ -84,27 +86,22 @@ export function ProfileGate({ profiles, onSelect }: Props) {
 
         <div className="profile-gate-options" role="radiogroup" aria-label="Who's watching">
           {profiles.map((profile) => (
-            <button
+            <ProfileOption
               key={profile.id}
-              type="button"
-              className="profile-card"
-              role="radio"
-              aria-checked={pending === profile.id}
+              name={profile.name}
+              selected={pending === profile.id}
               onClick={() => setPending(profile.id)}
-            >
-              {profile.name}
-            </button>
+            />
           ))}
         </div>
 
-        <button
-          type="button"
-          className="btn profile-gate-continue"
+        <Button
+          className="profile-gate-continue"
           disabled={!pending}
           onClick={() => pending && onSelect(pending)}
         >
           Continue
-        </button>
+        </Button>
       </div>
     </div>
   )
