@@ -201,11 +201,36 @@ body {
 .profile-gate .btn:disabled { background: var(--control-bg); color: var(--text); opacity: 1; cursor: default; }
 h1 { font-size: 22px; margin: 4px 0 12px; }
 h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+
+/*
+ * Search screen wordmark, flanked by the profile-gate's decorative icon set
+ * (see ProfileGate.tsx) — the projector is the one icon new to that set.
+ * `width: 100%` so the absolutely-positioned projector/ticket sit at the
+ * screen's edges rather than hugging the centered title row.
+ */
+.mn-header { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; margin: 4px 0 12px; }
+.mn-header-row { display: flex; gap: 16px; align-items: center; }
+.mn-header-cluster { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.mn-header-icon { display: block; pointer-events: none; }
+.mn-header-title { font-size: 22px; font-weight: 700; margin: 0; text-align: center; }
+.mn-header-projector { position: absolute; left: 8px; top: 28px; }
+.mn-header-ticket { position: absolute; right: 8px; top: 26px; }
+
+.search-field { position: relative; margin-bottom: 16px; }
+.search-field .search-icon {
+  position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+  width: 20px; height: 20px; pointer-events: none;
+}
+.search-field .search-input { margin-bottom: 0; padding-left: 44px; }
 .search-input {
   width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--border);
   background: var(--surface); color: var(--text); font: inherit; margin-bottom: 16px;
 }
+
+/* Last Watched is informational only — no onOpen, so no pointer cursor. */
+.last-watched-card .card-main { cursor: default; }
 .empty { color: var(--muted); }
+.synopsis { margin: 4px 0 12px; }
 .recommendations-row {
   display: flex; overflow-x: auto; gap: 12px; padding-bottom: 4px; margin-bottom: 8px;
   scroll-snap-type: x mandatory;

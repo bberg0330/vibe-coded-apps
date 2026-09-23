@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
-import { searchMovies } from '../api/tmdb'
+import { searchMovies, getWatchProviders } from '../api/tmdb'
 import { getRottenTomatoesScores } from '../api/omdb'
 import { MissingKeyError } from '../api/http'
 import { MovieCard } from '../components/MovieCard'
+import { LastWatchedCard } from '../components/LastWatchedCard'
+import { MovieNightHeader } from '../components/MovieNightHeader'
 import { RecommendationsCarousel } from '../components/RecommendationsCarousel'
 import { ErrorRetry } from '../components/ErrorRetry'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
@@ -11,7 +13,8 @@ import { getRecommendationsFor } from '../data/recommendations'
 import { getRecentlyWatchedBy } from '../data/watching'
 import { getHistory } from '../data/history'
 import { PROFILES, type ProfileId } from '../data/profiles'
-import type { Movie } from '../types'
+import iconSearch from '../assets/homescreen/search.svg'
+import type { Movie, WatchEntry, Availability } from '../types'
 
 const QUERY_STORAGE_KEY = 'mn.searchQuery'
 
@@ -37,6 +40,7 @@ export function SearchScreen({
 
   const [recommendations, setRecommendations] = useState<Movie[]>([])
   const [recommendationsFor, setRecommendationsFor] = useState<{ profileName: string; movieTitle: string } | null>(null)
+  const [lastWatched, setLastWatched] = useState<(WatchEntry['movie'] & { availability: Availability }) | null>(null)
 
   useScrollRestoration(SEARCH_ROUTE_KEY, status === 'done' || status === 'error' || status === 'nokey')
 
@@ -106,6 +110,7 @@ export function SearchScreen({
     if (!activeProfileId) {
       setRecommendations([])
       setRecommendationsFor(null)
+      setLastWatched(null)
       return
     }
 
@@ -117,12 +122,32 @@ export function SearchScreen({
       if (history.length === 0) {
         setRecommendations([])
         setRecommendationsFor(null)
+        setLastWatched(null)
         return
       }
       sourceMovie = history[0].movie
     }
 
     const profileName = PROFILES.find((p) => p.id === activeProfileId)?.name ?? activeProfileId
+
+    setLastWatched({ ...sourceMovie, availability: { streaming: [], rent: [] } })
+
+    getRottenTomatoesScores(sourceMovie.tmdbId, sourceMovie.title, sourceMovie.year).then((scores) => {
+      if (cancelled) return
+      setLastWatched((prev) => prev && prev.tmdbId === sourceMovie.tmdbId
+        ? { ...prev, tomatometer: scores.critic ?? prev.tomatometer, popcornmeter: scores.audience ?? prev.popcornmeter }
+        : prev)
+    }).catch(() => {
+      // Same supplementary-enrichment contract as the recommendations
+      // scores below: a TMDB/OMDb hiccup leaves the card's score as-is.
+    })
+
+    getWatchProviders(sourceMovie.tmdbId).then((availability) => {
+      if (cancelled) return
+      setLastWatched((prev) => prev && prev.tmdbId === sourceMovie.tmdbId ? { ...prev, availability } : prev)
+    }).catch(() => {
+      // No badge is a fine fallback — never block the card on this.
+    })
 
     getRecommendationsFor(activeProfileId).then((found) => {
       if (cancelled) return
@@ -161,12 +186,31 @@ export function SearchScreen({
 
   return (
     <div className="screen">
-      <h1>Movie Night</h1>
+      <MovieNightHeader />
+
+      <div className="search-field">
+        <img src={iconSearch} alt="" className="search-icon" aria-hidden="true" />
+        <input
+          type="search"
+          className="search-input"
+          placeholder="What movie did you watch last?"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          autoFocus
+        />
+      </div>
+
+      {query === '' && lastWatched && (
+        <section className="last-watched" aria-label="Last watched">
+          <h2>Last watched</h2>
+          <LastWatchedCard movie={lastWatched} />
+        </section>
+      )}
 
       {query === '' && recommendationsFor && (
         <RecommendationsCarousel
           movies={recommendations}
-          title={`Because ${recommendationsFor.profileName} watched ${recommendationsFor.movieTitle}`}
+          title="Recommended for you"
           onOpen={onOpenMovie}
           watchCountFor={watchCountFor}
           isPending={isPending}
@@ -176,15 +220,6 @@ export function SearchScreen({
           startWatchingDisabled={startWatchingDisabled}
         />
       )}
-
-      <input
-        type="search"
-        className="search-input"
-        placeholder="What movie did you watch last?"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        autoFocus
-      />
 
       {status === 'nokey' && (
         <div className="error" role="alert">
