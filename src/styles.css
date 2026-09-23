@@ -37,6 +37,14 @@
   --scrim: rgba(0, 0, 0, .5);
   --sheet-shadow: 0 -8px 32px rgba(0, 0, 0, .5);
 
+  /*
+   * The profile-gate/header decorative icons bake stroke="currentColor" into
+   * the SVG and rely on this token for their color — they used to hardcode
+   * #f2f4f8 (this dark mode's --text, coincidentally), which was invisible
+   * once the page background flipped to near-white in light mode.
+   */
+  --icon-muted: #f2f4f8;
+
   /* "light dark" is what lets the OS Automatic setting reach this app at all. */
   color-scheme: light dark;
 }
@@ -66,6 +74,8 @@
     --error-bg: #fdeaef;
     --scrim: rgba(0, 0, 0, .35);
     --sheet-shadow: 0 -8px 32px rgba(18, 20, 26, .18);
+
+    --icon-muted: #12141a;
   }
 }
 
@@ -177,7 +187,7 @@ body {
   gap: 20px; padding: 24px; box-sizing: border-box;
 }
 .profile-gate-deco { position: absolute; inset: 0; pointer-events: none; }
-.profile-gate-deco img { position: absolute; display: block; }
+.profile-gate-deco img { position: absolute; display: block; color: var(--icon-muted); }
 .profile-gate-title {
   font-size: 32px; font-weight: 700; text-align: center; margin: 0; line-height: 1.2;
   position: relative;
@@ -211,7 +221,7 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 .mn-header { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; margin: 4px 0 12px; }
 .mn-header-row { display: flex; gap: 16px; align-items: center; }
 .mn-header-cluster { display: flex; flex-direction: column; gap: 8px; align-items: center; }
-.mn-header-icon { display: block; pointer-events: none; }
+.mn-header-icon { display: block; pointer-events: none; color: var(--icon-muted); }
 .mn-header-title { font-size: 22px; font-weight: 700; margin: 0; text-align: center; }
 .mn-header-projector { position: absolute; left: 8px; top: 28px; }
 .mn-header-ticket { position: absolute; right: 8px; top: 26px; }
