@@ -304,8 +304,6 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   background: var(--surface); color: var(--text); font: inherit; margin-bottom: 16px;
 }
 
-/* Last Watched is informational only — no onOpen, so no pointer cursor. */
-.last-watched-card .card-main { cursor: default; }
 .empty { color: var(--muted); }
 .synopsis { margin: 4px 0 12px; }
 .recommendations-row {
