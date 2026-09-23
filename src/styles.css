@@ -258,12 +258,40 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
  * screen's edges rather than hugging the centered title row.
  */
 .mn-header { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; margin: 4px 0 12px; }
-.mn-header-row { display: flex; gap: 16px; align-items: center; }
-.mn-header-cluster { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.mn-header-row { display: flex; gap: 8px; align-items: center; }
+.mn-header-cluster { display: flex; flex-direction: column; gap: 8px; align-items: center; opacity: .55; }
 .mn-header-icon { pointer-events: none; }
-.mn-header-title { font-size: 22px; font-weight: 700; margin: 0; text-align: center; }
 .mn-header-projector { position: absolute; left: 8px; top: 28px; }
 .mn-header-ticket { position: absolute; right: 8px; top: 26px; }
+
+/* "Logo/Cinematic Marquee" — the bordered wordmark box from the Header component. */
+.mn-marquee {
+  position: relative;
+  width: 159px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 20px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.mn-marquee-dot { position: absolute; width: 4px; height: 4px; }
+.mn-marquee-dot-tl { left: 4px; top: 4px; }
+.mn-marquee-dot-tr { right: 4px; top: 4px; }
+.mn-marquee-dot-bl { left: 4px; bottom: 4px; }
+.mn-marquee-dot-br { right: 4px; bottom: 4px; }
+.mn-header-title {
+  font-family: 'Big Shoulders Display', var(--font-sans, -apple-system, sans-serif);
+  font-weight: 800;
+  font-size: 32px;
+  line-height: normal;
+  text-transform: uppercase;
+  text-align: center;
+  color: var(--text);
+  margin: 0;
+  white-space: nowrap;
+}
 
 .search-field { position: relative; margin-bottom: 16px; }
 .search-field .search-icon {

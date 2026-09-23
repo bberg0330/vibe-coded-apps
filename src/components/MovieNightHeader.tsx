@@ -4,6 +4,7 @@ import iconStar from '../assets/profile-gate/0159f.svg'
 import iconClapperboard from '../assets/profile-gate/ce7e7.svg'
 import iconTicket from '../assets/profile-gate/03377.svg'
 import iconProjector from '../assets/homescreen/projector.svg'
+import marqueeDot from '../assets/header/marquee-dot.svg'
 import type { CSSProperties } from 'react'
 
 /**
@@ -33,7 +34,13 @@ export function MovieNightHeader() {
           <Deco src={iconPopcorn} size={38} />
           <Deco src={iconSparkles} size={32} />
         </div>
-        <h1 className="mn-header-title">Movie Night</h1>
+        <div className="mn-marquee">
+          <img className="mn-marquee-dot mn-marquee-dot-tl" src={marqueeDot} alt="" aria-hidden="true" />
+          <img className="mn-marquee-dot mn-marquee-dot-tr" src={marqueeDot} alt="" aria-hidden="true" />
+          <img className="mn-marquee-dot mn-marquee-dot-bl" src={marqueeDot} alt="" aria-hidden="true" />
+          <img className="mn-marquee-dot mn-marquee-dot-br" src={marqueeDot} alt="" aria-hidden="true" />
+          <h1 className="mn-header-title">Movie Night</h1>
+        </div>
         <div className="mn-header-cluster">
           <Deco src={iconStar} size={48} />
           <Deco src={iconClapperboard} size={32} />
