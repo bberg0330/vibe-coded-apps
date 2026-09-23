@@ -199,7 +199,10 @@ export function SearchScreen({
       {query === '' && lastWatched && (
         <section className="last-watched" aria-label="Last watched">
           <SectionHeading>Last watched</SectionHeading>
-          <LastWatchedCard movie={lastWatched} />
+          <LastWatchedCard
+            movie={lastWatched}
+            onOpen={(movie) => onOpenMovie({ ...movie, popularity: 0, overview: null })}
+          />
         </section>
       )}
 
