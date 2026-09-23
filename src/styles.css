@@ -259,8 +259,8 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
  */
 .mn-header { position: relative; width: 100%; display: flex; flex-direction: column; align-items: center; margin: 4px 0 12px; }
 .mn-header-row { display: flex; gap: 8px; align-items: center; }
-.mn-header-cluster { display: flex; flex-direction: column; gap: 8px; align-items: center; opacity: .55; }
-.mn-header-icon { pointer-events: none; }
+.mn-header-cluster { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.mn-header-icon { pointer-events: none; opacity: .7; }
 .mn-header-projector { position: absolute; left: 8px; top: 28px; }
 .mn-header-ticket { position: absolute; right: 8px; top: 26px; }
 
