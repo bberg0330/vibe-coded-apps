@@ -1,0 +1,25 @@
+name: Figma Code Connect
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "src/**/*.figma.ts"
+      - "figma.config.json"
+  workflow_dispatch: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Publish Code Connect
+        run: npx @figma/code-connect connect publish --token "$FIGMA_ACCESS_TOKEN"
+        env:
+          FIGMA_ACCESS_TOKEN: ${{ secrets.FIGMA_ACCESS_TOKEN }}
