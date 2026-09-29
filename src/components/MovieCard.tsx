@@ -22,24 +22,19 @@ type Props = {
   noOpen?: boolean
   /** True while a save for this film is in flight. Disables the button so a second tap can't race the first. */
   pending?: boolean
-  /** Marks the active profile as watching this film right now. Omitted where "watching tonight" doesn't apply. */
-  onStartWatching?: (movie: Movie) => void
   /**
    * Short nowrap pill shown next to the badges (e.g. "Watching tonight") —
    * null/undefined renders nothing. The caller decides the text and when it
    * applies; MovieCard only renders it.
    */
   watchingLabel?: string | null
-  /** True when there's no active profile to attribute a "watching" tap to. */
-  startWatchingDisabled?: boolean
   /** Optional tooltip explaining why this is recommended (e.g. actor name) */
   recommendationTooltip?: string | null
 }
 
 export function MovieCard({
   movie, onOpen, onToggleWatched, watched, noOpen, pending = false,
-  onStartWatching, watchingLabel = null, startWatchingDisabled = false,
-  recommendationTooltip = null,
+  watchingLabel = null, recommendationTooltip = null,
 }: Props) {
   const poster = posterUrl(movie.posterPath)
   const badges = [
@@ -95,19 +90,6 @@ export function MovieCard({
             onToggleWatched(movie)
           }}
         />
-
-        {onStartWatching && (
-          <IconButton
-            icon="🕐"
-            ariaLabel={`Start watching ${movie.title} tonight`}
-            title={startWatchingDisabled ? "Pick who's watching first" : undefined}
-            disabled={pending || startWatchingDisabled}
-            onClick={(e) => {
-              e.stopPropagation()
-              onStartWatching(movie)
-            }}
-          />
-        )}
       </div>
     </div>
   )

@@ -123,7 +123,8 @@ body {
   background: var(--accent); color: #0f1115; font-weight: 600;
 }
 /*
- * Narrow trailing column holding the ✓ and clock buttons, stacked.
+ * Narrow trailing column holding the ✓ button. (It used to stack a 🕐
+ * "watching tonight" button under it; Figma dropped that button.)
  *
  * 52px, not the 32px these were: these are the two most-tapped controls in
  * the app, stacked at the very edge of the screen, and they do different and

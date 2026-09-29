@@ -10,7 +10,7 @@ import { ProfileGate } from './components/ProfileGate'
 import { TopBar } from './components/TopBar'
 import { Button } from './components/Button'
 import { logWatch, undoLastWatch, watchCount } from './data/history'
-import { startWatching, getNowWatching, cancelWatching } from './data/watching'
+import { getNowWatching, cancelWatching } from './data/watching'
 import { loadStore } from './data/store'
 import { loadScores } from './data/scores'
 import { migrateFromLocalStorage } from './data/migrate'
@@ -72,19 +72,10 @@ export default function App() {
   const pendingWatchRef = useRef<Set<number>>(new Set())
   const [pendingWatch, setPendingWatch] = useState<Set<number>>(new Set())
 
-  // Same in-flight-guard pattern as toggleWatched, for "start watching
-  // tonight" taps. `optimisticWatching` overlays tmdbIds that were just
-  // started this render cycle but whose save hasn't landed in the shared
-  // store snapshot yet, so the "Watching tonight" pill appears immediately;
-  // it's cleared again once the real snapshot reflects the entry (or on
-  // failure, to revert).
-  const pendingStartRef = useRef<Set<number>>(new Set())
-  const [pendingStart, setPendingStart] = useState<Set<number>>(new Set())
-  const [optimisticWatching, setOptimisticWatching] = useState<Set<number>>(new Set())
   const [watchingError, setWatchingError] = useState<string | null>(null)
 
   // Same in-flight-guard + optimistic-update + revert-on-error pattern as
-  // toggleWatched/startWatchingTonight, for cancelling a misfired "watching
+  // toggleWatched, for cancelling a misfired "watching
   // tonight" tap from HistoryScreen's Tonight rows. Keyed by
   // `${profileId}:${tmdbId}` since, unlike a single tmdbId, more than one
   // profile can be watching the same film at once.
@@ -231,48 +222,6 @@ export default function App() {
     }
   }
 
-  const startWatchingTonight = async (movie: Movie, discoveredVia: WatchEntry['discoveredVia']) => {
-    // No one to attribute this to — surface a message instead of guessing,
-    // and never call into watching.ts without a real profile id.
-    if (!activeProfileId) {
-      setWatchingError("Pick who's watching first")
-      return
-    }
-
-    if (pendingStartRef.current.has(movie.tmdbId)) return
-    pendingStartRef.current.add(movie.tmdbId)
-    setPendingStart(new Set(pendingStartRef.current))
-    setWatchingError(null)
-
-    // Optimistic: the pill should appear the instant the button is tapped,
-    // not once the round trip to the store completes.
-    setOptimisticWatching((prev) => new Set(prev).add(movie.tmdbId))
-
-    try {
-      await startWatching(movie, activeProfileId, discoveredVia)
-      setHistoryVersion((v) => v + 1)
-      // The real snapshot now has it too — drop the overlay so the pill's
-      // fate tracks `effectiveStatus` from here on, rather than staying
-      // pinned to "watching" forever.
-      setOptimisticWatching((prev) => {
-        const next = new Set(prev)
-        next.delete(movie.tmdbId)
-        return next
-      })
-    } catch {
-      // Revert: never let the UI claim a save that did not happen.
-      setOptimisticWatching((prev) => {
-        const next = new Set(prev)
-        next.delete(movie.tmdbId)
-        return next
-      })
-      setWatchingError("Couldn't save that — is the Movie Night server still running?")
-    } finally {
-      pendingStartRef.current.delete(movie.tmdbId)
-      setPendingStart(new Set(pendingStartRef.current))
-    }
-  }
-
   const cancelWatchingTonight = async (entry: WatchingEntry) => {
     const key = `${entry.profileId}:${entry.movie.tmdbId}`
 
@@ -307,8 +256,7 @@ export default function App() {
   // `historyVersion` bumps after a store write — the same mechanism
   // `watchCount` relies on for its own freshness.
   const watchingLabelFor = (tmdbId: number): string | null => {
-    const isWatching = optimisticWatching.has(tmdbId) ||
-      getNowWatching().some((e) => e.movie.tmdbId === tmdbId)
+    const isWatching = getNowWatching().some((e) => e.movie.tmdbId === tmdbId)
     return isWatching ? 'Watching tonight' : null
   }
 
@@ -359,11 +307,9 @@ export default function App() {
         <SearchScreen
           onOpenMovie={(movie) => navigate({ kind: 'cast', movie })}
           watchCountFor={watchCount}
-          isPending={(tmdbId) => pendingWatch.has(tmdbId) || pendingStart.has(tmdbId)}
+          isPending={(tmdbId) => pendingWatch.has(tmdbId)}
           onToggleWatched={(movie) => toggleWatched(movie, null)}
-          onStartWatching={(movie) => startWatchingTonight(movie, null)}
           watchingLabelFor={watchingLabelFor}
-          startWatchingDisabled={!activeProfileId}
           activeProfileId={activeProfileId}
         />
       )}
@@ -371,13 +317,11 @@ export default function App() {
         <CastScreen
           movie={current.movie}
           watchedCount={watchCount(current.movie.tmdbId)}
-          pending={pendingWatch.has(current.movie.tmdbId) || pendingStart.has(current.movie.tmdbId)}
+          pending={pendingWatch.has(current.movie.tmdbId)}
           onToggleWatched={(m) => toggleWatched(m, null)}
           onOpenActor={(actor) =>
             navigate({ kind: 'filmography', actor, fromMovie: current.movie })}
-          onStartWatching={(movie) => startWatchingTonight(movie, null)}
           watchingLabel={watchingLabelFor(current.movie.tmdbId)}
-          startWatchingDisabled={!activeProfileId}
         />
       )}
       {current.kind === 'filmography' && (
@@ -385,20 +329,14 @@ export default function App() {
           actor={current.actor}
           fromMovie={current.fromMovie}
           watchCountFor={watchCount}
-          isPending={(tmdbId) => pendingWatch.has(tmdbId) || pendingStart.has(tmdbId)}
+          isPending={(tmdbId) => pendingWatch.has(tmdbId)}
           onOpenMovie={(movie) => navigate({ kind: 'cast', movie })}
           onToggleWatched={(movie) =>
             toggleWatched(movie, {
               fromMovie: { tmdbId: current.fromMovie.tmdbId, title: current.fromMovie.title },
               viaActor: { tmdbId: current.actor.tmdbId, name: current.actor.name },
             })}
-          onStartWatching={(movie) =>
-            startWatchingTonight(movie, {
-              fromMovie: { tmdbId: current.fromMovie.tmdbId, title: current.fromMovie.title },
-              viaActor: { tmdbId: current.actor.tmdbId, name: current.actor.name },
-            })}
           watchingLabelFor={watchingLabelFor}
-          startWatchingDisabled={!activeProfileId}
         />
       )}
       {current.kind === 'history' && (
