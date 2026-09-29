@@ -11,3 +11,4 @@ Figma changes never update the React code automatically. When the user shares Fi
 3. Report what matches and what differs. Treat the component description in Figma as authoritative when it conflicts with a raw frame value (e.g. a 52px frame vs. a "44x44" description); flag the conflict instead of picking silently.
 4. Implement differences that are clearly design updates. Ask before changes that alter behaviour or remove content, and don't invent changes when nothing differs.
 5. If code changed, update the matching `*.figma.ts` if props changed, run `npm test` and `npm run build`, then commit, push and open the PR ready for review (not as a draft).
+6. Enable auto-merge on the PR (squash) so it merges once checks pass. Don't merge by hand or bypass failing checks; if a check fails, fix it and push.
