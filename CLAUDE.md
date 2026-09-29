@@ -12,3 +12,14 @@ Figma changes never update the React code automatically. When the user shares Fi
 4. Implement differences that are clearly design updates. Ask before changes that alter behaviour or remove content, and don't invent changes when nothing differs.
 5. If code changed, update the matching `*.figma.ts` if props changed, run `npm test` and `npm run build`, then commit, push and open the PR ready for review (not as a draft).
 6. Enable auto-merge on the PR (squash) so it merges once checks pass. Don't merge by hand or bypass failing checks; if a check fails, fix it and push.
+
+### Features added, edited or removed in Figma
+
+Visual props aren't the only thing that changes. A button, field, state or whole interaction can be added or dropped in Figma, and a size/colour comparison misses it. So in step 2, also diff the *structure*:
+
+- Call `get_metadata` on each node and list what it contains (every button/control in `card-actions`, text rows, badges, states/variants, hidden layers). Compare that list with what the React component renders and which props/handlers it takes, then trace where the component is used (`src/App.tsx`, `src/screens/`).
+- **Removed in Figma:** remove the UI, its props and handler plumbing through every screen, its tests, and any Code Connect prop. Leave the data layer (`src/data/`, stored entries, types) and screens that Figma doesn't show alone; list them in the PR as now-orphaned and ask before deleting stored data or screens.
+- **Added in Figma:** add the UI, props and handlers. If it needs new data, storage, an API call or a new screen, ask before building that part.
+- **Edited in Figma:** update the component and every place it's used; keep behaviour the same unless the design says otherwise.
+- Figma component descriptions can go stale after a feature change (e.g. still mentioning a removed button). Flag any mismatch between description and frames so the user can update the description.
+- In the PR description, add a "Feature changes" list of what was added, edited or removed, and what was deliberately left in place.
