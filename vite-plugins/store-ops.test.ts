@@ -151,40 +151,16 @@ describe('applyOp: seed', () => {
   })
 })
 
-describe('applyOp: startWatching', () => {
-  it('appends an entry to nowWatching', () => {
-    const next = applyOp(emptyStore(), {
-      type: 'startWatching', entry: watchingEntry('laura', 1, 'Rushmore', '2026-08-08T20:00:00.000Z'),
-    })
-    expect(next.nowWatching).toHaveLength(1)
-    expect(next.nowWatching[0].movie.title).toBe('Rushmore')
-  })
-
-  it('does not mutate the input store', () => {
-    const before = emptyStore()
-    applyOp(before, {
-      type: 'startWatching', entry: watchingEntry('laura', 1, 'X', '2026-08-08T20:00:00.000Z'),
-    })
-    expect(before.nowWatching).toHaveLength(0)
-  })
-})
-
 describe('applyOp: cancelWatching', () => {
   it('removes the most recent matching (profileId, tmdbId) entry', () => {
-    let store = applyOp(emptyStore(), {
-      type: 'startWatching', entry: watchingEntry('laura', 1, 'A', '2026-01-01T00:00:00.000Z'),
-    })
+    let store = { ...emptyStore(), nowWatching: [watchingEntry('laura', 1, 'A', '2026-01-01T00:00:00.000Z')] }
     store = applyOp(store, { type: 'cancelWatching', profileId: 'laura', tmdbId: 1 })
     expect(store.nowWatching).toHaveLength(0)
   })
 
   it('leaves a different profile watching the same film alone', () => {
-    let store = applyOp(emptyStore(), {
-      type: 'startWatching', entry: watchingEntry('laura', 1, 'A', '2026-01-01T00:00:00.000Z'),
-    })
-    store = applyOp(store, {
-      type: 'startWatching', entry: watchingEntry('brian', 1, 'A', '2026-01-01T00:00:00.000Z'),
-    })
+    let store = { ...emptyStore(), nowWatching: [watchingEntry('laura', 1, 'A', '2026-01-01T00:00:00.000Z')] }
+    store = { ...store, nowWatching: [...store.nowWatching, watchingEntry('brian', 1, 'A', '2026-01-01T00:00:00.000Z')] }
     store = applyOp(store, { type: 'cancelWatching', profileId: 'laura', tmdbId: 1 })
 
     expect(store.nowWatching).toHaveLength(1)
@@ -192,9 +168,7 @@ describe('applyOp: cancelWatching', () => {
   })
 
   it('is a no-op for a non-matching pair', () => {
-    let store = applyOp(emptyStore(), {
-      type: 'startWatching', entry: watchingEntry('laura', 1, 'A', '2026-01-01T00:00:00.000Z'),
-    })
+    let store = { ...emptyStore(), nowWatching: [watchingEntry('laura', 1, 'A', '2026-01-01T00:00:00.000Z')] }
     store = applyOp(store, { type: 'cancelWatching', profileId: 'laura', tmdbId: 999 })
     expect(store.nowWatching).toHaveLength(1)
   })

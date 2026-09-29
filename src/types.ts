@@ -111,7 +111,6 @@ export type StoreOp =
   | { type: 'setService'; key: ServiceKey; enabled: boolean }
   | { type: 'replaceHistory'; entries: WatchEntry[] }
   | { type: 'seed'; history: WatchEntry[]; enabledServices: ServiceKey[] }
-  | { type: 'startWatching'; entry: WatchingEntry }
   | { type: 'cancelWatching'; profileId: string; tmdbId: number }
 
 export type Screen =

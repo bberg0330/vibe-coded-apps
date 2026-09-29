@@ -1,5 +1,5 @@
 import { getStoreSnapshot, applyRemoteOp } from './store'
-import type { Movie, WatchEntry, WatchingEntry } from '../types'
+import type { WatchingEntry } from '../types'
 
 /**
  * How long a "watching" session stays active before it's considered
@@ -16,29 +16,6 @@ export const WATCHING_WINDOW_MS = 12 * 60 * 60 * 1000
 export function effectiveStatus(entry: WatchingEntry, now = Date.now()): 'watching' | 'watched' {
   const elapsed = now - Date.parse(entry.startedAt)
   return elapsed >= WATCHING_WINDOW_MS ? 'watched' : 'watching'
-}
-
-/** Marks a profile as watching a film right now. */
-export async function startWatching(
-  movie: Movie,
-  profileId: string,
-  discoveredVia: WatchEntry['discoveredVia'],
-): Promise<WatchingEntry> {
-  const entry: WatchingEntry = {
-    startedAt: new Date().toISOString(),
-    profileId,
-    movie: {
-      tmdbId: movie.tmdbId,
-      title: movie.title,
-      year: movie.year,
-      posterPath: movie.posterPath,
-      tomatometer: movie.tomatometer,
-      popcornmeter: movie.popcornmeter,
-    },
-    discoveredVia,
-  }
-  await applyRemoteOp({ type: 'startWatching', entry })
-  return entry
 }
 
 /** Cancels a misfired "watching" tap, removing the most recent match. */
