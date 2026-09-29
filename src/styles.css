@@ -135,10 +135,12 @@ body {
  * cheaper fix, but with only a 6px gap the two expanded areas would meet and
  * overlap, making a tap near the boundary ambiguous between the two.
  *
- * Costs ~35px of card height, so roughly one fewer result fits on screen.
+ * The column itself is 44px wide, as in Figma's `card-actions` frame; the
+ * 52px button is centred in it and overflows 4px each side, so it sits 4px
+ * from the card's right edge and the text area gets the extra 8px.
  */
 .card-actions {
-  flex: none; width: 52px; display: flex; flex-direction: column; gap: 8px;
+  flex: none; width: 44px; display: flex; flex-direction: column; gap: 8px;
   align-items: center; justify-content: center;
 }
 /*
@@ -150,7 +152,7 @@ body {
  */
 .icon-btn {
   flex: none; width: 52px; height: 52px; border: 0; border-radius: 8px;
-  background: var(--control-bg); color: var(--muted); font-size: 19px; cursor: pointer;
+  background: var(--control-bg); color: var(--muted); font-size: 15px; font-weight: 600; cursor: pointer;
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
 .icon-btn.watched { background: var(--watched-bg); color: var(--watched-fg); }
