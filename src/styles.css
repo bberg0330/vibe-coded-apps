@@ -125,19 +125,20 @@ body {
 /*
  * Narrow trailing column holding the ✓ and clock buttons, stacked.
  *
- * 44px, not the 32px these were: these are the two most-tapped controls in
+ * 52px, not the 32px these were: these are the two most-tapped controls in
  * the app, stacked at the very edge of the screen, and they do different and
  * non-interchangeable things — log a watch versus start watching tonight.
- * 32px cleared WCAG 2.2 AA (24x24) but was well under Apple's 44x44pt.
+ * 32px cleared WCAG 2.2 AA (24x24) but was well under Apple's 44x44pt; 52px
+ * matches the IconButton frames in Figma.
  *
  * Padding the hit area while keeping the 32px visuals was the tempting
  * cheaper fix, but with only a 6px gap the two expanded areas would meet and
  * overlap, making a tap near the boundary ambiguous between the two.
  *
- * Costs ~15px of card height, so roughly one fewer result fits on screen.
+ * Costs ~35px of card height, so roughly one fewer result fits on screen.
  */
 .card-actions {
-  flex: none; width: 44px; display: flex; flex-direction: column; gap: 8px;
+  flex: none; width: 52px; display: flex; flex-direction: column; gap: 8px;
   align-items: center; justify-content: center;
 }
 /*
@@ -148,7 +149,7 @@ body {
  * single component with a State variant, not two.
  */
 .icon-btn {
-  flex: none; width: 44px; height: 44px; border: 0; border-radius: 8px;
+  flex: none; width: 52px; height: 52px; border: 0; border-radius: 8px;
   background: var(--control-bg); color: var(--muted); font-size: 19px; cursor: pointer;
   display: flex; align-items: center; justify-content: center; padding: 0;
 }

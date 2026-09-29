@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react'
 
-/** The app's one glyph-button shape (✓ 🕐 × ⋮), 44x44 minimum touch target. .icon-btn */
+/** The app's one glyph-button shape (✓ 🕐 × ⋮), 52x52 touch target. .icon-btn */
 export function IconButton({
   icon, iconSize, watched, disabled, onClick, ariaLabel, ariaPressed, title,
 }: {
