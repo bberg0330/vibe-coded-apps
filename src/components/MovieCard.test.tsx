@@ -111,45 +111,9 @@ describe('MovieCard', () => {
   })
 
   describe('watching tonight', () => {
-    it('does not render a clock button when onStartWatching is omitted', () => {
+    it('does not render a clock button', () => {
       render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={false} />)
       expect(screen.queryByRole('button', { name: /start watching/i })).not.toBeInTheDocument()
-    })
-
-    it('starts watching without opening the film', async () => {
-      const onOpen = vi.fn()
-      const onStartWatching = vi.fn()
-      render(
-        <MovieCard movie={movie} onOpen={onOpen} onToggleWatched={vi.fn()} watched={false}
-          onStartWatching={onStartWatching} />,
-      )
-
-      await userEvent.click(screen.getByRole('button', { name: /start watching rushmore tonight/i }))
-
-      expect(onStartWatching).toHaveBeenCalledWith(movie)
-      expect(onOpen).not.toHaveBeenCalled()
-    })
-
-    it('disables the clock button when there is no active profile, and ignores a click on it', async () => {
-      const onStartWatching = vi.fn()
-      render(
-        <MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={false}
-          onStartWatching={onStartWatching} startWatchingDisabled />,
-      )
-
-      const button = screen.getByRole('button', { name: /start watching rushmore tonight/i })
-      expect(button).toBeDisabled()
-
-      await userEvent.click(button)
-      expect(onStartWatching).not.toHaveBeenCalled()
-    })
-
-    it('disables the clock button while a save is pending', () => {
-      render(
-        <MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={false}
-          onStartWatching={vi.fn()} pending />,
-      )
-      expect(screen.getByRole('button', { name: /start watching rushmore tonight/i })).toBeDisabled()
     })
 
     it('shows the watching pill when a label is provided', () => {
