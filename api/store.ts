@@ -55,12 +55,6 @@ function applyOp(store: Store, op: StoreOp): Store {
         enabledServices: op.enabledServices,
       };
     }
-    case 'startWatching': {
-      return {
-        ...store,
-        nowWatching: [...store.nowWatching, op.entry],
-      };
-    }
     case 'cancelWatching': {
       return {
         ...store,

@@ -81,11 +81,6 @@ export function applyOp(store: Store, op: StoreOp): Store {
         enabledServices: sanitizeEnabledServices(op.enabledServices),
       }
 
-    case 'startWatching':
-      // Append: same rationale as logWatch — a profile starting to watch
-      // the same film twice in a row is meaningful, not a duplicate to drop.
-      return { ...store, nowWatching: [...store.nowWatching, op.entry] }
-
     case 'cancelWatching': {
       // Same removal pattern as undoLastWatch, scoped to (profileId, tmdbId)
       // since nowWatching holds entries across every profile at once.

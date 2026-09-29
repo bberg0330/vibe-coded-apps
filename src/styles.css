@@ -22,7 +22,7 @@
   --accent-text: #f5c518;  /* text only — links, scores, Download JSON */
 
   /*
-   * Resting background of the ✓ / 🕐 / ⋮ buttons. Identical to --bg in dark
+   * Resting background of the ✓ / ⋮ buttons. Identical to --bg in dark
    * mode, which is why the app never needed a separate token — but that same
    * value on a white card is invisible, so the role needs its own variable.
    */
@@ -126,9 +126,8 @@ body {
  * Narrow trailing column holding the ✓ button. (It used to stack a 🕐
  * "watching tonight" button under it; Figma dropped that button.)
  *
- * 52px, not the 32px these were: these are the two most-tapped controls in
- * the app, stacked at the very edge of the screen, and they do different and
- * non-interchangeable things — log a watch versus start watching tonight.
+ * 52px, not the 32px it was: it's the most-tapped control in the app,
+ * sitting at the very edge of the screen.
  * 32px cleared WCAG 2.2 AA (24x24) but was well under Apple's 44x44pt; 52px
  * matches the IconButton frames in Figma.
  *
@@ -143,7 +142,7 @@ body {
   align-items: center; justify-content: center;
 }
 /*
- * One class for every glyph button (✓ 🕐 × ⋮) — .watch-btn and .watching-btn
+ * One class for every glyph button (✓ × ⋮) — .watch-btn and .watching-btn
  * used to be separate classes with identical rules except for this one
  * modifier, which only the checkmark ever used. Two names for one visual
  * component was a code-side accident; Figma's IconButton has always been a

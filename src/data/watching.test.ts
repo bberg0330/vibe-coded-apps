@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
-  WATCHING_WINDOW_MS, effectiveStatus, startWatching, cancelWatching,
+  WATCHING_WINDOW_MS, effectiveStatus, cancelWatching,
   getNowWatching, getRecentlyWatchedBy, getAllWatchingTonight,
 } from './watching'
 import { resetStoreForTests, getStoreSnapshot } from './store'
+import { seedWatching } from './watching.testutil'
 import { applyOp } from '../../vite-plugins/store-ops'
 import type { Movie, StoreOp, WatchingEntry } from '../types'
 
@@ -68,32 +69,16 @@ describe('effectiveStatus', () => {
   })
 })
 
-describe('startWatching', () => {
-  it('appends an entry with an ISO timestamp', async () => {
-    await startWatching(movie(1585, 'Rushmore'), 'laura', null)
-    const [entry] = getNowWatching()
-
-    expect(entry.movie.title).toBe('Rushmore')
-    expect(entry.profileId).toBe('laura')
-    expect(entry.startedAt).toBe('2026-08-08T20:00:00.000Z')
-  })
-
-  it('does not store availability, which is not part of a watching entry', async () => {
-    await startWatching(movie(1585, 'Rushmore'), 'laura', null)
-    expect(getNowWatching()[0].movie).not.toHaveProperty('availability')
-  })
-})
-
 describe('cancelWatching', () => {
   it('removes the most recent matching (profileId, tmdbId) entry', async () => {
-    await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+    seedWatching(movie(1585, 'Rushmore'), 'laura', null)
     await cancelWatching('laura', 1585)
     expect(getNowWatching()).toHaveLength(0)
   })
 
   it('leaves other profiles watching the same film alone', async () => {
-    await startWatching(movie(1585, 'Rushmore'), 'laura', null)
-    await startWatching(movie(1585, 'Rushmore'), 'brian', null)
+    seedWatching(movie(1585, 'Rushmore'), 'laura', null)
+    seedWatching(movie(1585, 'Rushmore'), 'brian', null)
     await cancelWatching('laura', 1585)
 
     const remaining = getNowWatching()
@@ -102,7 +87,7 @@ describe('cancelWatching', () => {
   })
 
   it('is a no-op for a non-matching (profileId, tmdbId) pair', async () => {
-    await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+    seedWatching(movie(1585, 'Rushmore'), 'laura', null)
     await cancelWatching('brian', 1585)
     expect(getNowWatching()).toHaveLength(1)
   })

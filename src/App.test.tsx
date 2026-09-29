@@ -4,7 +4,8 @@ import userEvent from '@testing-library/user-event'
 import App from './App'
 import { clearHttpCache } from './api/http'
 import { getHistory } from './data/history'
-import { getAllWatchingTonight, startWatching } from './data/watching'
+import { getAllWatchingTonight } from './data/watching'
+import { seedWatching } from './data/watching.testutil'
 import { resetStoreForTests, getStoreSnapshot } from './data/store'
 import { applyOp } from '../vite-plugins/store-ops'
 import { emptyStore } from './types'
@@ -384,7 +385,7 @@ describe('App - cancelWatchingTonight', () => {
     await renderApp(PROFILES[0].id)
     // Nothing in the UI starts "watching tonight" any more, so seed an
     // existing entry through the data layer.
-    await startWatching(rushmore, PROFILES[0].id, null)
+    seedWatching(rushmore, PROFILES[0].id, null)
     await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
 
     await userEvent.click(screen.getByRole('button', { name: /^history$/i }))
@@ -400,7 +401,7 @@ describe('App - cancelWatchingTonight', () => {
     await renderApp(PROFILES[0].id)
     // Nothing in the UI starts "watching tonight" any more, so seed an
     // existing entry through the data layer.
-    await startWatching(rushmore, PROFILES[0].id, null)
+    seedWatching(rushmore, PROFILES[0].id, null)
     await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
 
     await userEvent.click(screen.getByRole('button', { name: /^history$/i }))

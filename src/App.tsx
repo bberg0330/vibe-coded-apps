@@ -26,8 +26,8 @@ export default function App() {
 
   const [locationError, setLocationError] = useState<string | null>(null)
 
-  // Who's "watching tonight" — local to this device, no store/network
-  // involved. Drives which profile a "start watching" tap is attributed to.
+  // Who's using this device — local, no store/network involved. Drives
+  // whose recent watches seed the recommendations.
   const [activeProfileId, setActiveProfileIdState] = useState<ProfileId | null>(
     () => getActiveProfileId(),
   )
@@ -35,8 +35,7 @@ export default function App() {
   const selectProfile = (id: ProfileId) => {
     setActiveProfileIdState(id)
     setActiveProfileId(id)
-    // A stale "pick who's watching first" error (from a previous tap with no
-    // profile selected) is no longer accurate once a profile is picked.
+    // A leftover cancel error belongs to the previous profile's session.
     setWatchingError(null)
   }
 
