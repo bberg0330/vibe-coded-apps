@@ -10,8 +10,8 @@ type Props = {
   pending?: boolean
   onStartWatching?: (movie: Movie) => void
   startWatchingDisabled?: boolean
-  /** Optional tooltip explaining why this is recommended (e.g. actor name) */
-  recommendationTooltip?: string | null
+  /** Short visible caption saying why this is recommended, e.g. "with Bill Murray". */
+  reason?: string | null
 }
 
 /**
@@ -30,7 +30,7 @@ type Props = {
  */
 export function RecommendationCard({
   movie, onOpen, onToggleWatched, watched, pending = false,
-  onStartWatching, startWatchingDisabled = false, recommendationTooltip = null,
+  onStartWatching, startWatchingDisabled = false, reason = null,
 }: Props) {
   const poster = posterUrl(movie.posterPath, 'w342')
 
@@ -39,7 +39,6 @@ export function RecommendationCard({
       <button
         className="rec-card-main"
         onClick={() => onOpen?.(movie)}
-        title={recommendationTooltip ?? undefined}
       >
         {poster
           ? <img className="rec-poster" src={poster} alt="" loading="lazy" />
@@ -51,6 +50,7 @@ export function RecommendationCard({
             <span className="score" title="Critic score">🍅 {movie.tomatometer}%</span>
           )}
         </div>
+        {reason && <div className="rec-reason" title={reason}>{reason}</div>}
       </button>
 
       <div className="rec-actions">

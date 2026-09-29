@@ -11,10 +11,8 @@ import { SectionHeading } from '../components/SectionHeading'
 import { SearchInput } from '../components/SearchInput'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { SEARCH_ROUTE_KEY } from '../router'
-import { getRecommendationsFor } from '../data/recommendations'
-import { getRecentlyWatchedBy } from '../data/watching'
-import { getHistory } from '../data/history'
-import { PROFILES, type ProfileId } from '../data/profiles'
+import { getRecommendationsFor, pickSourceMovie, type RecommendationWithAttribution } from '../data/recommendations'
+import type { ProfileId } from '../data/profiles'
 import type { Movie, WatchEntry, Availability } from '../types'
 
 const QUERY_STORAGE_KEY = 'mn.searchQuery'
@@ -39,8 +37,8 @@ export function SearchScreen({
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>('idle')
   const [attempt, setAttempt] = useState(0)
 
-  const [recommendations, setRecommendations] = useState<Movie[]>([])
-  const [recommendationsFor, setRecommendationsFor] = useState<{ profileName: string; movieTitle: string } | null>(null)
+  const [recommendations, setRecommendations] = useState<RecommendationWithAttribution[]>([])
+  const [recommendationsFor, setRecommendationsFor] = useState<string | null>(null)
   const [lastWatched, setLastWatched] = useState<(WatchEntry['movie'] & { availability: Availability }) | null>(null)
 
   useScrollRestoration(SEARCH_ROUTE_KEY, status === 'done' || status === 'error' || status === 'nokey')
@@ -116,20 +114,13 @@ export function SearchScreen({
     }
 
     let cancelled = false
-    // Try "watching tonight" first, then fall back to history
-    let sourceMovie = getRecentlyWatchedBy(activeProfileId)?.movie
+    const sourceMovie = pickSourceMovie(activeProfileId)
     if (!sourceMovie) {
-      const history = getHistory()
-      if (history.length === 0) {
-        setRecommendations([])
-        setRecommendationsFor(null)
-        setLastWatched(null)
-        return
-      }
-      sourceMovie = history[0].movie
+      setRecommendations([])
+      setRecommendationsFor(null)
+      setLastWatched(null)
+      return
     }
-
-    const profileName = PROFILES.find((p) => p.id === activeProfileId)?.name ?? activeProfileId
 
     setLastWatched({ ...sourceMovie, availability: { streaming: [], rent: [] } })
 
@@ -150,10 +141,11 @@ export function SearchScreen({
       // No badge is a fine fallback — never block the card on this.
     })
 
-    getRecommendationsFor(activeProfileId).then((found) => {
+    getRecommendationsFor(activeProfileId).then((result) => {
       if (cancelled) return
+      const found = result?.items ?? []
       setRecommendations(found)
-      setRecommendationsFor({ profileName, movieTitle: sourceMovie.title })
+      setRecommendationsFor(result?.source.title ?? null)
 
       for (const movie of found) {
         getRottenTomatoesScores(movie.tmdbId, movie.title, movie.year).then((scores) => {
@@ -208,14 +200,15 @@ export function SearchScreen({
 
       {query === '' && recommendationsFor && (
         <RecommendationsCarousel
-          movies={recommendations}
-          title="Recommended for you"
+          // Filtered at render so a film marked watched from the row drops
+          // out immediately, without refetching the whole list.
+          movies={recommendations.filter((m) => watchCountFor(m.tmdbId) === 0)}
+          title={`Because you watched ${recommendationsFor}`}
           onOpen={onOpenMovie}
           watchCountFor={watchCountFor}
           isPending={isPending}
           onToggleWatched={onToggleWatched}
           onStartWatching={onStartWatching}
-          watchingLabelFor={watchingLabelFor}
           startWatchingDisabled={startWatchingDisabled}
         />
       )}

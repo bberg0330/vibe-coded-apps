@@ -16,7 +16,7 @@ export default {
   onOpen={onOpen}
   onToggleWatched={onToggleWatched}
   onStartWatching={onStartWatching}
-  recommendationTooltip={tooltip}
+  reason={reason}
 />`,
   metadata: { nestable: true },
 }

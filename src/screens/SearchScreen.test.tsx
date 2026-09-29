@@ -5,14 +5,20 @@ import { SearchScreen } from './SearchScreen'
 import { clearHttpCache } from '../api/http'
 import { getRecentlyWatchedBy } from '../data/watching'
 import { getRecommendationsFor } from '../data/recommendations'
-import type { Movie } from '../types'
+import type { RecommendationWithAttribution } from '../data/recommendations'
 
 vi.mock('../data/watching', () => ({
   getRecentlyWatchedBy: vi.fn(),
 }))
-vi.mock('../data/recommendations', () => ({
-  getRecommendationsFor: vi.fn(),
-}))
+vi.mock('../data/recommendations', async () => {
+  // Real source-film selection over the mocked watching module; no history mocked, so
+  // getRecentlyWatchedBy alone decides it.
+  const watching = await import('../data/watching')
+  return {
+    getRecommendationsFor: vi.fn(),
+    pickSourceMovie: (id: string) => watching.getRecentlyWatchedBy(id)?.movie ?? null,
+  }
+})
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -28,7 +34,7 @@ beforeEach(() => {
     }),
   }))
   vi.mocked(getRecentlyWatchedBy).mockReturnValue(null)
-  vi.mocked(getRecommendationsFor).mockResolvedValue([])
+  vi.mocked(getRecommendationsFor).mockResolvedValue(null)
 })
 
 const noop = () => {}
@@ -167,22 +173,24 @@ describe('search scroll restoration', () => {
 })
 
 describe('recommendations carousel', () => {
-  const recommendedMovie: Movie = {
+  const recommendedMovie: RecommendationWithAttribution = {
     tmdbId: 999, title: 'Fantastic Mr. Fox', year: 2009, posterPath: null,
     popularity: 20, tomatometer: null, popcornmeter: null,
     availability: { streaming: [], rent: [] },
     overview: null,
+    viaActors: [{ tmdbId: 1532, name: 'Bill Murray', character: 'Herman Blume', profilePath: null, order: 0 }],
   }
+  const source = { tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null, tomatometer: null, popcornmeter: null }
 
   beforeEach(() => {
     sessionStorage.clear()
     vi.mocked(getRecentlyWatchedBy).mockReturnValue({
       startedAt: '2026-01-01T00:00:00.000Z',
       profileId: 'laura',
-      movie: { tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null, tomatometer: null, popcornmeter: null },
+      movie: source,
       discoveredVia: null,
     })
-    vi.mocked(getRecommendationsFor).mockResolvedValue([recommendedMovie])
+    vi.mocked(getRecommendationsFor).mockResolvedValue({ source, items: [recommendedMovie] })
   })
 
   it('renders once the query is empty and a recommendation list resolves', async () => {
@@ -194,8 +202,28 @@ describe('recommendations carousel', () => {
     )
 
     expect(await screen.findByText('Fantastic Mr. Fox')).toBeInTheDocument()
-    expect(screen.getByText(/recommended for you/i)).toBeInTheDocument()
+    expect(screen.getByText('Because you watched Rushmore')).toBeInTheDocument()
+    expect(screen.getByText('with Bill Murray')).toBeInTheDocument()
     expect(getRecommendationsFor).toHaveBeenCalledWith('laura')
+  })
+
+  it('drops a recommendation from the row once it has been watched', async () => {
+    const { rerender } = render(
+      <SearchScreen
+        onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0}
+        activeProfileId="laura"
+      />,
+    )
+    await screen.findByText('Fantastic Mr. Fox')
+
+    rerender(
+      <SearchScreen
+        onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={(id) => (id === 999 ? 1 : 0)}
+        activeProfileId="laura"
+      />,
+    )
+
+    expect(screen.queryByText('Fantastic Mr. Fox')).not.toBeInTheDocument()
   })
 
   it('unmounts the carousel entirely (not just hides it) once a query is typed', async () => {
@@ -242,7 +270,7 @@ describe('recommendations carousel', () => {
     await waitFor(() => {
       expect(container.querySelector('.recommendations')).toBeNull()
     })
-    expect(screen.queryByText(/recommended for you/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/because you watched/i)).not.toBeInTheDocument()
   })
 
   it('renders no carousel section and never fetches when there is no active profile', async () => {

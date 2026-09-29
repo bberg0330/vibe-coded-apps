@@ -1,17 +1,16 @@
 import { RecommendationCard } from './RecommendationCard'
 import { SectionHeading } from './SectionHeading'
-import type { Movie } from '../types'
+import type { Movie, CastMember } from '../types'
 import type { RecommendationWithAttribution } from '../data/recommendations'
 
 type Props = {
-  movies: (Movie | RecommendationWithAttribution)[]
+  movies: RecommendationWithAttribution[]
   title: string
   onOpen?: (movie: Movie) => void
   onToggleWatched: (movie: Movie) => void
   watchCountFor: (tmdbId: number) => number
   isPending?: (tmdbId: number) => boolean
   onStartWatching?: (movie: Movie) => void
-  watchingLabelFor?: (tmdbId: number) => string | null
   startWatchingDisabled?: boolean
 }
 
@@ -31,10 +30,6 @@ export function RecommendationsCarousel({
       <SectionHeading>{title}</SectionHeading>
       <div className="recommendations-row">
         {movies.map((movie) => {
-          const withAttribution = movie as RecommendationWithAttribution
-          const tooltip = withAttribution.recommendedViaActor
-            ? `Why recommended: ${withAttribution.recommendedViaActor.name} from source film`
-            : null
           return (
             <div className="recommendation-item" key={movie.tmdbId}>
               <RecommendationCard
@@ -45,7 +40,7 @@ export function RecommendationsCarousel({
                 onToggleWatched={onToggleWatched}
                 onStartWatching={onStartWatching}
                 startWatchingDisabled={startWatchingDisabled}
-                recommendationTooltip={tooltip}
+                reason={reasonFor(movie.viaActors)}
               />
             </div>
           )
@@ -53,4 +48,13 @@ export function RecommendationsCarousel({
       </div>
     </section>
   )
+}
+
+/** "with A", "with A & B", "with A, B & 1 more" — kept short for a one-line caption. */
+export function reasonFor(actors: CastMember[]): string | null {
+  const names = actors.map((a) => a.name)
+  if (names.length === 0) return null
+  if (names.length === 1) return `with ${names[0]}`
+  if (names.length === 2) return `with ${names[0]} & ${names[1]}`
+  return `with ${names[0]}, ${names[1]} & ${names.length - 2} more`
 }
