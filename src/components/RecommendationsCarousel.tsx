@@ -1,16 +1,12 @@
 import { RecommendationCard } from './RecommendationCard'
 import { SectionHeading } from './SectionHeading'
-import type { Movie } from '../types'
+import type { Movie, CastMember } from '../types'
 import type { RecommendationWithAttribution } from '../data/recommendations'
 
 type Props = {
-  movies: (Movie | RecommendationWithAttribution)[]
+  movies: RecommendationWithAttribution[]
   title: string
   onOpen?: (movie: Movie) => void
-  onToggleWatched: (movie: Movie) => void
-  watchCountFor: (tmdbId: number) => number
-  isPending?: (tmdbId: number) => boolean
-  watchingLabelFor?: (tmdbId: number) => string | null
 }
 
 /**
@@ -19,7 +15,7 @@ type Props = {
  * not have, and squeezing it truncated nearly every title.
  */
 export function RecommendationsCarousel({
-  movies, title, onOpen, onToggleWatched, watchCountFor, isPending,
+  movies, title, onOpen,
 }: Props) {
   if (movies.length === 0) return null
 
@@ -28,19 +24,12 @@ export function RecommendationsCarousel({
       <SectionHeading>{title}</SectionHeading>
       <div className="recommendations-row">
         {movies.map((movie) => {
-          const withAttribution = movie as RecommendationWithAttribution
-          const tooltip = withAttribution.recommendedViaActor
-            ? `Why recommended: ${withAttribution.recommendedViaActor.name} from source film`
-            : null
           return (
             <div className="recommendation-item" key={movie.tmdbId}>
               <RecommendationCard
                 movie={movie}
-                watched={watchCountFor(movie.tmdbId) > 0}
-                pending={isPending?.(movie.tmdbId) ?? false}
                 onOpen={onOpen}
-                onToggleWatched={onToggleWatched}
-                recommendationTooltip={tooltip}
+                reason={reasonFor(movie.viaActors)}
               />
             </div>
           )
@@ -48,4 +37,13 @@ export function RecommendationsCarousel({
       </div>
     </section>
   )
+}
+
+/** "with A", "with A & B", "with A, B & 1 more" — kept short for a caption of at most two lines. */
+export function reasonFor(actors: CastMember[]): string | null {
+  const names = actors.map((a) => a.name)
+  if (names.length === 0) return null
+  if (names.length === 1) return `with ${names[0]}`
+  if (names.length === 2) return `with ${names[0]} & ${names[1]}`
+  return `with ${names[0]}, ${names[1]} & ${names.length - 2} more`
 }
