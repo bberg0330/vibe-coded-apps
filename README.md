@@ -12,4 +12,5 @@ API keys are server-side only. The browser calls `/api/tmdb/…`, `/api/omdb` an
 | `STORE_API_SECRET` / `VITE_STORE_API_SECRET` | store and score-cache writes | shared write secret (still client-visible, pending real auth) |
 
 - **Production (Vercel):** set these in the project's environment variables.
+- **Legacy names:** the server still reads `VITE_TMDB_TOKEN` and `VITE_OMDB_KEY` as a fallback, which is what Vercel has today. Renaming them to the plain names on Vercel is tidier but not required, since no client code reads the `VITE_` names any more.
 - **Local dev:** put `TMDB_TOKEN` and `OMDB_KEY` in `.env.local`. `npm run dev` serves the same handlers through `vite-plugins/lookups-api.ts`.
