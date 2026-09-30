@@ -26,7 +26,6 @@ const CREDITS_FIXTURE = {
 
 beforeEach(() => {
   clearHttpCache()
-  vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
 })
 
 function stub(body: unknown) {

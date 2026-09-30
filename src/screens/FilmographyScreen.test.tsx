@@ -40,21 +40,19 @@ function stubApis(opts: {
     if (url.startsWith('/api/scores')) {
       return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
     }
-    if (url.includes('omdbapi.com')) {
-      const title = new URL(url).searchParams.get('t') ?? ''
+    if (url.startsWith('/api/omdb')) {
+      // What the server proxy answers: parsed { critic, audience } scores.
+      const title = new URL(url, 'http://localhost').searchParams.get('t') ?? ''
       const rt = opts.scores?.[title]
+      const imdb = opts.imdbRatings?.[title]
       return Promise.resolve({
         ok: true, status: 200,
         json: async () => rt
-          ? {
-            Response: 'True', Title: title, Year: '2000',
-            Ratings: [{ Source: 'Rotten Tomatoes', Value: rt }],
-            imdbRating: opts.imdbRatings?.[title],
-          }
-          : { Response: 'False', Error: 'Movie not found!' },
+          ? { critic: Number.parseInt(rt, 10), audience: imdb && imdb !== 'N/A' ? Math.round(Number(imdb) * 10) : null }
+          : { critic: null, audience: null },
       })
     }
-    const providers = new URL(url).searchParams.get('with_watch_providers') ?? ''
+    const providers = new URL(url, 'http://localhost').searchParams.get('with_watch_providers') ?? ''
     return Promise.resolve({
       ok: true, status: 200,
       json: async () => ({ results: opts.films?.[providers] ?? [] }),
@@ -66,8 +64,6 @@ beforeEach(() => {
   clearHttpCache()
   resetScoresForTests()
   vi.mocked(getRottenTomatoesScores).mockImplementation(realOmdb.getRottenTomatoesScores)
-  vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
-  vi.stubEnv('VITE_OMDB_KEY', 'test-key')
 })
 
 const renderScreen = () => render(
@@ -129,8 +125,8 @@ describe('FilmographyScreen', () => {
 
   it('still shows the list when scoring fails entirely', async () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => {
-      if (url.includes('omdbapi.com')) return Promise.reject(new Error('offline'))
-      const providers = new URL(url).searchParams.get('with_watch_providers') ?? ''
+      if (url.startsWith('/api/omdb')) return Promise.reject(new Error('offline'))
+      const providers = new URL(url, 'http://localhost').searchParams.get('with_watch_providers') ?? ''
       return Promise.resolve({
         ok: true, status: 200,
         json: async () => ({ results: providers === '8' ? [film(1, 'Still Here')] : [] }),

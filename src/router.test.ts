@@ -112,7 +112,6 @@ describe('parseHash', () => {
 
 beforeEach(() => {
   clearHttpCache()
-  vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
 })
 
 function stubTmdb(body: unknown) {

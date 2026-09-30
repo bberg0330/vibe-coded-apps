@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getTomatometer, getRottenTomatoesScores } from './omdb'
 import { getCachedScores, resetScoresForTests } from '../data/scores'
+import { scoresFromOmdb, type OmdbResponse } from './omdbParse'
 
 const omdbResponse = (title: string, year: string, rt?: string, imdbRating = '7.7') => ({
   Response: 'True', Title: title, Year: year,
@@ -12,13 +13,24 @@ const omdbResponse = (title: string, year: string, rt?: string, imdbRating = '7.
 })
 
 /**
- * Stubs `fetch` for the OMDb call and returns a spy scoped to ONLY that
- * call. Writes through to the shared `/api/scores` cache (triggered by
+ * What `/api/omdb` answers for a raw OMDb response: the server parses it with
+ * the same `scoresFromOmdb`, using the `year` the client sent.
+ */
+function proxied(body: unknown, url: string) {
+  const year = new URL(url, 'http://localhost').searchParams.get('year')
+  return scoresFromOmdb(body as OmdbResponse, year ? Number(year) : null)
+}
+
+/**
+ * Stubs `fetch` for the `/api/omdb` call (answering as the proxy would for
+ * the given raw OMDb response) and returns a spy scoped to ONLY that call.
+ * Writes through to the shared `/api/scores` cache (triggered by
  * `cacheScores`) are answered separately so they don't inflate the
- * OMDb-call assertions below.
+ * lookup assertions below.
  */
 function stub(body: unknown) {
-  const f = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => body })
+  const f = vi.fn().mockImplementation(async (url: string) =>
+    ({ ok: true, status: 200, json: async () => proxied(body, url) }))
   vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
     if (typeof url === 'string' && url.startsWith('/api/scores')) {
       return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
@@ -29,7 +41,6 @@ function stub(body: unknown) {
 }
 
 beforeEach(() => {
-  vi.stubEnv('VITE_OMDB_KEY', 'test-key')
   resetScoresForTests()
 })
 
@@ -39,13 +50,15 @@ describe('getTomatometer', () => {
     expect(await getTomatometer(153, 'Lost in Translation', 2003)).toBe(95)
   })
 
-  it('never sends the y parameter', async () => {
+  it('asks the server proxy by title and TMDB year, never with a key', async () => {
     const f = stub(omdbResponse('Rushmore', '1999', '90%'))
     await getTomatometer(1585, 'Rushmore', 1998)
 
-    const url = f.mock.calls[0][0] as string
-    expect(url).toContain('t=Rushmore')
-    expect(new URL(url).searchParams.has('y')).toBe(false)
+    const url = new URL(f.mock.calls[0][0] as string, 'http://localhost')
+    expect(url.pathname).toBe('/api/omdb')
+    expect(url.searchParams.get('t')).toBe('Rushmore')
+    expect(url.searchParams.get('year')).toBe('1998')
+    expect(url.searchParams.has('apikey')).toBe(false)
   })
 
   it('accepts a result whose year is off by one', async () => {
@@ -139,9 +152,10 @@ describe('getTomatometer', () => {
     }))
 
     const f = vi.fn().mockImplementation(async (url: string) => {
-      const t = new URL(url).searchParams.get('t')!
+      const t = new URL(url, 'http://localhost').searchParams.get('t')!
       const film = films.find((film) => film.title === t)!
-      return { ok: true, status: 200, json: async () => omdbResponse(film.title, String(film.year), `${film.score}%`) }
+      const body = omdbResponse(film.title, String(film.year), `${film.score}%`)
+      return { ok: true, status: 200, json: async () => proxied(body, url) }
     })
     vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
       if (typeof url === 'string' && url.startsWith('/api/scores')) {

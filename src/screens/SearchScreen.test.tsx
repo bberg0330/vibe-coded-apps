@@ -23,7 +23,6 @@ vi.mock('../data/recommendations', async () => {
 beforeEach(() => {
   vi.clearAllMocks()
   clearHttpCache()
-  vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
     ok: true, status: 200,
     json: async () => ({
@@ -92,13 +91,16 @@ describe('SearchScreen', () => {
     expect(await screen.findByRole('button', { name: /try again/i })).toBeInTheDocument()
   })
 
-  it('shows setup guidance when the TMDB key is missing', async () => {
-    vi.stubEnv('VITE_TMDB_TOKEN', '')
+  it('shows setup guidance when the server has no TMDB token', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 503, json: async () => ({ error: 'missing_key', which: 'TMDB' }),
+    }))
     render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={noop} watchCountFor={() => 0} />)
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
 
     await waitFor(() => {
-      expect(screen.getByText(/VITE_TMDB_TOKEN/)).toBeInTheDocument()
+      expect(screen.getByText(/TMDB_TOKEN/)).toBeInTheDocument()
+      expect(screen.queryByText(/VITE_TMDB_TOKEN/)).not.toBeInTheDocument()
     })
   })
 })

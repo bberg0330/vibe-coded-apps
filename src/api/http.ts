@@ -12,7 +12,7 @@ export class HttpError extends Error {
   }
 }
 
-const TMDB_BASE = 'https://api.themoviedb.org/3'
+const TMDB_PROXY = '/api/tmdb'
 
 /** In-memory, per-session memo keyed by full URL. Cleared on reload. */
 const cache = new Map<string, Promise<unknown>>()
@@ -24,6 +24,11 @@ export function clearHttpCache(): void {
 async function request<T>(url: string, init: RequestInit): Promise<T> {
   const res = await fetch(url, init)
   if (!res.ok) {
+    // The proxy answers 503 { error: 'missing_key' } when its TMDB_TOKEN is unset.
+    if (res.status === 503) {
+      const body = (await res.json().catch(() => null)) as { error?: string } | null
+      if (body?.error === 'missing_key') throw new MissingKeyError('TMDB')
+    }
     throw new HttpError(res.status, `Request failed with ${res.status}`)
   }
   return (await res.json()) as T
@@ -47,17 +52,11 @@ export function tmdbGet<T>(
   params: Record<string, string>,
   signal?: AbortSignal,
 ): Promise<T> {
-  const token = import.meta.env.VITE_TMDB_TOKEN
-  if (!token) return Promise.reject(new MissingKeyError('TMDB'))
-
+  // The TMDB token lives on the server: /api/tmdb/<path> adds it and forwards the call.
   const qs = new URLSearchParams({ language: 'en-US', ...params })
-  const url = `${TMDB_BASE}${path}?${qs}`
+  const url = `${TMDB_PROXY}${path}?${qs}`
 
-  const run = () =>
-    request<T>(url, {
-      signal,
-      headers: { Authorization: `Bearer ${token}`, accept: 'application/json' },
-    })
+  const run = () => request<T>(url, { signal, headers: { accept: 'application/json' } })
 
   // Signal-carrying calls (debounced search) bypass the cache entirely.
   // Sharing a cached promise across callers with different AbortSignals means

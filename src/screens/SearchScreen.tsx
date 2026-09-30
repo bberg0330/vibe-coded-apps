@@ -196,7 +196,7 @@ export function SearchScreen({
       {status === 'nokey' && (
         <div className="error" role="alert">
           <p>No TMDB token found.</p>
-          <p>Add <code>VITE_TMDB_TOKEN</code> to <code>.env.local</code> and restart the dev server.</p>
+          <p>Add <code>TMDB_TOKEN</code> to <code>.env.local</code> (or the Vercel project's environment variables) and restart.</p>
         </div>
       )}
       {status === 'error' && (

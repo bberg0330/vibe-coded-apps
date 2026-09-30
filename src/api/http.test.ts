@@ -10,21 +10,20 @@ function mockFetch(body: unknown, ok = true, status = 200) {
 
 beforeEach(() => {
   clearHttpCache()
-  vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
 })
 
 describe('tmdbGet', () => {
-  it('sends the v4 bearer token, not an api_key param', async () => {
+  it('calls the server proxy with the TMDB path, and never sends a key itself', async () => {
     const f = mockFetch({ results: [] })
     vi.stubGlobal('fetch', f)
 
     await tmdbGet('/search/movie', { query: 'dune' })
 
     const [url, init] = f.mock.calls[0]
-    expect(url).toContain('https://api.themoviedb.org/3/search/movie')
+    expect(url).toMatch(/^\/api\/tmdb\/search\/movie\?/)
     expect(url).toContain('query=dune')
     expect(url).not.toContain('api_key')
-    expect(init.headers.Authorization).toBe('Bearer test-token')
+    expect(init.headers.Authorization).toBeUndefined()
   })
 
   it('memoizes identical requests', async () => {
@@ -47,9 +46,8 @@ describe('tmdbGet', () => {
     expect(f).toHaveBeenCalledTimes(2)
   })
 
-  it('throws MissingKeyError when the token is absent', async () => {
-    vi.stubEnv('VITE_TMDB_TOKEN', '')
-    vi.stubGlobal('fetch', mockFetch({}))
+  it('throws MissingKeyError when the server has no TMDB token', async () => {
+    vi.stubGlobal('fetch', mockFetch({ error: 'missing_key', which: 'TMDB' }, false, 503))
 
     await expect(tmdbGet('/search/movie', {})).rejects.toBeInstanceOf(MissingKeyError)
   })
