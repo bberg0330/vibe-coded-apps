@@ -198,14 +198,11 @@ export function SearchScreen({
 
       {query === '' && recommendationsFor && (
         <RecommendationsCarousel
-          // Filtered at render so a film marked watched from the row drops
-          // out immediately, without refetching the whole list.
+          // Filtered at render so a film marked watched (from its details
+          // page) drops out without refetching the whole list.
           movies={recommendations.filter((m) => watchCountFor(m.tmdbId) === 0)}
           title={`Because you watched ${recommendationsFor}`}
           onOpen={onOpenMovie}
-          watchCountFor={watchCountFor}
-          isPending={isPending}
-          onToggleWatched={onToggleWatched}
         />
       )}
 

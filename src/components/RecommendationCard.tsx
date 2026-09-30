@@ -1,13 +1,9 @@
 import { posterUrl } from '../api/tmdb'
-import { IconButton } from './IconButton'
 import type { Movie } from '../types'
 
 type Props = {
   movie: Movie
   onOpen?: (movie: Movie) => void
-  onToggleWatched: (movie: Movie) => void
-  watched: boolean
-  pending?: boolean
   /** Short visible caption saying why this is recommended, e.g. "with Bill Murray". */
   reason?: string | null
 }
@@ -21,14 +17,13 @@ type Props = {
  * shortest names, which is the one thing a recommendation has to get across.
  *
  * This is the vertical form the layout actually wants: poster on top, title
- * given two full lines beneath it. It keeps the app's surface-card language
- * rather than floating on the page background, because the action buttons use
- * --control-bg, which is deliberately identical to the page in dark mode and
- * would vanish without a card behind it.
+ * given two full lines beneath it, then an optional "why" caption that wraps
+ * to two lines. There are no action buttons: the whole card is one tap target
+ * into the film's details, where watched is marked — this nudges people to
+ * look at a recommendation before dismissing it, and gives the caption room.
  */
 export function RecommendationCard({
-  movie, onOpen, onToggleWatched, watched, pending = false,
-  reason = null,
+  movie, onOpen, reason = null,
 }: Props) {
   const poster = posterUrl(movie.posterPath, 'w342')
 
@@ -50,20 +45,6 @@ export function RecommendationCard({
         </div>
         {reason && <div className="rec-reason" title={reason}>{reason}</div>}
       </button>
-
-      <div className="rec-actions">
-        <IconButton
-          icon="✓"
-          watched={watched}
-          ariaLabel={watched ? `Undo watched for ${movie.title}` : `Mark ${movie.title} as watched`}
-          ariaPressed={watched}
-          disabled={pending}
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleWatched(movie)
-          }}
-        />
-      </div>
     </div>
   )
 }

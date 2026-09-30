@@ -7,9 +7,6 @@ type Props = {
   movies: RecommendationWithAttribution[]
   title: string
   onOpen?: (movie: Movie) => void
-  onToggleWatched: (movie: Movie) => void
-  watchCountFor: (tmdbId: number) => number
-  isPending?: (tmdbId: number) => boolean
 }
 
 /**
@@ -18,7 +15,7 @@ type Props = {
  * not have, and squeezing it truncated nearly every title.
  */
 export function RecommendationsCarousel({
-  movies, title, onOpen, onToggleWatched, watchCountFor, isPending,
+  movies, title, onOpen,
 }: Props) {
   if (movies.length === 0) return null
 
@@ -31,10 +28,7 @@ export function RecommendationsCarousel({
             <div className="recommendation-item" key={movie.tmdbId}>
               <RecommendationCard
                 movie={movie}
-                watched={watchCountFor(movie.tmdbId) > 0}
-                pending={isPending?.(movie.tmdbId) ?? false}
                 onOpen={onOpen}
-                onToggleWatched={onToggleWatched}
                 reason={reasonFor(movie.viaActors)}
               />
             </div>
@@ -45,7 +39,7 @@ export function RecommendationsCarousel({
   )
 }
 
-/** "with A", "with A & B", "with A, B & 1 more" — kept short for a one-line caption. */
+/** "with A", "with A & B", "with A, B & 1 more" — kept short for a caption of at most two lines. */
 export function reasonFor(actors: CastMember[]): string | null {
   const names = actors.map((a) => a.name)
   if (names.length === 0) return null

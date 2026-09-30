@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SearchScreen } from './SearchScreen'
 import { clearHttpCache } from '../api/http'
@@ -205,6 +205,24 @@ describe('recommendations carousel', () => {
     expect(screen.getByText('Because you watched Rushmore')).toBeInTheDocument()
     expect(screen.getByText('with Bill Murray')).toBeInTheDocument()
     expect(getRecommendationsFor).toHaveBeenCalledWith('laura')
+  })
+
+  it('renders each card as a single tap target with no watched button', async () => {
+    const onOpenMovie = vi.fn()
+    render(
+      <SearchScreen
+        onOpenMovie={onOpenMovie} onToggleWatched={vi.fn()} watchCountFor={() => 0}
+        activeProfileId="laura"
+      />,
+    )
+    await screen.findByText('Fantastic Mr. Fox')
+
+    const section = screen.getByRole('region', { name: 'Because you watched Rushmore' })
+    expect(within(section).getAllByRole('button')).toHaveLength(1)
+    expect(within(section).queryByRole('button', { name: /watched/i })).not.toBeInTheDocument()
+
+    await userEvent.click(within(section).getByRole('button'))
+    expect(onOpenMovie).toHaveBeenCalledWith(expect.objectContaining({ tmdbId: 999 }))
   })
 
   it('drops a recommendation from the row once it has been watched', async () => {
