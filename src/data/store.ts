@@ -1,4 +1,5 @@
 import { emptyStore } from '../types'
+import { apiFetch } from './session'
 import type { Store, StoreOp } from '../types'
 
 export class StoreUnavailableError extends Error {
@@ -74,7 +75,7 @@ async function parseError(res: Response): Promise<never> {
 export async function loadStore(): Promise<Store> {
   let res: Response
   try {
-    res = await fetch(ENDPOINT)
+    res = await apiFetch(ENDPOINT)
   } catch {
     throw new StoreUnavailableError()
   }
@@ -94,12 +95,9 @@ export async function loadStore(): Promise<Store> {
 export async function applyRemoteOp(op: StoreOp): Promise<Store> {
   let res: Response
   try {
-    res = await fetch(ENDPOINT, {
+    res = await apiFetch(ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Store-Secret': import.meta.env.VITE_STORE_API_SECRET ?? '',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(op),
     })
   } catch {

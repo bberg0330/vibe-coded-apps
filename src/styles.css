@@ -239,6 +239,20 @@ body {
    reasoning as .btn and .chip[aria-pressed="true"] below. */
 .profile-card[aria-checked="true"] { background: var(--accent); color: #0f1115; }
 .profile-gate-continue { width: 100%; position: relative; }
+/* Passcode screen: the field borrows .profile-card's surface and radius. */
+/* Figma wraps this at 300px, a little inside the 327px column. */
+.passcode-subtitle { max-width: 300px; margin-left: auto; margin-right: auto; }
+.passcode-form { display: flex; flex-direction: column; gap: 12px; width: 100%; position: relative; }
+.passcode-form .error { margin: 0; }
+.passcode-form .error p { margin: 0; }
+.passcode-field {
+  width: 100%; box-sizing: border-box; padding: 16px; border-radius: 8px;
+  border: 1px solid transparent; background: var(--surface); color: var(--text);
+  font: inherit; font-size: 18px; text-align: center; letter-spacing: 4px;
+}
+.passcode-field::placeholder { color: var(--muted); letter-spacing: normal; }
+.passcode-field:focus { outline: none; border-color: var(--border); }
+.passcode-field[aria-invalid="true"] { border: 2px solid var(--accent); }
 /*
  * This button sits on the page, not on a card, and --control-bg is identical to
  * --bg in dark mode — so the disabled state had no visible shape at all, just

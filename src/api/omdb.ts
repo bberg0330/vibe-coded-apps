@@ -1,4 +1,5 @@
 import { getCachedScores, cacheScores } from '../data/scores'
+import { apiFetch } from '../data/session'
 import type { ScoreData } from '../data/scores'
 
 /**
@@ -31,7 +32,7 @@ export async function getRottenTomatoesScores(
     // The OMDb key lives on the server; /api/omdb looks the film up and parses it.
     const qs = new URLSearchParams({ t: title })
     if (year !== null) qs.set('year', String(year))
-    const res = await fetch(`/api/omdb?${qs}`)
+    const res = await apiFetch(`/api/omdb?${qs}`)
     if (!res.ok) return fallback
 
     const scores = (await res.json()) as ScoreData
