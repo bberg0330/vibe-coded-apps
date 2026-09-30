@@ -27,8 +27,7 @@ export function lookupsApi(): Plugin {
     name: 'movie-night-lookups-api',
     configResolved(config) {
       const env = loadEnv(config.mode, config.root, '')
-      // Legacy VITE_ names still work locally; they're read here, not bundled.
-      keys = { tmdbToken: env.TMDB_TOKEN || env.VITE_TMDB_TOKEN, omdbKey: env.OMDB_KEY || env.VITE_OMDB_KEY }
+      keys = { tmdbToken: env.TMDB_TOKEN, omdbKey: env.OMDB_KEY }
     },
     configureServer(server) {
       for (const [route, handle] of Object.entries(routes)) {
