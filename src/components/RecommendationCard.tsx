@@ -8,8 +8,6 @@ type Props = {
   onToggleWatched: (movie: Movie) => void
   watched: boolean
   pending?: boolean
-  onStartWatching?: (movie: Movie) => void
-  startWatchingDisabled?: boolean
   /** Short visible caption saying why this is recommended, e.g. "with Bill Murray". */
   reason?: string | null
 }
@@ -30,7 +28,7 @@ type Props = {
  */
 export function RecommendationCard({
   movie, onOpen, onToggleWatched, watched, pending = false,
-  onStartWatching, startWatchingDisabled = false, reason = null,
+  reason = null,
 }: Props) {
   const poster = posterUrl(movie.posterPath, 'w342')
 
@@ -65,19 +63,6 @@ export function RecommendationCard({
             onToggleWatched(movie)
           }}
         />
-
-        {onStartWatching && (
-          <IconButton
-            icon="🕐"
-            ariaLabel={`Start watching ${movie.title} tonight`}
-            title={startWatchingDisabled ? "Pick who's watching first" : undefined}
-            disabled={pending || startWatchingDisabled}
-            onClick={(e) => {
-              e.stopPropagation()
-              onStartWatching(movie)
-            }}
-          />
-        )}
       </div>
     </div>
   )

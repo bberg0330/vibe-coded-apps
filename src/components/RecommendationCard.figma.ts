@@ -15,7 +15,6 @@ export default {
   watched={watched}
   onOpen={onOpen}
   onToggleWatched={onToggleWatched}
-  onStartWatching={onStartWatching}
   reason={reason}
 />`,
   metadata: { nestable: true },

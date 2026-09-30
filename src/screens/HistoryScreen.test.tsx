@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { HistoryScreen } from './HistoryScreen'
 import { logWatch } from '../data/history'
-import { startWatching, cancelWatching, WATCHING_WINDOW_MS } from '../data/watching'
+import { cancelWatching, WATCHING_WINDOW_MS } from '../data/watching'
+import { seedWatching } from '../data/watching.testutil'
 import { resetStoreForTests, getStoreSnapshot } from '../data/store'
 import { applyOp } from '../../vite-plugins/store-ops'
 import type { Movie, StoreOp } from '../types'
@@ -141,7 +142,7 @@ describe('HistoryScreen', () => {
 
   describe('Tonight section', () => {
     it('shows a still-in-progress entry tagged "Watching"', async () => {
-      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      seedWatching(movie(1585, 'Rushmore'), 'laura', null)
       render(<HistoryScreen />)
 
       expect(screen.getByText('Tonight')).toBeInTheDocument()
@@ -153,7 +154,7 @@ describe('HistoryScreen', () => {
       'keeps showing an entry tagged "Watched" once its 12h window has elapsed, ' +
       'since nowWatching entries are never migrated into history',
       async () => {
-        await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+        seedWatching(movie(1585, 'Rushmore'), 'laura', null)
         vi.setSystemTime(new Date(Date.now() + WATCHING_WINDOW_MS))
 
         render(<HistoryScreen />)
@@ -164,9 +165,9 @@ describe('HistoryScreen', () => {
     )
 
     it('lists entries newest startedAt first, across every profile', async () => {
-      await startWatching(movie(1, 'Older'), 'laura', null)
+      seedWatching(movie(1, 'Older'), 'laura', null)
       vi.setSystemTime(new Date('2026-08-08T21:00:00Z'))
-      await startWatching(movie(2, 'Newer'), 'brian', null)
+      seedWatching(movie(2, 'Newer'), 'brian', null)
 
       render(<HistoryScreen />)
       const titles = screen.getAllByTestId('tonight-title').map((n) => n.textContent)
@@ -174,7 +175,7 @@ describe('HistoryScreen', () => {
     })
 
     it('opens the movie when a Tonight row is tapped', async () => {
-      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      seedWatching(movie(1585, 'Rushmore'), 'laura', null)
       const onOpenMovie = vi.fn()
       render(<HistoryScreen onOpenMovie={onOpenMovie} />)
 
@@ -190,7 +191,7 @@ describe('HistoryScreen', () => {
     })
 
     it('shows the Tonight section even when permanent history is empty', async () => {
-      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      seedWatching(movie(1585, 'Rushmore'), 'laura', null)
       render(<HistoryScreen />)
 
       expect(screen.getByText('Tonight')).toBeInTheDocument()
@@ -198,14 +199,14 @@ describe('HistoryScreen', () => {
     })
 
     it('does not render a cancel control when onCancelWatching is omitted', async () => {
-      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      seedWatching(movie(1585, 'Rushmore'), 'laura', null)
       render(<HistoryScreen />)
 
       expect(screen.queryByRole('button', { name: /undo watching/i })).not.toBeInTheDocument()
     })
 
     it('calls onCancelWatching with the tapped entry', async () => {
-      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      seedWatching(movie(1585, 'Rushmore'), 'laura', null)
       const onCancelWatching = vi.fn()
       render(<HistoryScreen onCancelWatching={onCancelWatching} />)
 
@@ -216,7 +217,7 @@ describe('HistoryScreen', () => {
     })
 
     it('hides an optimistically-cancelled row even before the store write lands', async () => {
-      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      seedWatching(movie(1585, 'Rushmore'), 'laura', null)
       render(
         <HistoryScreen
           onCancelWatching={vi.fn()}
@@ -228,7 +229,7 @@ describe('HistoryScreen', () => {
     })
 
     it('disables the cancel button for a key marked as cancelling', async () => {
-      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      seedWatching(movie(1585, 'Rushmore'), 'laura', null)
       render(
         <HistoryScreen
           onCancelWatching={vi.fn()}
@@ -240,7 +241,7 @@ describe('HistoryScreen', () => {
     })
 
     it('actually removes the entry from the store when cancelWatching resolves', async () => {
-      await startWatching(movie(1585, 'Rushmore'), 'laura', null)
+      seedWatching(movie(1585, 'Rushmore'), 'laura', null)
       await cancelWatching('laura', 1585)
 
       render(<HistoryScreen />)

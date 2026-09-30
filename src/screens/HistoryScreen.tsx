@@ -57,8 +57,7 @@ type Props = {
    * Keys (`${profileId}:${tmdbId}`) of Tonight rows to hide immediately —
    * an optimistic overlay for a cancel that's in flight, so the row
    * disappears the instant it's tapped rather than waiting on the round
-   * trip to the store. Mirrors App's `optimisticWatching` overlay for
-   * "start watching."
+   * trip to the store.
    */
   optimisticallyCancelled?: Set<string>
   /**

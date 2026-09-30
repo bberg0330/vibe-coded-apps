@@ -22,7 +22,7 @@
   --accent-text: #f5c518;  /* text only — links, scores, Download JSON */
 
   /*
-   * Resting background of the ✓ / 🕐 / ⋮ buttons. Identical to --bg in dark
+   * Resting background of the ✓ / ⋮ buttons. Identical to --bg in dark
    * mode, which is why the app never needed a separate token — but that same
    * value on a white card is invisible, so the role needs its own variable.
    */
@@ -123,11 +123,11 @@ body {
   background: var(--accent); color: #0f1115; font-weight: 600;
 }
 /*
- * Narrow trailing column holding the ✓ and clock buttons, stacked.
+ * Narrow trailing column holding the ✓ button. (It used to stack a 🕐
+ * "watching tonight" button under it; Figma dropped that button.)
  *
- * 52px, not the 32px these were: these are the two most-tapped controls in
- * the app, stacked at the very edge of the screen, and they do different and
- * non-interchangeable things — log a watch versus start watching tonight.
+ * 52px, not the 32px it was: it's the most-tapped control in the app,
+ * sitting at the very edge of the screen.
  * 32px cleared WCAG 2.2 AA (24x24) but was well under Apple's 44x44pt; 52px
  * matches the IconButton frames in Figma.
  *
@@ -135,14 +135,16 @@ body {
  * cheaper fix, but with only a 6px gap the two expanded areas would meet and
  * overlap, making a tap near the boundary ambiguous between the two.
  *
- * Costs ~35px of card height, so roughly one fewer result fits on screen.
+ * The column itself is 44px wide, as in Figma's `card-actions` frame; the
+ * 52px button is centred in it and overflows 4px each side, so it sits 4px
+ * from the card's right edge and the text area gets the extra 8px.
  */
 .card-actions {
-  flex: none; width: 52px; display: flex; flex-direction: column; gap: 8px;
+  flex: none; width: 44px; display: flex; flex-direction: column; gap: 8px;
   align-items: center; justify-content: center;
 }
 /*
- * One class for every glyph button (✓ 🕐 × ⋮) — .watch-btn and .watching-btn
+ * One class for every glyph button (✓ × ⋮) — .watch-btn and .watching-btn
  * used to be separate classes with identical rules except for this one
  * modifier, which only the checkmark ever used. Two names for one visual
  * component was a code-side accident; Figma's IconButton has always been a
@@ -150,7 +152,7 @@ body {
  */
 .icon-btn {
   flex: none; width: 52px; height: 52px; border: 0; border-radius: 8px;
-  background: var(--control-bg); color: var(--muted); font-size: 19px; cursor: pointer;
+  background: var(--control-bg); color: var(--muted); font-size: 15px; font-weight: 600; cursor: pointer;
   display: flex; align-items: center; justify-content: center; padding: 0;
 }
 .icon-btn.watched { background: var(--watched-bg); color: var(--watched-fg); }
@@ -339,7 +341,7 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   color: var(--muted); font-size: 12px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.rec-actions { display: flex; gap: 8px; }
+.rec-actions { display: flex; gap: 8px; justify-content: center; }
 .screen-header { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; }
 
 /*

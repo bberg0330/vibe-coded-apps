@@ -10,8 +10,6 @@ type Props = {
   onToggleWatched: (movie: Movie) => void
   watchCountFor: (tmdbId: number) => number
   isPending?: (tmdbId: number) => boolean
-  onStartWatching?: (movie: Movie) => void
-  startWatchingDisabled?: boolean
 }
 
 /**
@@ -21,7 +19,6 @@ type Props = {
  */
 export function RecommendationsCarousel({
   movies, title, onOpen, onToggleWatched, watchCountFor, isPending,
-  onStartWatching, startWatchingDisabled,
 }: Props) {
   if (movies.length === 0) return null
 
@@ -38,8 +35,6 @@ export function RecommendationsCarousel({
                 pending={isPending?.(movie.tmdbId) ?? false}
                 onOpen={onOpen}
                 onToggleWatched={onToggleWatched}
-                onStartWatching={onStartWatching}
-                startWatchingDisabled={startWatchingDisabled}
                 reason={reasonFor(movie.viaActors)}
               />
             </div>

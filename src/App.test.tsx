@@ -5,6 +5,7 @@ import App from './App'
 import { clearHttpCache } from './api/http'
 import { getHistory } from './data/history'
 import { getAllWatchingTonight } from './data/watching'
+import { seedWatching } from './data/watching.testutil'
 import { resetStoreForTests, getStoreSnapshot } from './data/store'
 import { applyOp } from '../vite-plugins/store-ops'
 import { emptyStore } from './types'
@@ -346,63 +347,6 @@ describe('App - profile switcher', () => {
   })
 })
 
-describe('App - startWatchingTonight', () => {
-  async function tapStartWatchingButton() {
-    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
-    const button = await screen.findByRole('button', { name: /start watching rushmore tonight/i })
-    await userEvent.click(button)
-  }
-
-  it('marks the active profile as watching, and shows the "Watching tonight" pill', async () => {
-    await renderApp(PROFILES[0].id)
-
-    await tapStartWatchingButton()
-
-    await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
-    expect(getAllWatchingTonight()[0].profileId).toBe(PROFILES[0].id)
-    expect(await screen.findByText('Watching tonight')).toBeInTheDocument()
-  })
-
-  it(
-    'ignores a rapid second tap while the first save is still in flight ' +
-    '(mirrors the toggleWatched double-tap guard)',
-    async () => {
-      await renderApp(PROFILES[0].id)
-      await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
-      const button = await screen.findByRole('button', { name: /start watching rushmore tonight/i })
-
-      // fireEvent, not userEvent: both taps must land in the same tick,
-      // before either's async work resolves, to actually exercise the race.
-      fireEvent.click(button)
-      fireEvent.click(button)
-
-      await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
-    },
-  )
-
-  it('reverts the pill and shows an error when the save fails', async () => {
-    const movie = {
-      id: 1585, title: 'Rushmore', release_date: '1998-10-09',
-      poster_path: null, popularity: 18,
-    }
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
-      if (String(url).startsWith('/api/store') && init?.method === 'POST') {
-        throw new Error('offline')
-      }
-      if (String(url).startsWith('/api/store')) {
-        return { ok: true, status: 200, json: async () => emptyStore() }
-      }
-      return { ok: true, status: 200, json: async () => ({ results: [movie] }) }
-    }))
-
-    await renderApp(PROFILES[0].id)
-    await tapStartWatchingButton()
-
-    expect(await screen.findByText(/couldn't save/i)).toBeInTheDocument()
-    expect(screen.queryByText('Watching tonight')).not.toBeInTheDocument()
-  })
-})
-
 describe('write failure', () => {
   it('reverts the watch button and tells the user when the save fails', async () => {
     const movie = {
@@ -431,10 +375,17 @@ describe('write failure', () => {
 })
 
 describe('App - cancelWatchingTonight', () => {
+  const rushmore: Movie = {
+    tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null, popularity: 18,
+    tomatometer: null, popcornmeter: null, availability: { streaming: [], rent: [] },
+    overview: null,
+  }
+
   it('removes the Tonight row from HistoryScreen when its cancel control is tapped', async () => {
     await renderApp(PROFILES[0].id)
-    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
-    await userEvent.click(await screen.findByRole('button', { name: /start watching rushmore tonight/i }))
+    // Nothing in the UI starts "watching tonight" any more, so seed an
+    // existing entry through the data layer.
+    seedWatching(rushmore, PROFILES[0].id, null)
     await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
 
     await userEvent.click(screen.getByRole('button', { name: /^history$/i }))
@@ -448,8 +399,9 @@ describe('App - cancelWatchingTonight', () => {
 
   it('reverts the row and shows an error when the cancel save fails', async () => {
     await renderApp(PROFILES[0].id)
-    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
-    await userEvent.click(await screen.findByRole('button', { name: /start watching rushmore tonight/i }))
+    // Nothing in the UI starts "watching tonight" any more, so seed an
+    // existing entry through the data layer.
+    seedWatching(rushmore, PROFILES[0].id, null)
     await waitFor(() => expect(getAllWatchingTonight()).toHaveLength(1))
 
     await userEvent.click(screen.getByRole('button', { name: /^history$/i }))

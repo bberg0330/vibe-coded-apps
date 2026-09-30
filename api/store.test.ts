@@ -114,36 +114,7 @@ describe('POST: auth', () => {
   })
 })
 
-describe('POST: startWatching / cancelWatching', () => {
-  it('appends a startWatching entry to now_watching', async () => {
-    let updateArg: Record<string, unknown> | undefined
-    mockFrom
-      .mockImplementationOnce(() => makeBuilder({ data: baseRow, error: null }))
-      .mockImplementationOnce(() =>
-        makeBuilder(
-          () => ({ data: { ...baseRow, ...updateArg }, error: null }),
-          (arg) => { updateArg = arg },
-        ),
-      )
-
-    const entry = {
-      startedAt: '2026-01-01T00:00:00.000Z',
-      profileId: 'laura',
-      movie: {
-        tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null,
-        tomatometer: 90, popcornmeter: null,
-      },
-      discoveredVia: null,
-    }
-
-    const res = makeRes()
-    await handler(postReq({ type: 'startWatching', entry }) as never, res as never)
-
-    expect(res.statusCode).toBe(200)
-    expect(updateArg?.now_watching).toEqual([entry])
-    expect((res.body as { nowWatching: unknown[] }).nowWatching).toEqual([entry])
-  })
-
+describe('POST: cancelWatching', () => {
   it('removes the matching entry on cancelWatching', async () => {
     const entry = {
       startedAt: '2026-01-01T00:00:00.000Z',

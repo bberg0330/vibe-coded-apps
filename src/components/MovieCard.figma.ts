@@ -37,7 +37,6 @@ export default {
   pending={${pending}}${watchingLabelProp}
   onOpen={onOpenMovie}
   onToggleWatched={onToggleWatched}
-  onStartWatching={onStartWatching}
 />`,
   metadata: { nestable: true },
 }
