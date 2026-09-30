@@ -313,7 +313,13 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   display: flex; overflow-x: auto; gap: 12px; padding-bottom: 4px; margin-bottom: 8px;
   scroll-snap-type: x mandatory;
 }
-.recommendation-item { flex: none; scroll-snap-align: start; }
+/*
+ * The row's default align-items: stretch makes every item as tall as the
+ * tallest card (caption 0-2 lines, a score may be missing); display: flex on
+ * the item passes that height down to .rec-card. The row itself hugs the
+ * tallest card, so the carousel's height is dynamic too.
+ */
+.recommendation-item { flex: none; scroll-snap-align: start; display: flex; }
 
 /*
  * 136px, so roughly two and a half cards show at 375 — enough of a third to

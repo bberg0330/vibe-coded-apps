@@ -1,5 +1,9 @@
 # Movie Night
 
+## Branches
+
+Name branches after the work, as `<type>/<short-kebab-summary>`: `feature/…` for new behaviour, `fix/…` for bugs, `design/…` for Figma-driven UI syncs, `chore/…` for tooling and docs (e.g. `feature/recommendation-score-floor`). Don't use generated or random names, even if a session suggests one. Start each piece of work on a fresh branch from `main`; once its PR merges, start the next change on a new branch rather than reusing the old one.
+
 ## Figma sync
 
 Figma file: `ajsVg5LjRT7Y5D346WMif3` (Movie Night — UX/UI Baseline). Components live in `src/components/`, styles in `src/styles.css`, and each component has a Code Connect mapping in a sibling `*.figma.ts`.

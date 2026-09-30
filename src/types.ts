@@ -30,6 +30,9 @@ export type Movie = {
   availability: Availability
   /** Plot synopsis. null until fetched, or when TMDB has none. */
   overview: string | null
+  /** TMDB's own user rating, 0-10, and how many votes it rests on. Present on TMDB list results. */
+  voteAverage?: number
+  voteCount?: number
 }
 
 export type CastMember = {

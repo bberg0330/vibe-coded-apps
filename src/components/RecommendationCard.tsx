@@ -38,9 +38,12 @@ export function RecommendationCard({
           : <div className="rec-poster poster-empty" aria-hidden="true" />}
         <div className="rec-title">{movie.title}</div>
         <div className="rec-meta">
-          {movie.year !== null && <span>{movie.year}</span>}
-          {movie.tomatometer !== null && (
+          {/* No year here: two scores plus a year don't fit 120px. Each score hides when missing. */}
+          {typeof movie.tomatometer === 'number' && (
             <span className="score" title="Critic score">🍅 {movie.tomatometer}%</span>
+          )}
+          {typeof movie.popcornmeter === 'number' && (
+            <span className="score" title="IMDb user rating">⭐ {movie.popcornmeter}%</span>
           )}
         </div>
         {reason && <div className="rec-reason" title={reason}>{reason}</div>}
