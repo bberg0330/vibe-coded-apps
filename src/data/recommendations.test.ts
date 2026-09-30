@@ -272,5 +272,39 @@ describe('getRecommendationsFor', () => {
       expect(result).toHaveLength(12)
       expect(result[0].tmdbId).toBe(1005)
     })
+
+    it('stops fetching scores once enough films clear the floor', async () => {
+      const films = Array.from({ length: 36 }, (_, i) => movie(2000 + i, 100 - i))
+      vi.mocked(getActorFilmography).mockResolvedValue(films)
+
+      const result = (await getRecommendationsFor('laura'))!.items
+
+      expect(result).toHaveLength(12)
+      expect(getRottenTomatoesScores).toHaveBeenCalledTimes(12)
+    })
+
+    it('fetches the next batch only when the first leaves the row short', async () => {
+      const films = Array.from({ length: 36 }, (_, i) => movie(3000 + i, 100 - i))
+      vi.mocked(getActorFilmography).mockResolvedValue(films)
+      scoresById(Object.fromEntries(films.map((f, i) => [f.tmdbId, i % 2 === 0
+        ? { critic: 80, audience: 80 } : { critic: 30, audience: 30 }])))
+
+      const result = (await getRecommendationsFor('laura'))!.items
+
+      expect(result).toHaveLength(12)
+      expect(result.map((m) => m.tmdbId)).toEqual(films.filter((_, i) => i % 2 === 0).slice(0, 12).map((f) => f.tmdbId))
+      expect(getRottenTomatoesScores).toHaveBeenCalledTimes(24)
+    })
+
+    it('never looks up more than the 36 best-ranked candidates', async () => {
+      const films = Array.from({ length: 50 }, (_, i) => movie(4000 + i, 100 - i))
+      vi.mocked(getActorFilmography).mockResolvedValue(films)
+      scoresById({})
+
+      const result = (await getRecommendationsFor('laura'))!.items
+
+      expect(result).toEqual([])
+      expect(getRottenTomatoesScores).toHaveBeenCalledTimes(36)
+    })
   })
 })

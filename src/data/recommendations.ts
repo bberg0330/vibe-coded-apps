@@ -22,8 +22,16 @@ const MAX_RESULTS = 12
 /** Weight per shared cast member; large enough that overlap beats popularity. */
 const SHARED_CAST_WEIGHT = 10
 
-/** How many top-ranked candidates get scores fetched before the quality floor is applied. */
+/** Most top-ranked candidates that ever get scores fetched before the quality floor is applied. */
 const SCORED_POOL_SIZE = 36
+
+/**
+ * Scores are fetched this many candidates at a time, in rank order, stopping
+ * once MAX_RESULTS films have cleared the floor. Most loads need one batch
+ * rather than the whole pool, which keeps cold loads fast and spares the
+ * OMDb daily quota.
+ */
+const SCORE_BATCH_SIZE = 12
 
 /** Minimum average of critic and audience score (0-100) for a film to be recommended. */
 export const SCORE_FLOOR = 70
@@ -50,7 +58,8 @@ export function pickSourceMovie(profileId: string): WatchEntry['movie'] | null {
  * release year or a year still to come are dropped, as they can't be watched
  * tonight.
  *
- * Then a quality floor: the top candidates get their scores fetched, and only
+ * Then a quality floor: the top candidates get their scores fetched (in
+ * batches, stopping once there are enough), and only
  * those whose critic (Rotten Tomatoes) and audience (IMDb) scores average at
  * least `SCORE_FLOOR` survive. When IMDb has no rating, TMDB's own vote
  * average stands in (if enough people voted); when only one score exists it
@@ -107,10 +116,12 @@ export async function getRecommendationsFor(
     .sort((a, b) => score(b) - score(a))
     .slice(0, SCORED_POOL_SIZE)
 
-  const scored = await Promise.all(pool.map(withScores))
-  const items = scored
-    .filter((m) => averageScore(m) !== null && averageScore(m)! >= SCORE_FLOOR)
-    .slice(0, MAX_RESULTS)
+  const items: RecommendationWithAttribution[] = []
+  for (let i = 0; i < pool.length && items.length < MAX_RESULTS; i += SCORE_BATCH_SIZE) {
+    const batch = await Promise.all(pool.slice(i, i + SCORE_BATCH_SIZE).map(withScores))
+    items.push(...batch.filter(clearsFloor))
+  }
+  items.splice(MAX_RESULTS)
 
   return { source, items }
 }
@@ -128,6 +139,11 @@ async function withScores(movie: RecommendationWithAttribution): Promise<Recomme
     tomatometer: scores.critic ?? movie.tomatometer,
     popcornmeter: scores.audience ?? movie.popcornmeter ?? tmdbAudience,
   }
+}
+
+function clearsFloor(movie: RecommendationWithAttribution): boolean {
+  const avg = averageScore(movie)
+  return avg !== null && avg >= SCORE_FLOOR
 }
 
 /** Mean of whichever of the two scores exist; null when neither does. */
