@@ -28,6 +28,15 @@ const rushmoreSearchResults = {
  */
 function stubAppServer() {
   vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+    if (String(url).startsWith('/api/session')) {
+      if (init?.method === 'POST') {
+        const { passcode } = JSON.parse(String(init.body)) as { passcode: string }
+        return passcode === 'popcorn'
+          ? { ok: true, status: 200, json: async () => ({ token: 'fresh-token' }) }
+          : { ok: false, status: 401, json: async () => ({ error: 'wrong_passcode' }) }
+      }
+      return { ok: true, status: 200, json: async () => ({ ok: true }) }
+    }
     if (String(url).startsWith('/api/store')) {
       if (init?.method === 'POST') {
         const op = JSON.parse(String(init.body)) as StoreOp
@@ -45,6 +54,9 @@ beforeEach(() => {
   clearHttpCache()
   resetStoreForTests()
   localStorage.clear()
+  // Most tests are about screens past the passcode gate: start unlocked.
+  // The "App - passcode gate" suite clears this to test the gate itself.
+  localStorage.setItem('mn.session', 'test-token')
   stubAppServer()
 })
 
@@ -151,7 +163,10 @@ describe('App startup', () => {
   })
 
   it('retries loading when the retry control is used', async () => {
-    const f = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValue({
+    const f = vi.fn()
+      // The session check goes first and succeeds; the store load then fails once.
+      .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ ok: true }) })
+      .mockRejectedValueOnce(new Error('offline')).mockResolvedValue({
       ok: true, status: 200, json: async () => emptyStore(),
     })
     vi.stubGlobal('fetch', f)
@@ -419,5 +434,53 @@ describe('App - cancelWatchingTonight', () => {
     // The entry must reappear — the cancel did not actually happen.
     expect(await screen.findByTestId('tonight-title')).toHaveTextContent('Rushmore')
     expect(getAllWatchingTonight()).toHaveLength(1)
+  })
+})
+
+describe('App - passcode gate', () => {
+  beforeEach(() => {
+    localStorage.removeItem('mn.session')
+    setActiveProfileId(PROFILES[0].id)
+  })
+
+  it('shows the passcode screen, and loads nothing else, until unlocked', async () => {
+    render(<App />)
+
+    expect(await screen.findByText('Enter the passcode')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Unlock' })).toBeDisabled()
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+    const urls = vi.mocked(fetch).mock.calls.map(([u]) => String(u))
+    expect(urls.some((u) => u.startsWith('/api/store'))).toBe(false)
+  })
+
+  it('says so when the passcode is wrong, and stays locked', async () => {
+    render(<App />)
+
+    await userEvent.type(await screen.findByLabelText('Passcode'), 'nachos')
+    await userEvent.click(screen.getByRole('button', { name: 'Unlock' }))
+
+    expect(await screen.findByText("That passcode didn't work. Try again.")).toBeInTheDocument()
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument()
+  })
+
+  it('unlocks with the right passcode, keeps the token, and sends it on API calls', async () => {
+    render(<App />)
+
+    await userEvent.type(await screen.findByLabelText('Passcode'), 'popcorn{Enter}')
+
+    expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+    expect(localStorage.getItem('mn.session')).toBe('fresh-token')
+    const storeCall = vi.mocked(fetch).mock.calls.find(([u]) => String(u).startsWith('/api/store'))
+    expect(new Headers(storeCall?.[1]?.headers).get('Authorization')).toBe('Bearer fresh-token')
+  })
+
+  it('drops back to the passcode screen when the server rejects the token', async () => {
+    localStorage.setItem('mn.session', 'revoked-token')
+    vi.mocked(fetch).mockImplementation(async () => ({ ok: false, status: 401, json: async () => ({}) }) as Response)
+
+    render(<App />)
+
+    expect(await screen.findByText('Enter the passcode')).toBeInTheDocument()
+    expect(localStorage.getItem('mn.session')).toBeNull()
   })
 })

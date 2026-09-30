@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { Button } from './Button'
 import { ProfileOption } from './ProfileOption'
 import type { Profile, ProfileId } from '../data/profiles'
@@ -67,6 +67,41 @@ export function ProfileGate({ profiles, onSelect }: Props) {
   const [pending, setPending] = useState<ProfileId | null>(null)
 
   return (
+    <GateFrame>
+      <div className="profile-gate-header">
+        <p className="profile-gate-question">Who's watching?</p>
+        <p className="profile-gate-subtitle">Select a profile to continue</p>
+      </div>
+
+      <div className="profile-gate-options" role="radiogroup" aria-label="Who's watching">
+        {profiles.map((profile) => (
+          <ProfileOption
+            key={profile.id}
+            name={profile.name}
+            selected={pending === profile.id}
+            onClick={() => setPending(profile.id)}
+          />
+        ))}
+      </div>
+
+      <Button
+        className="profile-gate-continue"
+        disabled={!pending}
+        onClick={() => pending && onSelect(pending)}
+      >
+        Continue
+      </Button>
+    </GateFrame>
+  )
+}
+
+/**
+ * The full-screen gate chrome shared by the passcode and "who's watching"
+ * screens: page background, the decorative icon layer and the "Welcome to
+ * Movie Night" title, with the screen's own content underneath.
+ */
+export function GateFrame({ children }: { children: ReactNode }) {
+  return (
     <div className="profile-gate">
       <div className="profile-gate-frame">
         <div className="profile-gate-deco" aria-hidden="true">
@@ -78,30 +113,7 @@ export function ProfileGate({ profiles, onSelect }: Props) {
         </div>
 
         <p className="profile-gate-title">Welcome to<br />Movie Night</p>
-
-        <div className="profile-gate-header">
-          <p className="profile-gate-question">Who's watching?</p>
-          <p className="profile-gate-subtitle">Select a profile to continue</p>
-        </div>
-
-        <div className="profile-gate-options" role="radiogroup" aria-label="Who's watching">
-          {profiles.map((profile) => (
-            <ProfileOption
-              key={profile.id}
-              name={profile.name}
-              selected={pending === profile.id}
-              onClick={() => setPending(profile.id)}
-            />
-          ))}
-        </div>
-
-        <Button
-          className="profile-gate-continue"
-          disabled={!pending}
-          onClick={() => pending && onSelect(pending)}
-        >
-          Continue
-        </Button>
+        {children}
       </div>
     </div>
   )

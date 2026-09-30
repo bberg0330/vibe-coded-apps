@@ -7,12 +7,14 @@ import { FilmographyScreen } from './screens/FilmographyScreen'
 import { HistoryScreen } from './screens/HistoryScreen'
 import { SettingsSheet } from './screens/SettingsSheet'
 import { ProfileGate } from './components/ProfileGate'
+import { PasscodeGate } from './components/PasscodeGate'
 import { TopBar } from './components/TopBar'
 import { Button } from './components/Button'
 import { logWatch, undoLastWatch, watchCount } from './data/history'
 import { getNowWatching, cancelWatching } from './data/watching'
 import { loadStore } from './data/store'
 import { loadScores } from './data/scores'
+import { checkSession, onLocked, type SessionState } from './data/session'
 import { migrateFromLocalStorage } from './data/migrate'
 import { PROFILES, type ProfileId } from './data/profiles'
 import { getActiveProfileId, setActiveProfileId } from './data/activeProfile'
@@ -82,12 +84,23 @@ export default function App() {
   const [pendingCancel, setPendingCancel] = useState<Set<string>>(new Set())
   const [optimisticallyCancelled, setOptimisticallyCancelled] = useState<Set<string>>(new Set())
 
+  // Household passcode: nothing loads until this device is unlocked. Any
+  // 401 from the API later (token expired or revoked) drops back to locked.
+  const [session, setSession] = useState<SessionState | 'checking'>('checking')
+  useEffect(() => {
+    let cancelled = false
+    checkSession().then((state) => { if (!cancelled) setSession(state) })
+    const unsubscribe = onLocked(() => setSession('locked'))
+    return () => { cancelled = true; unsubscribe() }
+  }, [])
+
   const [booting, setBooting] = useState(true)
   const [bootError, setBootError] = useState<string | null>(null)
   const [bootAttempt, setBootAttempt] = useState(0)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
+    if (session !== 'unlocked') return
     let cancelled = false
     setBooting(true)
     setBootError(null)
@@ -125,7 +138,7 @@ export default function App() {
       })
 
     return () => { cancelled = true }
-  }, [bootAttempt])
+  }, [bootAttempt, session])
 
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
@@ -257,6 +270,14 @@ export default function App() {
   const watchingLabelFor = (tmdbId: number): string | null => {
     const isWatching = getNowWatching().some((e) => e.movie.tmdbId === tmdbId)
     return isWatching ? 'Watching tonight' : null
+  }
+
+  if (session === 'checking') {
+    return <div className="app"><p className="empty">Loading…</p></div>
+  }
+
+  if (session === 'locked') {
+    return <PasscodeGate onUnlocked={() => setSession('unlocked')} />
   }
 
   if (booting) {

@@ -14,7 +14,7 @@ import type { StoreOp } from '../src/types'
 
 process.env.SUPABASE_URL = 'https://example.supabase.co'
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key'
-process.env.STORE_API_SECRET = 'test-secret'
+process.env.SESSION_SECRET = 'test-session-secret'
 
 const mockFrom = vi.fn()
 
@@ -23,6 +23,8 @@ vi.mock('@supabase/supabase-js', () => ({
 }))
 
 const { default: handler } = await import('./store')
+const { issueToken } = await import('./_lib/session')
+const AUTH = { authorization: `Bearer ${issueToken('test-session-secret')}` }
 
 type FakeResult = { data: unknown; error: unknown }
 
@@ -82,8 +84,8 @@ const baseRow = {
   now_watching: [] as unknown[],
 }
 
-function postReq(op: StoreOp, secret = 'test-secret') {
-  return { method: 'POST', headers: { 'x-store-secret': secret }, body: op }
+function postReq(op: StoreOp, headers: Record<string, string> = AUTH) {
+  return { method: 'POST', headers, body: op }
 }
 
 beforeEach(() => {
@@ -98,17 +100,38 @@ describe('GET', () => {
     )
 
     const res = makeRes()
-    await handler({ method: 'GET', headers: {} } as never, res as never)
+    await handler({ method: 'GET', headers: AUTH } as never, res as never)
 
     expect(res.statusCode).toBe(200)
     expect((res.body as { nowWatching: unknown }).nowWatching).toEqual(watching)
   })
 })
 
-describe('POST: auth', () => {
-  it('rejects a request with the wrong secret', async () => {
+describe('auth', () => {
+  it('rejects a write with no session token', async () => {
     const res = makeRes()
-    await handler(postReq({ type: 'undoLastWatch', tmdbId: 1 }, 'wrong-secret') as never, res as never)
+    await handler(postReq({ type: 'undoLastWatch', tmdbId: 1 }, {}) as never, res as never)
+    expect(res.statusCode).toBe(401)
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('rejects a write signed with a different secret', async () => {
+    const res = makeRes()
+    const forged = { authorization: `Bearer ${issueToken('some-other-secret')}` }
+    await handler(postReq({ type: 'undoLastWatch', tmdbId: 1 }, forged) as never, res as never)
+    expect(res.statusCode).toBe(401)
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('rejects the old shared-secret header', async () => {
+    const res = makeRes()
+    await handler(postReq({ type: 'undoLastWatch', tmdbId: 1 }, { 'x-store-secret': 'anything' }) as never, res as never)
+    expect(res.statusCode).toBe(401)
+  })
+
+  it('rejects reads without a session too', async () => {
+    const res = makeRes()
+    await handler({ method: 'GET', headers: {} } as never, res as never)
     expect(res.statusCode).toBe(401)
     expect(mockFrom).not.toHaveBeenCalled()
   })

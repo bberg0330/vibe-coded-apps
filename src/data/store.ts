@@ -1,4 +1,5 @@
 import { emptyStore } from '../types'
+import { apiFetch, apiUrl } from './session'
 import type { Store, StoreOp } from '../types'
 
 export class StoreUnavailableError extends Error {
@@ -8,7 +9,8 @@ export class StoreUnavailableError extends Error {
   }
 }
 
-const ENDPOINT = import.meta.env.VITE_API_ENDPOINT || (import.meta.env.DEV ? '/api/store' : 'https://lb-movie-night-app.vercel.app/api/store')
+// Same origin in a browser; see apiUrl in session.ts.
+const ENDPOINT = apiUrl('/api/store')
 
 /**
  * The in-memory copy. Reads are synchronous against this, which is what
@@ -74,7 +76,7 @@ async function parseError(res: Response): Promise<never> {
 export async function loadStore(): Promise<Store> {
   let res: Response
   try {
-    res = await fetch(ENDPOINT)
+    res = await apiFetch(ENDPOINT)
   } catch {
     throw new StoreUnavailableError()
   }
@@ -94,12 +96,9 @@ export async function loadStore(): Promise<Store> {
 export async function applyRemoteOp(op: StoreOp): Promise<Store> {
   let res: Response
   try {
-    res = await fetch(ENDPOINT, {
+    res = await apiFetch(ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Store-Secret': import.meta.env.VITE_STORE_API_SECRET ?? '',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(op),
     })
   } catch {

@@ -1,3 +1,5 @@
+import { apiFetch } from './session'
+
 export type ScoreData = {
   critic?: number | null
   audience?: number | null
@@ -27,7 +29,7 @@ export function resetScoresForTests(next: StoredScoreMap = {}): void {
  */
 export async function loadScores(): Promise<void> {
   try {
-    const res = await fetch(ENDPOINT)
+    const res = await apiFetch(ENDPOINT)
     if (!res.ok) return
     const parsed = (await res.json()) as StoredScoreMap
     if (parsed && typeof parsed === 'object') cache = parsed
@@ -72,12 +74,9 @@ export function cacheScores(tmdbId: number, scores: ScoreData): void {
   const key = String(tmdbId)
   cache[key] = scores
 
-  void fetch(ENDPOINT, {
+  void apiFetch(ENDPOINT, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Store-Secret': import.meta.env.VITE_STORE_API_SECRET ?? '',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ [key]: scores }),
   }).catch(() => undefined)
 }

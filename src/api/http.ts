@@ -1,3 +1,5 @@
+import { apiFetch } from '../data/session'
+
 export class MissingKeyError extends Error {
   constructor(public which: 'TMDB' | 'OMDb') {
     super(`Missing ${which} API key`)
@@ -22,7 +24,7 @@ export function clearHttpCache(): void {
 }
 
 async function request<T>(url: string, init: RequestInit): Promise<T> {
-  const res = await fetch(url, init)
+  const res = await apiFetch(url, init)
   if (!res.ok) {
     // The proxy answers 503 { error: 'missing_key' } when its TMDB_TOKEN is unset.
     if (res.status === 503) {

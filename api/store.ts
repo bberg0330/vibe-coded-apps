@@ -1,13 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
+import { requireSession, sessionConfig } from './_lib/session.js';
 import type { Store, StoreOp } from '../src/types';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const writeSecret = process.env.STORE_API_SECRET;
 
-if (!supabaseUrl || !supabaseKey || !writeSecret) {
-  throw new Error('Missing Supabase credentials or STORE_API_SECRET');
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase credentials');
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -72,6 +72,10 @@ export default async function handler(
 ) {
   res.setHeader('Content-Type', 'application/json');
 
+  // Every read and write needs an unlocked household session.
+  const session = requireSession(req.headers, sessionConfig());
+  if (!session.ok) return res.status(session.status).json(session.body);
+
   try {
     if (req.method === 'GET') {
       const { data: rows, error } = await supabase
@@ -95,10 +99,6 @@ export default async function handler(
     }
 
     if (req.method === 'POST') {
-      if (req.headers['x-store-secret'] !== writeSecret) {
-        return res.status(401).json({ error: 'Unauthorized' });
-      }
-
       const op: StoreOp = req.body;
 
       const { data: current, error: fetchError } = await supabase

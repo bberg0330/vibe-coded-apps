@@ -1,5 +1,18 @@
-import type { VercelResponse } from '@vercel/node'
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 import type { LookupResult } from './lookups'
+import { requireSession, sessionConfig } from './session.js'
+
+/**
+ * The household-session gate for the lookup routes. Returns false (having
+ * already answered 401/503) when the request isn't unlocked.
+ */
+export function authorized(req: VercelRequest, res: VercelResponse): boolean {
+  const session = requireSession(req.headers, sessionConfig())
+  if (session.ok) return true
+  res.setHeader('Cache-Control', 'no-store')
+  res.status(session.status).json(session.body)
+  return false
+}
 
 /** Writes a LookupResult; only successful responses get a CDN cache header. */
 export function respond(res: VercelResponse, result: LookupResult): void {

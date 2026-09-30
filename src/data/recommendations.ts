@@ -1,4 +1,5 @@
 import { getHistory } from './history'
+import { apiFetch } from './session'
 import { getAllWatchingTonight, getRecentlyWatchedBy } from './watching'
 import type { RecommendationWithAttribution } from './recommendationEngine'
 import type { WatchEntry } from '../types'
@@ -41,7 +42,7 @@ export async function getRecommendationsFor(profileId: string): Promise<Recommen
   const source = pickSourceMovie(profileId)
   if (!source) return null
 
-  const res = await fetch(`${ENDPOINT}?${new URLSearchParams({ source: String(source.tmdbId) })}`)
+  const res = await apiFetch(`${ENDPOINT}?${new URLSearchParams({ source: String(source.tmdbId) })}`)
   if (!res.ok) throw new Error(`Recommendations request failed with ${res.status}`)
   const { items } = (await res.json()) as { items: RecommendationWithAttribution[] }
 
