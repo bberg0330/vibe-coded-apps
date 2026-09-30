@@ -9,7 +9,7 @@ const film = (id: number, title: string, pop = 10) => ({
 /** Routes each mocked request by the provider id in its query string. */
 function stubByProvider(byProvider: Record<string, unknown[]>) {
   const f = vi.fn().mockImplementation((url: string) => {
-    const providers = new URL(url).searchParams.get('with_watch_providers') ?? ''
+    const providers = new URL(url, 'http://localhost').searchParams.get('with_watch_providers') ?? ''
     return Promise.resolve({
       ok: true, status: 200,
       json: async () => ({ results: byProvider[providers] ?? [] }),
@@ -21,7 +21,6 @@ function stubByProvider(byProvider: Record<string, unknown[]>) {
 
 beforeEach(() => {
   clearHttpCache()
-  vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
 })
 
 describe('getActorMovies', () => {

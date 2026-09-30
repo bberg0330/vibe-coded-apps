@@ -45,7 +45,6 @@ beforeEach(() => {
   clearHttpCache()
   resetStoreForTests()
   localStorage.clear()
-  vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
   stubAppServer()
 })
 

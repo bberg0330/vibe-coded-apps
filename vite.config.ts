@@ -6,9 +6,10 @@ import react from '@vitejs/plugin-react'
 // default in a future major and cannot resolve extensionless specifiers.
 import { storeApi } from './vite-plugins/store-api.ts'
 import { scoresApi } from './vite-plugins/scores-api.ts'
+import { lookupsApi } from './vite-plugins/lookups-api.ts'
 
 export default defineConfig({
-  plugins: [react(), storeApi(), scoresApi()],
+  plugins: [react(), storeApi(), scoresApi(), lookupsApi()],
   server: {
     // Allows reaching the dev server via the Mac's mDNS hostname
     // (e.g. http://My-Mac.local:5173), which stays the same across DHCP

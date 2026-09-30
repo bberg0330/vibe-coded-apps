@@ -29,7 +29,6 @@ const castB = Array.from({ length: 20 }, (_, i) => ({
 
 beforeEach(() => {
   clearHttpCache()
-  vi.stubEnv('VITE_TMDB_TOKEN', 'test-token')
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
     ok: true, status: 200, json: async () => ({ cast }),
   }))

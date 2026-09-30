@@ -4,48 +4,9 @@ import {
   serviceForProviderId, rentServiceForProviderId,
 } from '../data/providers'
 import type { Movie, CastMember, Person, ServiceKey, RentKey, Availability } from '../types'
+import { toMovie, toCast, type TmdbMovie, type TmdbCast } from './tmdbMap'
 
-type TmdbMovie = {
-  id: number
-  title: string
-  release_date?: string
-  poster_path: string | null
-  popularity: number
-  overview?: string
-  vote_average?: number
-  vote_count?: number
-}
-
-type TmdbCast = {
-  id: number
-  name: string
-  character: string
-  profile_path: string | null
-  order: number
-}
-
-/** TMDB sends '' for unknown release dates; Number('') is 0, so guard explicitly. */
-function yearOf(releaseDate?: string): number | null {
-  if (!releaseDate) return null
-  const year = Number(releaseDate.slice(0, 4))
-  return Number.isFinite(year) && year > 0 ? year : null
-}
-
-export function toMovie(raw: TmdbMovie): Movie {
-  return {
-    tmdbId: raw.id,
-    title: raw.title,
-    year: yearOf(raw.release_date),
-    posterPath: raw.poster_path,
-    popularity: raw.popularity ?? 0,
-    tomatometer: null,
-    popcornmeter: null,
-    availability: { streaming: [], rent: [] },
-    overview: raw.overview?.trim() || null,
-    voteAverage: raw.vote_average ?? 0,
-    voteCount: raw.vote_count ?? 0,
-  }
-}
+export { toMovie }
 
 export async function searchMovies(query: string, signal?: AbortSignal): Promise<Movie[]> {
   const trimmed = query.trim()
@@ -61,15 +22,7 @@ export async function searchMovies(query: string, signal?: AbortSignal): Promise
 
 export async function getMovieCredits(movieId: number): Promise<CastMember[]> {
   const data = await tmdbGet<{ cast: TmdbCast[] }>(`/movie/${movieId}/credits`, {})
-  return data.cast
-    .map((c) => ({
-      tmdbId: c.id,
-      name: c.name,
-      character: c.character,
-      profilePath: c.profile_path,
-      order: c.order,
-    }))
-    .sort((a, b) => a.order - b.order)
+  return toCast(data.cast)
 }
 
 /**
