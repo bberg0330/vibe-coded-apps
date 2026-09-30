@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { handleTmdb } from './_lib/lookups'
-import { respond, serverKeys } from './_lib/respond'
+import { handleTmdb } from './_lib/lookups.js'
+import { respond, serverKeys } from './_lib/respond.js'
 
 /**
  * TMDB proxy: the browser calls `/api/tmdb/movie/123/credits?...`, which

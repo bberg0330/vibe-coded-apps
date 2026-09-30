@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { handleOmdb } from './_lib/lookups'
-import { respond, serverKeys } from './_lib/respond'
+import { handleOmdb } from './_lib/lookups.js'
+import { respond, serverKeys } from './_lib/respond.js'
 
 /** OMDb proxy: looks a film up with the server-side key and returns parsed scores. */
 export default async function handler(req: VercelRequest, res: VercelResponse) {

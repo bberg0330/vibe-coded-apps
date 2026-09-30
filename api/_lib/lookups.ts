@@ -7,9 +7,9 @@
 // adapters around these, so dev and prod can't drift.
 //
 // Lives under api/_lib so Vercel doesn't deploy it as a function of its own.
-import { toMovie, toCast, type TmdbMovie, type TmdbCast } from '../../src/api/tmdbMap'
-import { scoresFromOmdb, type OmdbResponse } from '../../src/api/omdbParse'
-import { buildRecommendations, type ScoreLookup } from '../../src/data/recommendationEngine'
+import { toMovie, toCast, type TmdbMovie, type TmdbCast } from '../../src/api/tmdbMap.js'
+import { scoresFromOmdb, type OmdbResponse } from '../../src/api/omdbParse.js'
+import { buildRecommendations, type ScoreLookup } from '../../src/data/recommendationEngine.js'
 import type { ScoreData } from '../../src/data/scores'
 
 export type LookupKeys = {
