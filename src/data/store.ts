@@ -1,5 +1,5 @@
 import { emptyStore } from '../types'
-import { apiFetch } from './session'
+import { apiFetch, apiUrl } from './session'
 import type { Store, StoreOp } from '../types'
 
 export class StoreUnavailableError extends Error {
@@ -9,7 +9,8 @@ export class StoreUnavailableError extends Error {
   }
 }
 
-const ENDPOINT = import.meta.env.VITE_API_ENDPOINT || (import.meta.env.DEV ? '/api/store' : 'https://lb-movie-night-app.vercel.app/api/store')
+// Same origin in a browser; see apiUrl in session.ts.
+const ENDPOINT = apiUrl('/api/store')
 
 /**
  * The in-memory copy. Reads are synchronous against this, which is what

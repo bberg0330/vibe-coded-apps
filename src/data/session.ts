@@ -4,9 +4,23 @@
 
 const TOKEN_KEY = 'mn.session'
 
-/** Same base as the store endpoint (see store.ts): relative in dev, the production URL otherwise. */
-const ENDPOINT = import.meta.env.VITE_API_ENDPOINT?.replace(/\/store$/, '/session')
-  || (import.meta.env.DEV ? '/api/session' : 'https://lb-movie-night-app.vercel.app/api/session')
+/**
+ * Where the app's own API lives. In a browser (production, previews, dev)
+ * that's the same origin, so `/api/...`. Only a non-web shell such as the iOS
+ * build (capacitor://, file://) needs the production URL. VITE_API_ENDPOINT,
+ * the full store URL, overrides both.
+ *
+ * Previews used to call the production URL too, cross-origin, so the browser
+ * blocked every request before it reached a server.
+ */
+export function apiUrl(path: string): string {
+  const override = import.meta.env.VITE_API_ENDPOINT
+  if (override) return override.replace(/\/api\/store$/, '') + path
+  const onWeb = typeof location !== 'undefined' && /^https?:$/.test(location.protocol)
+  return onWeb ? path : `https://lb-movie-night-app.vercel.app${path}`
+}
+
+const ENDPOINT = apiUrl('/api/session')
 
 function readToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY) } catch { return null }
