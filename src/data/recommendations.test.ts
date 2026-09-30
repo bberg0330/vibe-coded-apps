@@ -3,6 +3,7 @@ import { getRecommendationsFor } from './recommendations'
 import { getRecentlyWatchedBy, getAllWatchingTonight } from './watching'
 import { getHistory } from './history'
 import { getMovieCredits, getActorFilmography } from '../api/tmdb'
+import { getRottenTomatoesScores } from '../api/omdb'
 import type { CastMember, Movie, WatchEntry, WatchingEntry } from '../types'
 
 vi.mock('./watching', () => ({
@@ -11,6 +12,9 @@ vi.mock('./watching', () => ({
 }))
 vi.mock('./history', () => ({
   getHistory: vi.fn(),
+}))
+vi.mock('../api/omdb', () => ({
+  getRottenTomatoesScores: vi.fn(),
 }))
 vi.mock('../api/tmdb', () => ({
   getMovieCredits: vi.fn(),
@@ -48,6 +52,8 @@ beforeEach(() => {
   vi.mocked(getAllWatchingTonight).mockReturnValue([])
   vi.mocked(getMovieCredits).mockResolvedValue([])
   vi.mocked(getActorFilmography).mockResolvedValue([])
+  // Comfortably above the floor, so tests about ranking and exclusion aren't affected by it.
+  vi.mocked(getRottenTomatoesScores).mockResolvedValue({ critic: 80, audience: 80 })
 })
 
 describe('getRecommendationsFor', () => {
@@ -190,5 +196,81 @@ describe('getRecommendationsFor', () => {
     const result = (await getRecommendationsFor('laura', new Date('2026-09-29')))!.items
 
     expect(result.map((m) => m.tmdbId)).toEqual([802])
+  })
+
+  describe('score floor', () => {
+    const scoresById = (byId: Record<number, { critic: number | null; audience: number | null }>) =>
+      vi.mocked(getRottenTomatoesScores).mockImplementation(async (tmdbId: number) =>
+        byId[tmdbId] ?? { critic: null, audience: null })
+
+    beforeEach(() => {
+      vi.mocked(getRecentlyWatchedBy).mockReturnValue(recentWatch(100))
+      vi.mocked(getMovieCredits).mockResolvedValue([castMember(1, 0)])
+    })
+
+    it('drops films whose critic and audience scores average below 70', async () => {
+      vi.mocked(getActorFilmography).mockResolvedValue([movie(900, 90), movie(901, 10)])
+      scoresById({ 900: { critic: 38, audience: 52 }, 901: { critic: 72, audience: 70 } })
+
+      const result = (await getRecommendationsFor('laura'))!.items
+
+      expect(result.map((m) => m.tmdbId)).toEqual([901])
+    })
+
+    it('returns items with both scores filled in', async () => {
+      vi.mocked(getActorFilmography).mockResolvedValue([movie(900)])
+      scoresById({ 900: { critic: 93, audience: 79 } })
+
+      const [item] = (await getRecommendationsFor('laura'))!.items
+
+      expect(item).toMatchObject({ tomatometer: 93, popcornmeter: 79 })
+    })
+
+    it('judges a film on its one score when the other is missing', async () => {
+      vi.mocked(getActorFilmography).mockResolvedValue([movie(900), movie(901)])
+      scoresById({ 900: { critic: 95, audience: null }, 901: { critic: 60, audience: null } })
+
+      const result = (await getRecommendationsFor('laura'))!.items
+
+      expect(result.map((m) => m.tmdbId)).toEqual([900])
+    })
+
+    it('falls back to the TMDB vote average when IMDb has no rating', async () => {
+      vi.mocked(getActorFilmography).mockResolvedValue([
+        { ...movie(900), voteAverage: 7.8, voteCount: 500 },
+        { ...movie(901), voteAverage: 9.5, voteCount: 3 },
+      ])
+      scoresById({})
+
+      const result = (await getRecommendationsFor('laura'))!.items
+
+      expect(result.map((m) => m.tmdbId)).toEqual([900])
+      expect(result[0].popcornmeter).toBe(78)
+    })
+
+    it('drops films with no score at all, even if a lookup fails', async () => {
+      vi.mocked(getActorFilmography).mockResolvedValue([movie(900), movie(901)])
+      vi.mocked(getRottenTomatoesScores).mockImplementation(async (tmdbId: number) => {
+        if (tmdbId === 900) throw new Error('OMDb down')
+        return { critic: 80, audience: 80 }
+      })
+
+      const result = (await getRecommendationsFor('laura'))!.items
+
+      expect(result.map((m) => m.tmdbId)).toEqual([901])
+    })
+
+    it('backfills from lower-ranked candidates when top ones fail the floor', async () => {
+      const films = Array.from({ length: 20 }, (_, i) => movie(1000 + i, 100 - i))
+      vi.mocked(getActorFilmography).mockResolvedValue(films)
+      const scores: Record<number, { critic: number; audience: number }> = {}
+      films.forEach((f, i) => { scores[f.tmdbId] = i < 5 ? { critic: 30, audience: 40 } : { critic: 80, audience: 80 } })
+      scoresById(scores)
+
+      const result = (await getRecommendationsFor('laura'))!.items
+
+      expect(result).toHaveLength(12)
+      expect(result[0].tmdbId).toBe(1005)
+    })
   })
 })

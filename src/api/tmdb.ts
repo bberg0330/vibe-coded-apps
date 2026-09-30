@@ -12,6 +12,8 @@ type TmdbMovie = {
   poster_path: string | null
   popularity: number
   overview?: string
+  vote_average?: number
+  vote_count?: number
 }
 
 type TmdbCast = {
@@ -40,6 +42,8 @@ export function toMovie(raw: TmdbMovie): Movie {
     popcornmeter: null,
     availability: { streaming: [], rent: [] },
     overview: raw.overview?.trim() || null,
+    voteAverage: raw.vote_average ?? 0,
+    voteCount: raw.vote_count ?? 0,
   }
 }
 

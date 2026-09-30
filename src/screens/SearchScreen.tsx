@@ -128,8 +128,8 @@ export function SearchScreen({
         ? { ...prev, tomatometer: scores.critic ?? prev.tomatometer, popcornmeter: scores.audience ?? prev.popcornmeter }
         : prev)
     }).catch(() => {
-      // Same supplementary-enrichment contract as the recommendations
-      // scores below: a TMDB/OMDb hiccup leaves the card's score as-is.
+      // Supplementary enrichment: a TMDB/OMDb hiccup leaves the card's
+      // score as-is.
     })
 
     getWatchProviders(sourceMovie.tmdbId).then((availability) => {
@@ -144,21 +144,8 @@ export function SearchScreen({
       const found = result?.items ?? []
       setRecommendations(found)
       setRecommendationsFor(result?.source.title ?? null)
-
-      for (const movie of found) {
-        getRottenTomatoesScores(movie.tmdbId, movie.title, movie.year).then((scores) => {
-          if (cancelled) return
-          setRecommendations((prev) =>
-            prev.map((m) => m.tmdbId === movie.tmdbId
-              ? { ...m, tomatometer: scores.critic ?? m.tomatometer, popcornmeter: scores.audience ?? m.popcornmeter }
-              : m),
-          )
-        }).catch(() => {
-          // Supplementary per-card score enrichment for the recommendations
-          // carousel — a TMDB/OMDb hiccup here should just leave that card's
-          // scores as-is, not surface an error or an unhandled rejection.
-        })
-      }
+      // Scores arrive already resolved: the engine needs them to apply its
+      // quality floor, so there's no per-card enrichment here.
     }).catch(() => {
       // Recommendations are a supplementary homepage feature, not the
       // primary search task (unlike the main search effect above, which
