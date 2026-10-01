@@ -29,9 +29,6 @@ export type EngineOptions = {
 /** How many top-billed cast members to pull filmographies for. */
 const CAST_SAMPLE_SIZE = 5
 
-/** Weight per shared cast member; large enough that overlap beats popularity. */
-const SHARED_CAST_WEIGHT = 10
-
 /** Most top-ranked candidates that ever get scores fetched before the quality floor is applied. */
 const SCORED_POOL_SIZE = 36
 
@@ -52,8 +49,9 @@ const MIN_TMDB_VOTES = 50
 /**
  * Films sharing top-billed cast with the source film, best first.
  *
- * Ranked by how many of those cast members a film shares, then by how
- * prominently the best of them is billed, then by popularity. Films with no
+ * Films sharing more of those cast members come first. After them, each
+ * actor's own films are taken in turns (billing order, most popular first),
+ * so the row covers the cast rather than just the lead. Films with no
  * release year or a year still to come are dropped, as they can't be watched
  * tonight.
  *
@@ -92,14 +90,27 @@ export async function buildRecommendations(
     }
   })
 
-  const rank = (m: RecommendationWithAttribution) =>
-    m.viaActors.length * SHARED_CAST_WEIGHT
-    + (CAST_SAMPLE_SIZE - topCast.indexOf(m.viaActors[0]))
-    + Math.log10(m.popularity + 1)
+  // Films sharing several of the source film's cast come first, most shared
+  // (then best billed, then most popular) first.
+  const shared = [...candidates.values()]
+    .filter((m) => m.viaActors.length > 1)
+    .sort((a, b) =>
+      b.viaActors.length - a.viaActors.length
+      || topCast.indexOf(a.viaActors[0]) - topCast.indexOf(b.viaActors[0])
+      || b.popularity - a.popularity)
 
-  const pool = [...candidates.values()]
-    .sort((a, b) => rank(b) - rank(a))
-    .slice(0, SCORED_POOL_SIZE)
+  // Then each actor's own films, taken in turns in billing order, each
+  // actor's most popular first. Ranking every film on one scale let the lead
+  // (best billed, usually the longest filmography) fill the whole row.
+  const byActor = topCast.map((actor) => [...candidates.values()]
+    .filter((m) => m.viaActors.length === 1 && m.viaActors[0].tmdbId === actor.tmdbId)
+    .sort((a, b) => b.popularity - a.popularity))
+  const interleaved: RecommendationWithAttribution[] = []
+  for (let round = 0; byActor.some((films) => round < films.length); round++) {
+    for (const films of byActor) if (round < films.length) interleaved.push(films[round])
+  }
+
+  const pool = [...shared, ...interleaved].slice(0, SCORED_POOL_SIZE)
 
   const items: RecommendationWithAttribution[] = []
   for (let i = 0; i < pool.length && items.length < limit; i += SCORE_BATCH_SIZE) {
