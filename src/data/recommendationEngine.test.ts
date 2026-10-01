@@ -98,6 +98,27 @@ describe('buildRecommendations — candidates and ranking', () => {
     expect((await build()).map((m) => m.tmdbId)).toEqual([700, 701])
   })
 
+  it('takes turns between actors instead of letting the lead fill the row', async () => {
+    deps.getCredits.mockResolvedValue([castMember(1, 0), castMember(2, 1), castMember(3, 2)])
+    deps.getFilmography.mockImplementation(async (personId: number) => {
+      if (personId === 1) return Array.from({ length: 10 }, (_, i) => movie(1100 + i, 500 - i))
+      if (personId === 2) return [movie(1200, 20), movie(1201, 10)]
+      return [movie(1300, 5)]
+    })
+
+    const result = await build(6)
+
+    expect(result.map((m) => m.tmdbId)).toEqual([1100, 1200, 1300, 1101, 1201, 1102])
+  })
+
+  it('still puts films with several of the cast ahead of the turn-taking', async () => {
+    deps.getCredits.mockResolvedValue([castMember(1, 0), castMember(2, 1)])
+    deps.getFilmography.mockImplementation(async (personId: number) =>
+      personId === 1 ? [movie(1400, 900), movie(1401, 1)] : [movie(1401, 1), movie(1402, 50)])
+
+    expect((await build()).map((m) => m.tmdbId)).toEqual([1401, 1400, 1402])
+  })
+
   it('drops films with no release year or a future one', async () => {
     deps.getFilmography.mockResolvedValue([
       { ...movie(800), year: null }, { ...movie(801), year: 2027 }, { ...movie(802), year: 2026 },
