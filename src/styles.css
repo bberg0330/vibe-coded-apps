@@ -118,6 +118,8 @@ body {
   font-size: 12px; padding: 2px 6px; border-radius: 999px;
   background: var(--badge-bg); color: var(--muted);
 }
+/* Fixed-artwork square; sized by the width/height attributes. */
+.app-icon { display: block; flex: none; }
 .pill {
   font-size: 12px; padding: 2px 6px; border-radius: 999px; white-space: nowrap;
   background: var(--accent); color: #0f1115; font-weight: 600;
