@@ -1,6 +1,6 @@
 // url=https://www.figma.com/design/ajsVg5LjRT7Y5D346WMif3/Movie-Night-UX-UI-Baseline?node-id=11-15
 // component=SearchInput
-// source=https://github.com/frames-by-brian/vibe-coded-apps/blob/main/src/components/SearchInput.tsx
+// source=https://github.com/bberg0330/vibe-coded-apps/blob/main/src/components/SearchInput.tsx
 
 import figma from 'figma'
 
