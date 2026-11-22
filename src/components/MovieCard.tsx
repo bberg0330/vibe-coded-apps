@@ -4,6 +4,7 @@ import { Badge } from './Badge'
 import { IconButton } from './IconButton'
 import { Pill } from './Pill'
 import { Poster } from './Poster'
+import { WatchlistButton } from './WatchlistButton'
 import type { Movie } from '../types'
 
 type Props = {
@@ -30,11 +31,18 @@ type Props = {
   watchingLabel?: string | null
   /** Optional tooltip explaining why this is recommended (e.g. actor name) */
   recommendationTooltip?: string | null
+  /** Omit to hide the watchlist toggle entirely. */
+  onToggleWatchlist?: (movie: Movie) => void
+  /** Whether this film is on the household watchlist. */
+  onWatchlist?: boolean
+  /** True while a watchlist save for this film is in flight. */
+  watchlistPending?: boolean
 }
 
 export function MovieCard({
   movie, onOpen, onToggleWatched, watched, noOpen, pending = false,
   watchingLabel = null, recommendationTooltip = null,
+  onToggleWatchlist, onWatchlist = false, watchlistPending = false,
 }: Props) {
   const poster = posterUrl(movie.posterPath)
   const badges = [
@@ -90,6 +98,17 @@ export function MovieCard({
             onToggleWatched(movie)
           }}
         />
+        {onToggleWatchlist && (
+          <WatchlistButton
+            title={movie.title}
+            saved={onWatchlist}
+            disabled={watchlistPending}
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleWatchlist(movie)
+            }}
+          />
+        )}
       </div>
     </div>
   )

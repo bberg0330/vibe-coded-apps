@@ -24,6 +24,10 @@ const watchingLabel = figma.selectedInstance.getEnum('State', {
   'Watching tonight': 'Watching tonight',
 })
 
+// The nested watchlist-btn (WatchlistButton) is an exposed instance whose
+// Default/Saved state lives on the child, not on MovieCard's own props, so
+// `onWatchlist` is shown wired to the caller's value rather than mapped.
+
 // Built by hand rather than with renderProp, which prepends a space and so puts
 // the prop on the same line as `pending`, breaking the one-prop-per-line snippet.
 const watchingLabelProp = watchingLabel ? `\n  watchingLabel="${watchingLabel}"` : ''
@@ -37,6 +41,8 @@ export default {
   pending={${pending}}${watchingLabelProp}
   onOpen={onOpenMovie}
   onToggleWatched={onToggleWatched}
+  onToggleWatchlist={onToggleWatchlist}
+  onWatchlist={onWatchlist}
 />`,
   metadata: { nestable: true },
 }

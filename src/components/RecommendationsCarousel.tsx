@@ -7,6 +7,9 @@ type Props = {
   movies: RecommendationWithAttribution[]
   title: string
   onOpen?: (movie: Movie) => void
+  onToggleWatchlist?: (movie: Movie) => void
+  isOnWatchlist?: (tmdbId: number) => boolean
+  isWatchlistPending?: (tmdbId: number) => boolean
 }
 
 /**
@@ -15,7 +18,7 @@ type Props = {
  * not have, and squeezing it truncated nearly every title.
  */
 export function RecommendationsCarousel({
-  movies, title, onOpen,
+  movies, title, onOpen, onToggleWatchlist, isOnWatchlist, isWatchlistPending,
 }: Props) {
   if (movies.length === 0) return null
 
@@ -30,6 +33,9 @@ export function RecommendationsCarousel({
                 movie={movie}
                 onOpen={onOpen}
                 reason={reasonFor(movie.viaActors)}
+                onToggleWatchlist={onToggleWatchlist}
+                onWatchlist={isOnWatchlist?.(movie.tmdbId) ?? false}
+                watchlistPending={isWatchlistPending?.(movie.tmdbId) ?? false}
               />
             </div>
           )

@@ -9,13 +9,17 @@ import { RecommendationsCarousel } from '../components/RecommendationsCarousel'
 import { ErrorRetry } from '../components/ErrorRetry'
 import { SectionHeading } from '../components/SectionHeading'
 import { SearchInput } from '../components/SearchInput'
+import { WatchlistRow } from '../components/WatchlistRow'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { SEARCH_ROUTE_KEY } from '../router'
 import { getRecommendationsFor, pickSourceMovie, type RecommendationWithAttribution } from '../data/recommendations'
 import type { ProfileId } from '../data/profiles'
-import type { Movie, WatchEntry, Availability } from '../types'
+import type { Movie, WatchEntry, WatchlistEntry, Availability } from '../types'
 
 const QUERY_STORAGE_KEY = 'mn.searchQuery'
+
+/** How many watchlist films the homescreen previews under "Up next". */
+export const UP_NEXT_COUNT = 2
 
 type Props = {
   onOpenMovie: (m: Movie) => void
@@ -24,12 +28,24 @@ type Props = {
   isPending?: (tmdbId: number) => boolean
   watchingLabelFor?: (tmdbId: number) => string | null
   activeProfileId?: ProfileId | null
+  /** The shared watchlist, most recently added first. Omit to hide Up next and every toggle. */
+  watchlist?: WatchlistEntry[]
+  profileName?: (profileId: string) => string
+  onOpenWatchlist?: () => void
+  onToggleWatchlist?: (movie: Movie) => void
+  onRemoveFromWatchlist?: (entry: WatchlistEntry) => void
+  onMarkWatchlistWatched?: (entry: WatchlistEntry) => void
+  isWatchlistPending?: (tmdbId: number) => boolean
 }
 
 export function SearchScreen({
   onOpenMovie, onToggleWatched, watchCountFor, isPending,
   watchingLabelFor, activeProfileId = null,
+  watchlist, profileName = (id) => id, onOpenWatchlist, onToggleWatchlist,
+  onRemoveFromWatchlist, onMarkWatchlistWatched, isWatchlistPending,
 }: Props) {
+  const onWatchlist = (tmdbId: number) => watchlist?.some((e) => e.movie.tmdbId === tmdbId) ?? false
+
   const [query, setQuery] = useState(() => sessionStorage.getItem(QUERY_STORAGE_KEY) ?? '')
   const [results, setResults] = useState<Movie[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>('idle')
@@ -183,6 +199,30 @@ export function SearchScreen({
         </section>
       )}
 
+      {query === '' && watchlist && watchlist.length > 0 && onMarkWatchlistWatched && onRemoveFromWatchlist && (
+        <section className="up-next" aria-label="Up next">
+          <div className="section-heading-row">
+            <SectionHeading>Up next</SectionHeading>
+            {onOpenWatchlist && (
+              <button className="link" onClick={onOpenWatchlist}>See all {watchlist.length}</button>
+            )}
+          </div>
+          {watchlist.slice(0, UP_NEXT_COUNT).map((entry) => (
+            <WatchlistRow
+              key={entry.movie.tmdbId}
+              entry={entry}
+              addedByName={profileName(entry.profileId)}
+              onOpenMovie={(movie) => onOpenMovie({
+                ...movie, popularity: 0, overview: null, availability: { streaming: [], rent: [] },
+              })}
+              onMarkWatched={onMarkWatchlistWatched}
+              onRemove={onRemoveFromWatchlist}
+              pending={(isPending?.(entry.movie.tmdbId) ?? false) || (isWatchlistPending?.(entry.movie.tmdbId) ?? false)}
+            />
+          ))}
+        </section>
+      )}
+
       {query === '' && recommendationsFor && (
         <RecommendationsCarousel
           // Filtered at render so a film marked watched (from its details
@@ -190,6 +230,9 @@ export function SearchScreen({
           movies={recommendations.filter((m) => watchCountFor(m.tmdbId) === 0)}
           title={`Because you watched ${recommendationsFor}`}
           onOpen={onOpenMovie}
+          onToggleWatchlist={onToggleWatchlist}
+          isOnWatchlist={onWatchlist}
+          isWatchlistPending={isWatchlistPending}
         />
       )}
 
@@ -215,6 +258,9 @@ export function SearchScreen({
           onOpen={onOpenMovie}
           onToggleWatched={onToggleWatched}
           watchingLabel={watchingLabelFor?.(movie.tmdbId) ?? null}
+          onToggleWatchlist={onToggleWatchlist}
+          onWatchlist={onWatchlist(movie.tmdbId)}
+          watchlistPending={isWatchlistPending?.(movie.tmdbId) ?? false}
         />
       ))}
     </div>

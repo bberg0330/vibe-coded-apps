@@ -15,9 +15,11 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 function applyOp(store: Store, op: StoreOp): Store {
   switch (op.type) {
     case 'logWatch': {
+      // Watching a film also takes it off the watchlist, in the same write.
       return {
         ...store,
         history: [...store.history, op.entry],
+        watchlist: store.watchlist.filter((e) => e.movie.tmdbId !== op.entry.movie.tmdbId),
       };
     }
     case 'undoLastWatch': {
@@ -63,6 +65,17 @@ function applyOp(store: Store, op: StoreOp): Store {
         ),
       };
     }
+    case 'addToWatchlist': {
+      // Idempotent: keep the first entry (and its "added by") on a repeat add.
+      if (store.watchlist.some((e) => e.movie.tmdbId === op.entry.movie.tmdbId)) return store;
+      return { ...store, watchlist: [...store.watchlist, op.entry] };
+    }
+    case 'removeFromWatchlist': {
+      return {
+        ...store,
+        watchlist: store.watchlist.filter((e) => e.movie.tmdbId !== op.tmdbId),
+      };
+    }
   }
 }
 
@@ -80,7 +93,7 @@ export default async function handler(
     if (req.method === 'GET') {
       const { data: rows, error } = await supabase
         .from('movie_night_store')
-        .select('version, history, enabled_services, now_watching')
+        .select('version, history, enabled_services, now_watching, watchlist')
         .order('id', { ascending: true })
         .limit(1);
 
@@ -93,6 +106,7 @@ export default async function handler(
         history: data.history || [],
         enabledServices: data.enabled_services || [],
         nowWatching: data.now_watching || [],
+        watchlist: data.watchlist || [],
       };
 
       return res.status(200).json(store);
@@ -103,7 +117,7 @@ export default async function handler(
 
       const { data: current, error: fetchError } = await supabase
         .from('movie_night_store')
-        .select('id, version, history, enabled_services, now_watching')
+        .select('id, version, history, enabled_services, now_watching, watchlist')
         .order('id', { ascending: true })
         .limit(1)
         .single();
@@ -116,6 +130,7 @@ export default async function handler(
         history: current.history || [],
         enabledServices: current.enabled_services || [],
         nowWatching: current.now_watching || [],
+        watchlist: current.watchlist || [],
       };
 
       const nextStore = applyOp(currentStore, op);
@@ -126,9 +141,10 @@ export default async function handler(
           history: nextStore.history,
           enabled_services: nextStore.enabledServices,
           now_watching: nextStore.nowWatching,
+          watchlist: nextStore.watchlist,
         })
         .eq('id', current.id)
-        .select('version, history, enabled_services, now_watching')
+        .select('version, history, enabled_services, now_watching, watchlist')
         .single();
 
       if (updateError) throw updateError;
@@ -138,6 +154,7 @@ export default async function handler(
         history: updated!.history || [],
         enabledServices: updated!.enabled_services || [],
         nowWatching: updated!.now_watching || [],
+        watchlist: updated!.watchlist || [],
       };
 
       return res.status(200).json(resultStore);

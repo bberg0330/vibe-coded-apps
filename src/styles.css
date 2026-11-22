@@ -178,6 +178,18 @@ body {
 .topbar { display: flex; justify-content: space-between; margin-bottom: 8px; }
 .link { background: none; border: 0; color: var(--accent-text); font: inherit; cursor: pointer; padding: 8px; }
 .profile-switcher { display: flex; gap: 6px; align-items: center; }
+/*
+ * ⚙ / History / Watchlist. Figma spaces the three 8px apart with no padding;
+ * 4px either side keeps that 8px between the texts while leaving a 38px-tall
+ * tap target, and nowrap stops "Watchlist" dropping to a second line beside
+ * "← Back" and both chips.
+ */
+.topbar-actions { display: flex; }
+.topbar .link { white-space: nowrap; }
+/* Figma sets "← Back" flush left and the last link flush right — no outer padding. */
+.topbar > .link:first-child { padding-left: 0; }
+.topbar-actions .link:last-child { padding-right: 0; }
+.topbar-actions .link { padding: 8px 4px; }
 .chip {
   background: var(--surface); color: var(--muted); border: 0; border-radius: 999px;
   font: inherit; font-size: 13px; cursor: pointer; padding: 6px 12px;
@@ -402,3 +414,25 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   cursor: pointer;
 }
 .history-menu button:disabled { opacity: .5; cursor: default; }
+
+/*
+ * Watchlist toggle. Shares .icon-btn's 52x52 shape and --control-bg; the
+ * bookmark is an SVG drawn in currentColor, so these only set the colour.
+ */
+.watchlist-btn svg { display: block; }
+.watchlist-btn.saved { color: var(--accent-text); }
+/*
+ * The 36x36 form pinned to a recommendation tile's poster: top-right, inset
+ * 6px from the poster (the card's 8px padding + 6).
+ */
+.rec-card { position: relative; }
+.watchlist-btn.compact {
+  position: absolute; top: 14px; right: 14px;
+  width: 36px; height: 36px; opacity: .92;
+}
+.added-by { font-size: 14px; }
+
+/* SectionHeading with a trailing link ("Up next … See all 6"). */
+.section-heading-row { display: flex; justify-content: space-between; align-items: center; }
+.section-heading-row h2 { margin-bottom: 8px; }
+.section-heading-row .link { margin-top: 12px; }

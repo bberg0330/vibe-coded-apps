@@ -99,6 +99,7 @@ describe('getNowWatching', () => {
       version: 2,
       history: [],
       enabledServices: [],
+      watchlist: [],
       nowWatching: [
         watchingEntry('laura', 1, 'Fresh', '2026-08-08T15:00:00.000Z'), // 5h ago
         watchingEntry('brian', 2, 'Stale', '2026-08-08T00:00:00.000Z'), // 20h ago
@@ -114,6 +115,7 @@ describe('getNowWatching', () => {
       version: 2,
       history: [],
       enabledServices: [],
+      watchlist: [],
       nowWatching: [watchingEntry('laura', 1, 'Old', '2026-08-01T00:00:00.000Z')],
     })
 
@@ -127,6 +129,7 @@ describe('getRecentlyWatchedBy', () => {
       version: 2,
       history: [],
       enabledServices: [],
+      watchlist: [],
       nowWatching: [
         watchingEntry('laura', 1, 'Older watched', '2026-08-07T00:00:00.000Z'),
         watchingEntry('laura', 2, 'Newer watched', '2026-08-07T12:00:00.000Z'),
@@ -142,6 +145,7 @@ describe('getRecentlyWatchedBy', () => {
       version: 2,
       history: [],
       enabledServices: [],
+      watchlist: [],
       nowWatching: [watchingEntry('laura', 1, 'Still watching', '2026-08-08T15:00:00.000Z')],
     })
 
@@ -153,6 +157,7 @@ describe('getRecentlyWatchedBy', () => {
       version: 2,
       history: [],
       enabledServices: [],
+      watchlist: [],
       nowWatching: [watchingEntry('brian', 1, 'Not laura', '2026-08-01T00:00:00.000Z')],
     })
 
@@ -170,6 +175,7 @@ describe('getAllWatchingTonight', () => {
       version: 2,
       history: [],
       enabledServices: [],
+      watchlist: [],
       nowWatching: [
         watchingEntry('laura', 1, 'Still watching', '2026-08-08T15:00:00.000Z'), // 5h ago
         watchingEntry('brian', 2, 'Long since watched', '2026-08-01T00:00:00.000Z'), // days ago
@@ -186,6 +192,7 @@ describe('getAllWatchingTonight', () => {
       version: 2,
       history: [],
       enabledServices: [],
+      watchlist: [],
       nowWatching: [
         watchingEntry('laura', 1, 'Older', '2026-08-07T00:00:00.000Z'),
         watchingEntry('brian', 2, 'Newer', '2026-08-08T12:00:00.000Z'),

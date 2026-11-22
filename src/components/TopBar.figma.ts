@@ -20,6 +20,7 @@ export default {
   onSelectProfile={selectProfile}
   onSettings={() => setSettingsOpen(true)}
   onHistory={() => navigate({ kind: 'history' })}
+  onWatchlist={() => navigate({ kind: 'watchlist' })}
 />`,
   metadata: { nestable: true },
 }

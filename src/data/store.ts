@@ -29,6 +29,9 @@ export function getStoreSnapshot(): Store {
     // won't have this field at all. Default to [] rather than letting
     // `[...undefined]` throw.
     nowWatching: [...(snapshot.nowWatching ?? [])],
+    // Same tolerance as nowWatching: a row from before the `watchlist`
+    // column migration has no such field.
+    watchlist: [...(snapshot.watchlist ?? [])],
   }
 }
 
@@ -58,7 +61,8 @@ function isStoreShape(value: unknown): value is Store {
   return (
     Array.isArray(candidate.history) &&
     Array.isArray(candidate.enabledServices) &&
-    (candidate.nowWatching === undefined || Array.isArray(candidate.nowWatching))
+    (candidate.nowWatching === undefined || Array.isArray(candidate.nowWatching)) &&
+    (candidate.watchlist === undefined || Array.isArray(candidate.watchlist))
   )
 }
 

@@ -19,6 +19,8 @@ export default {
   example: figma.code`<RecommendationCard
   movie={movie}
   onOpen={onOpen}${reasonProp}
+  onToggleWatchlist={onToggleWatchlist}
+  onWatchlist={isOnWatchlist(movie.tmdbId)}
 />`,
   metadata: { nestable: true },
 }
