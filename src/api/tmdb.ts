@@ -119,6 +119,15 @@ export async function getMovieDetails(movieId: number): Promise<Movie> {
   return toMovie(raw)
 }
 
+/**
+ * A film's genre names ("Drama", "Comedy"). Same URL as getMovieDetails, so
+ * the session cache in http.ts serves both from one request.
+ */
+export async function getMovieGenres(movieId: number): Promise<string[]> {
+  const raw = await tmdbGet<{ genres?: { id: number; name: string }[] }>(`/movie/${movieId}`, {})
+  return (raw.genres ?? []).map((g) => g.name)
+}
+
 type TmdbWatchProviders = {
   results?: Record<string, {
     flatrate?: { provider_id: number }[]

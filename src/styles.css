@@ -436,3 +436,23 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 .section-heading-row { display: flex; justify-content: space-between; align-items: center; }
 .section-heading-row h2 { margin-bottom: 8px; }
 .section-heading-row .link { margin-top: 12px; }
+
+/* Watchlist sort & filter controls (Figma: WatchlistControls). */
+.watchlist-controls { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.watchlist-controls-row { display: flex; justify-content: space-between; align-items: center; }
+.chip-group { display: flex; gap: 6px; }
+/* Keeps the 38px tap area but takes no more height than the 30px chips beside it (Figma row is 31). */
+.watchlist-controls .sort-link { white-space: nowrap; padding-right: 0; margin: -4px 0; }
+/* Sideways scroll rather than wrapping once a genre name makes it too wide. */
+.watchlist-filters { display: flex; gap: 6px; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+.watchlist-filters .chip { flex: none; }
+.watchlist-count { margin: 0; color: var(--muted); font-size: 14px; }
+.link.inline { padding: 0; font-size: inherit; }
+
+/* One single-select row in a picker sheet (Figma: SheetOption). */
+.sheet-option {
+  display: flex; justify-content: space-between; align-items: center; width: 100%;
+  min-height: 43px; padding: 10px 0; background: none; border: 0;
+  color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.sheet-option.selected { color: var(--accent-text); }

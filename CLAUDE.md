@@ -12,6 +12,8 @@ Figma file: `ajsVg5LjRT7Y5D346WMif3` (Movie Night — UX/UI Baseline). Component
 
 Review designs before changing UI code. Unless the user has provided Figma designs for the change, draft the proposed UI in Figma first (on a new "Proposal — …" page, leaving existing components untouched), share the link, and wait for approval before writing or merging code. Behaviour-only changes with no visual difference don't need this. If UI code was already written without a design, set the PR to draft and design it in Figma before it goes further.
 
+Once a proposal is approved, move it into the evergreen pages (02 Components, 03 Screens, 04 Flows), then delete the "Proposal — …" page. Before deleting, check that no instance on those pages still uses a component that lives on the proposal page.
+
 Figma changes never update the React code automatically. When the user shares Figma links (with a `node-id`) or says a component was updated in Figma, review and compare without being asked:
 
 1. For each node, call `get_design_context` (with `disableCodeConnect: true` so the full design comes back, not just the Code Connect snippet) and read the component description too.

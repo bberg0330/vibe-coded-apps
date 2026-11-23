@@ -484,6 +484,7 @@ export default function App() {
       {current.kind === 'watchlist' && (
         <WatchlistScreen
           entries={visibleWatchlist}
+          profiles={PROFILES}
           profileName={profileName}
           onOpenMovie={(movie) => navigate({ kind: 'cast', movie: asMovie(movie) })}
           onMarkWatched={markWatchlistWatched}
