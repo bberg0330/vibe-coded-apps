@@ -8,19 +8,15 @@
 //
 // Lives under api/_lib so Vercel doesn't deploy it as a function of its own.
 import { toMovie, toCast, type TmdbMovie, type TmdbCast } from '../../src/api/tmdbMap.js'
-import { scoresFromOmdb, type OmdbResponse } from '../../src/api/omdbParse.js'
 import { buildRecommendations, type ScoreLookup } from '../../src/data/recommendationEngine.js'
-import type { ScoreData } from '../../src/data/scores'
+import { tmdbFetch, UpstreamError } from './upstream.js'
+import { resolveScores, type ScoreCache } from './ratings.js'
+
+export type { ScoreCache } from './ratings.js'
 
 export type LookupKeys = {
   tmdbToken?: string
   omdbKey?: string
-}
-
-/** Optional persistent score cache (Supabase on Vercel); lookups work without it. */
-export type ScoreCache = {
-  get(tmdbIds: number[]): Promise<Map<number, ScoreData>>
-  put(entries: Map<number, ScoreData>): Promise<void>
 }
 
 export type LookupResult = {
@@ -46,7 +42,6 @@ const TMDB_PATHS = [
   /^\/person\/\d+\/movie_credits$/,
 ]
 
-const TMDB_BASE = 'https://api.themoviedb.org/3'
 
 export function isAllowedTmdbPath(path: string): boolean {
   return TMDB_PATHS.some((re) => re.test(path))
@@ -58,21 +53,6 @@ function one(value: string | string[] | undefined): string | undefined {
 
 const missingKey = (which: 'TMDB' | 'OMDb'): LookupResult =>
   ({ status: 503, body: { error: 'missing_key', which } })
-
-async function tmdbFetch<T>(token: string, path: string, params: Record<string, string>): Promise<T> {
-  const qs = new URLSearchParams({ language: 'en-US', ...params })
-  const res = await fetch(`${TMDB_BASE}${path}?${qs}`, {
-    headers: { Authorization: `Bearer ${token}`, accept: 'application/json' },
-  })
-  if (!res.ok) throw new UpstreamError(res.status)
-  return (await res.json()) as T
-}
-
-class UpstreamError extends Error {
-  constructor(public status: number) {
-    super(`Upstream request failed with ${status}`)
-  }
-}
 
 /** `GET /api/tmdb/<tmdb path>?...params` → TMDB's JSON, unchanged. */
 export async function handleTmdb(path: string, query: Query, keys: LookupKeys): Promise<LookupResult> {
@@ -92,30 +72,30 @@ export async function handleTmdb(path: string, query: Query, keys: LookupKeys): 
   }
 }
 
-async function omdbScores(key: string, title: string, year: number | null): Promise<ScoreData> {
-  // Title only: OMDb's `y` matches IMDb's year, which drifts from TMDB's.
-  const res = await fetch(`https://www.omdbapi.com/?${new URLSearchParams({ apikey: key, t: title })}`)
-  if (!res.ok) throw new UpstreamError(res.status)
-  return scoresFromOmdb((await res.json()) as OmdbResponse, year)
-}
+/** Most films one `/api/omdb` batch may ask for. */
+export const MAX_SCORE_BATCH = 25
 
-function parseYear(value: string | undefined): number | null {
-  const n = Number(value)
-  return value && Number.isInteger(n) && n > 0 ? n : null
-}
-
-/** `GET /api/omdb?t=Title&year=2009` → `{ critic, audience }`. */
-export async function handleOmdb(query: Query, keys: LookupKeys): Promise<LookupResult> {
-  const title = one(query.t)?.trim()
-  if (!title) return { status: 400, body: { error: 'missing_title' } }
+/**
+ * `GET /api/omdb?ids=1585,949` → `{ "1585": { critic, audience }, ... }`.
+ *
+ * Batched and cache-first: films already in the shared score cache cost no
+ * OMDb request. A film missing from the answer could not be looked up right
+ * now (OMDb quota or outage) — the client treats that as "unknown", never as
+ * "no rating", and the nightly sync fills it in.
+ */
+export async function handleOmdb(query: Query, keys: LookupKeys, scoreCache?: ScoreCache): Promise<LookupResult> {
+  const ids = [...new Set((one(query.ids) ?? '').split(',').map(Number))]
+    .filter((n) => Number.isInteger(n) && n > 0)
+  if (ids.length === 0) return { status: 400, body: { error: 'missing_ids' } }
+  if (ids.length > MAX_SCORE_BATCH) return { status: 400, body: { error: 'too_many_ids' } }
   if (!keys.omdbKey) return missingKey('OMDb')
 
-  try {
-    const scores = await omdbScores(keys.omdbKey, title, parseYear(one(query.year)))
-    return { status: 200, body: scores, cacheControl: SHARED_CACHE }
-  } catch (err) {
-    return { status: err instanceof UpstreamError ? err.status : 502, body: { error: 'omdb_failed' } }
-  }
+  const { scores, pending } = await resolveScores(ids.map((tmdbId) => ({ tmdbId })), keys, scoreCache)
+  const body: Record<string, unknown> = {}
+  for (const [id, s] of scores) body[String(id)] = s
+  // Only a complete answer may sit at the CDN; a partial one would hide the
+  // missing films behind a day-long cache.
+  return { status: 200, body, cacheControl: pending.length === 0 ? SHARED_CACHE : undefined }
 }
 
 /** How many floor-passing films the shared list carries, so household exclusions still leave a full row. */
@@ -139,18 +119,8 @@ export async function handleRecommendations(
   if (!keys.tmdbToken) return missingKey('TMDB')
 
   const token = keys.tmdbToken
-  const getScores: ScoreLookup = async (movies) => {
-    const cached = scoreCache ? await scoreCache.get(movies.map((m) => m.tmdbId)).catch(() => new Map()) : new Map()
-    const fresh = new Map<number, ScoreData>()
-    await Promise.all(movies.map(async (m) => {
-      if (cached.has(m.tmdbId) || !keys.omdbKey) return
-      // A failed lookup is "no OMDb scores" for this film, not a failed list.
-      const scores = await omdbScores(keys.omdbKey, m.title, m.year).catch(() => null)
-      if (scores) fresh.set(m.tmdbId, scores)
-    }))
-    if (scoreCache && fresh.size > 0) await scoreCache.put(fresh).catch(() => undefined)
-    return new Map([...cached, ...fresh])
-  }
+  const getScores: ScoreLookup = async (movies) =>
+    (await resolveScores(movies, keys, scoreCache)).scores
 
   try {
     const items = await buildRecommendations(source, {

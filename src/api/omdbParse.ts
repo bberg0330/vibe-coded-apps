@@ -4,11 +4,35 @@ import type { ScoreData } from '../data/scores'
 
 export type OmdbResponse = {
   Response: 'True' | 'False'
+  /** Only on `Response: 'False'`: why OMDb had no answer. */
+  Error?: string
   Title?: string
   Year?: string
   Ratings?: { Source: string; Value: string }[]
   /** IMDb's own user rating, 0-10 (e.g. "7.7"), or "N/A" when absent. */
   imdbRating?: string
+}
+
+/**
+ * What a `Response: 'False'` actually means. OMDb answers HTTP 200 even when
+ * it refuses the request, so the `Error` text is the only signal:
+ *
+ * - `not_found`: a real answer — OMDb has no such film. Safe to cache.
+ * - `quota`: the daily limit is spent or the key is bad. Every further
+ *   request will fail the same way, so stop asking until tomorrow.
+ * - `transient`: anything else. Not an answer; retry later.
+ *
+ * Caching `quota` as "no rating" is what left so many films permanently
+ * unrated: every film looked up after the limit ran out was stored as null.
+ */
+export type OmdbFailure = 'not_found' | 'quota' | 'transient'
+
+export function omdbFailure(data: OmdbResponse): OmdbFailure | null {
+  if (data.Response === 'True') return null
+  const error = (data.Error ?? '').toLowerCase()
+  if (error.includes('not found') || error.includes('incorrect imdb id')) return 'not_found'
+  if (error.includes('limit') || error.includes('api key')) return 'quota'
+  return 'transient'
 }
 
 /**

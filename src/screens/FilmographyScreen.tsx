@@ -68,7 +68,7 @@ export function FilmographyScreen({
       // Promise.all reject used to flip the whole screen to the error state.
       const score = (movies: Movie[]) =>
         Promise.all(movies.map(async (m) => {
-          const scores = await getRottenTomatoesScores(m.tmdbId, m.title, m.year).catch(() => null)
+          const scores = await getRottenTomatoesScores(m.tmdbId).catch(() => null)
           return {
             ...m,
             tomatometer: scores?.critic ?? null,

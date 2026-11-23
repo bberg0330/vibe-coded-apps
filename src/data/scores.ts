@@ -67,16 +67,9 @@ function widen(entry: StoredScore): ScoreData {
 }
 
 /**
- * Records scores in memory immediately, then writes through to the shared
- * cache. The write is fire-and-forget: a failure costs a re-fetch later.
+ * Records scores the server just looked up, so this session doesn't ask
+ * again. Memory only: the server already wrote them to the shared cache.
  */
-export function cacheScores(tmdbId: number, scores: ScoreData): void {
-  const key = String(tmdbId)
-  cache[key] = scores
-
-  void apiFetch(ENDPOINT, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ [key]: scores }),
-  }).catch(() => undefined)
+export function rememberScores(tmdbId: number, scores: ScoreData): void {
+  cache[String(tmdbId)] = scores
 }
