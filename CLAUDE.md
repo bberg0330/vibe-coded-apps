@@ -37,4 +37,10 @@ Visual props aren't the only thing that changes. A button, field, state or whole
 
 ## Environment variables
 
-Add Vercel environment variables directly via the connector (no need to ask first). Mark secrets as `sensitive`, never print their values, and note any new variable in `docs/RUNNING.md`.
+Manage Vercel environment variables directly via the connector, without asking first, and keep the set lean:
+
+- Add what a change needs, scoped to the environments that use it (e.g. production only for a cron/schedule-only setting).
+- Update values in place (upsert) instead of creating duplicates.
+- When a change stops using a variable, remove it in the same piece of work. The connector can't delete variables, so tell the user exactly which ones to delete (Settings → Environment Variables) rather than leaving them behind silently.
+- Mark secrets as `sensitive` and never print their values.
+- Keep `docs/RUNNING.md` in step with what the code reads.
