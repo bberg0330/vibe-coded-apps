@@ -1,11 +1,18 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     { "source": "/api/tmdb/:path*", "destination": "/api/tmdb?path=/:path*" }
   ],
-  "crons": [
-    { "path": "/api/cron/ratings-sync", "schedule": "17 9 * * *" }
-  ],
   "functions": {
-    "api/cron/ratings-sync.ts": { "maxDuration": 300 }
+    "api/cron/ratings-sync.ts": {
+      "maxDuration": 300,
+      "experimentalTriggers": [{ "type": "schedule/v1beta" }]
+    }
+  },
+  "schedules": {
+    "ratings-sync": {
+      "schedule": "17 9 * * *",
+      "function": "api/cron/ratings-sync"
+    }
   }
 }
