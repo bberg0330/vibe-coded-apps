@@ -54,7 +54,7 @@ async function omdbGet(key: string, params: Record<string, string>): Promise<Omd
   const res = await fetch(`https://www.omdbapi.com/?${new URLSearchParams({ apikey: key, ...params })}`)
   // OMDb answers 401 once the daily limit is spent on some plans.
   if (res.status === 401) throw new QuotaError()
-  if (!res.ok) throw new UpstreamError(res.status)
+  if (!res.ok) throw new Error(`OMDb HTTP ${res.status}`)
   return (await res.json()) as OmdbResponse
 }
 
@@ -64,6 +64,7 @@ async function lookUp(film: FilmRef, keys: RatingKeys & { omdbKey: string }): Pr
   let title = film.title
   let year = film.year ?? null
   let goneFromTmdb = false
+  let tmdbError = ''
   if (keys.tmdbToken) {
     try {
       const d = await tmdbFetch<TmdbDetails>(keys.tmdbToken, `/movie/${film.tmdbId}`, {})
@@ -74,6 +75,7 @@ async function lookUp(film: FilmRef, keys: RatingKeys & { omdbKey: string }): Pr
       // A 404 is a definitive answer: TMDB no longer has this film.
       // Anything else falls back to the title lookup below.
       goneFromTmdb = err instanceof UpstreamError && err.status === 404
+      tmdbError = err instanceof Error ? err.message : String(err)
     }
   }
 
@@ -89,12 +91,12 @@ async function lookUp(film: FilmRef, keys: RatingKeys & { omdbKey: string }): Pr
     // so it's rechecked on the slow cycle instead of retried every night.
     return { critic: null, audience: null, imdbId: null, year }
   } else {
-    throw new Error('nothing to look up by')
+    throw new Error(`nothing to look up by (TMDB: ${tmdbError || 'no title or IMDb id'})`)
   }
 
   const failure = omdbFailure(data)
   if (failure === 'quota') throw new QuotaError()
-  if (failure === 'transient') throw new Error('OMDb transient failure')
+  if (failure === 'transient') throw new Error(`OMDb: ${data.Error ?? 'unknown error'} (${imdbId ? `i=${imdbId}` : `t=${title}`})`)
   // An IMDb-id match is exact, so skip the year check that guards title matches.
   return { ...scoresFromOmdb(data, imdbId ? null : year), imdbId, year }
 }
@@ -136,6 +138,8 @@ export async function resolveScores(
         scores.set(film.tmdbId, { critic: record.critic, audience: record.audience })
       } catch (err) {
         if (err instanceof QuotaError) quotaHit = true
+        // Say why, so a film that keeps failing can be diagnosed from the logs.
+        else console.warn('rating lookup failed', film.tmdbId, err instanceof Error ? err.message : err)
         unanswered.push(film)
       }
     }
