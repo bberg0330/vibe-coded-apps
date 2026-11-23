@@ -34,3 +34,7 @@ Visual props aren't the only thing that changes. A button, field, state or whole
 - **Edited in Figma:** update the component and every place it's used; keep behaviour the same unless the design says otherwise.
 - Figma component descriptions can go stale after a feature change (e.g. still mentioning a removed button). Flag any mismatch between description and frames so the user can update the description.
 - In the PR description, add a "Feature changes" list of what was added, edited or removed, and what was deliberately left in place.
+
+## Environment variables
+
+Add Vercel environment variables directly via the connector (no need to ask first). Mark secrets as `sensitive`, never print their values, and note any new variable in `docs/RUNNING.md`.
