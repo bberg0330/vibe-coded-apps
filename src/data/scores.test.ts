@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { loadScores, getCachedScores, cacheScores, resetScoresForTests } from './scores'
+import { loadScores, getCachedScores, rememberScores, resetScoresForTests } from './scores'
 
 beforeEach(() => {
   resetScoresForTests()
@@ -32,36 +32,13 @@ describe('loadScores', () => {
   })
 })
 
-describe('cacheScores', () => {
-  it('is readable immediately, before the network write settles', () => {
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(() => {})))
-    cacheScores(1585, { critic: 90 })
-    expect(getCachedScores(1585)).toEqual({ critic: 90 })
-  })
-
-  it('posts the new scores to the shared cache', async () => {
-    const f = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}) })
+describe('rememberScores', () => {
+  it('is readable immediately and makes no network call', () => {
+    const f = vi.fn()
     vi.stubGlobal('fetch', f)
-
-    cacheScores(1585, { critic: 90 })
-    await vi.waitFor(() => expect(f).toHaveBeenCalled())
-
-    const [url, init] = f.mock.calls[0]
-    expect(url).toBe('/api/scores')
-    expect(JSON.parse(init.body)).toEqual({ '1585': { critic: 90 } })
-  })
-
-  it('keeps the scores in memory even if the write fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
-    cacheScores(1585, { critic: 90 })
-    await new Promise((r) => setTimeout(r, 0))
-    expect(getCachedScores(1585)).toEqual({ critic: 90 })
-  })
-
-  it('stores both critic and audience scores together', () => {
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => new Promise(() => {})))
-    cacheScores(1585, { critic: 90, audience: 77 })
+    rememberScores(1585, { critic: 90, audience: 77 })
     expect(getCachedScores(1585)).toEqual({ critic: 90, audience: 77 })
+    expect(f).not.toHaveBeenCalled()
   })
 })
 

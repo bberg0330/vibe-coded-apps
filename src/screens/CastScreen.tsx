@@ -38,7 +38,7 @@ export function CastScreen({
   useEffect(() => {
     let cancelled = false
     setDisplayMovie(movie)
-    getRottenTomatoesScores(movie.tmdbId, movie.title, movie.year).then((scores) => {
+    getRottenTomatoesScores(movie.tmdbId).then((scores) => {
       if (cancelled) return
       setDisplayMovie((m) => ({
         ...m,

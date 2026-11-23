@@ -86,7 +86,7 @@ export function SearchScreen({
         // results never showed an audience score — and why anything logged
         // from a search result was persisted without one.
         for (const movie of found) {
-          getRottenTomatoesScores(movie.tmdbId, movie.title, movie.year).then((scores) => {
+          getRottenTomatoesScores(movie.tmdbId).then((scores) => {
             if (cancelled) return
             setResults((prev) =>
               prev.map((m) => m.tmdbId === movie.tmdbId
@@ -138,7 +138,7 @@ export function SearchScreen({
 
     setLastWatched({ ...sourceMovie, availability: { streaming: [], rent: [] } })
 
-    getRottenTomatoesScores(sourceMovie.tmdbId, sourceMovie.title, sourceMovie.year).then((scores) => {
+    getRottenTomatoesScores(sourceMovie.tmdbId).then((scores) => {
       if (cancelled) return
       setLastWatched((prev) => prev && prev.tmdbId === sourceMovie.tmdbId
         ? { ...prev, tomatometer: scores.critic ?? prev.tomatometer, popcornmeter: scores.audience ?? prev.popcornmeter }

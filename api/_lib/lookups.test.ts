@@ -62,24 +62,33 @@ describe('handleTmdb', () => {
 })
 
 describe('handleOmdb', () => {
-  it('looks up by title with the server key and returns parsed scores', async () => {
-    fetchMock.mockResolvedValue(ok({
-      Response: 'True', Year: '1999', imdbRating: '7.7',
-      Ratings: [{ Source: 'Rotten Tomatoes', Value: '90%' }],
-    }))
+  const omdbHit = { Response: 'True', Year: '1999', imdbRating: '7.7', Ratings: [{ Source: 'Rotten Tomatoes', Value: '90%' }] }
 
-    const result = await handleOmdb({ t: 'Rushmore', year: '1998' }, KEYS)
+  it('looks films up by IMDb id and returns their scores keyed by TMDB id', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes('omdbapi.com') ? ok(omdbHit) : ok({ imdb_id: 'tt0128445', title: 'Rushmore', release_date: '1998-09-17' }))
 
-    expect(result).toEqual({ status: 200, body: { critic: 90, audience: 77 }, cacheControl: SHARED_CACHE })
-    const url = new URL(fetchMock.mock.calls[0][0])
-    expect(url.searchParams.get('apikey')).toBe('omdb-secret')
-    expect(url.searchParams.get('t')).toBe('Rushmore')
-    expect(url.searchParams.has('y')).toBe(false)
+    const result = await handleOmdb({ ids: '1585' }, KEYS)
+
+    expect(result).toEqual({ status: 200, body: { 1585: { critic: 90, audience: 77 } }, cacheControl: SHARED_CACHE })
+    const omdbUrl = new URL(fetchMock.mock.calls.find(([u]) => String(u).includes('omdbapi.com'))![0])
+    expect(omdbUrl.searchParams.get('apikey')).toBe('omdb-secret')
+    expect(omdbUrl.searchParams.get('i')).toBe('tt0128445')
   })
 
-  it('needs a title, and a key', async () => {
+  it('leaves out films it could not look up, and keeps a partial answer off the CDN', async () => {
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes('omdbapi.com') ? ok({ Response: 'False', Error: 'Request limit reached!' }) : ok({ imdb_id: 'tt1' }))
+
+    const result = await handleOmdb({ ids: '1585' }, KEYS)
+
+    expect(result).toEqual({ status: 200, body: {}, cacheControl: undefined })
+  })
+
+  it('needs ids (at most 25), and a key', async () => {
     expect((await handleOmdb({}, KEYS)).status).toBe(400)
-    expect(await handleOmdb({ t: 'Heat' }, {})).toEqual({ status: 503, body: { error: 'missing_key', which: 'OMDb' } })
+    expect((await handleOmdb({ ids: Array.from({ length: 26 }, (_, i) => i + 1).join(',') }, KEYS)).status).toBe(400)
+    expect(await handleOmdb({ ids: '1' }, {})).toEqual({ status: 503, body: { error: 'missing_key', which: 'OMDb' } })
   })
 })
 
@@ -96,6 +105,7 @@ describe('handleRecommendations', () => {
       }
       if (url.includes('/movie/100/credits')) return ok({ cast: [{ id: 1, name: 'Bill Murray', character: '', profile_path: null, order: 0 }] })
       if (url.includes('/person/1/movie_credits')) return ok({ cast: films })
+      if (/\/movie\/\d+\?/.test(url)) return ok({ imdb_id: `tt${url.match(/\/movie\/(\d+)/)![1]}`, release_date: '2000-01-01' })
       throw new Error(`unexpected ${url}`)
     })
   }
@@ -125,6 +135,8 @@ describe('handleRecommendations', () => {
     const cache: ScoreCache = {
       get: vi.fn().mockResolvedValue(new Map([[200, { critic: 95, audience: 90 }]])),
       put: vi.fn().mockResolvedValue(undefined),
+      markPending: vi.fn().mockResolvedValue(undefined),
+      due: vi.fn(),
     }
 
     const { items } = (await handleRecommendations({ source: '100' }, KEYS, cache)).body as {
@@ -133,7 +145,7 @@ describe('handleRecommendations', () => {
 
     expect(items.find((m) => m.tmdbId === 200)?.tomatometer).toBe(95)
     expect(fetchMock.mock.calls.filter(([u]) => String(u).includes('omdbapi.com'))).toHaveLength(1)
-    expect(cache.put).toHaveBeenCalledWith(new Map([[201, { critic: 80, audience: 80 }]]))
+    expect(cache.put).toHaveBeenCalledWith(new Map([[201, { critic: 80, audience: 80, imdbId: 'tt201', year: 2000 }]]))
   })
 
   it('still answers when the score cache is down', async () => {
@@ -141,6 +153,8 @@ describe('handleRecommendations', () => {
     const cache: ScoreCache = {
       get: vi.fn().mockRejectedValue(new Error('db down')),
       put: vi.fn().mockRejectedValue(new Error('db down')),
+      markPending: vi.fn().mockRejectedValue(new Error('db down')),
+      due: vi.fn(),
     }
 
     const result = await handleRecommendations({ source: '100' }, KEYS, cache)

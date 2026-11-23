@@ -41,16 +41,22 @@ function stubApis(opts: {
       return Promise.resolve({ ok: true, status: 200, json: async () => ({}) })
     }
     if (url.startsWith('/api/omdb')) {
-      // What the server proxy answers: parsed { critic, audience } scores.
-      const title = new URL(url, 'http://localhost').searchParams.get('t') ?? ''
-      const rt = opts.scores?.[title]
-      const imdb = opts.imdbRatings?.[title]
-      return Promise.resolve({
-        ok: true, status: 200,
-        json: async () => rt
+      // What the batched server endpoint answers: { [tmdbId]: { critic, audience } }.
+      const titles = new Map<string, string>()
+      for (const list of Object.values(opts.films ?? {})) {
+        for (const f of list as { id: number; title: string }[]) titles.set(String(f.id), f.title)
+      }
+      const ids = new URL(url, 'http://localhost').searchParams.get('ids')?.split(',') ?? []
+      const body: Record<string, unknown> = {}
+      for (const id of ids) {
+        const title = titles.get(id) ?? ''
+        const rt = opts.scores?.[title]
+        const imdb = opts.imdbRatings?.[title]
+        body[id] = rt
           ? { critic: Number.parseInt(rt, 10), audience: imdb && imdb !== 'N/A' ? Math.round(Number(imdb) * 10) : null }
-          : { critic: null, audience: null },
-      })
+          : { critic: null, audience: null }
+      }
+      return Promise.resolve({ ok: true, status: 200, json: async () => body })
     }
     const providers = new URL(url, 'http://localhost').searchParams.get('with_watch_providers') ?? ''
     return Promise.resolve({

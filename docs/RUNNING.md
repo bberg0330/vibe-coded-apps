@@ -94,3 +94,21 @@ situation, because an empty list looks exactly like lost data.
 - Region is hardcoded to US.
 - Provider IDs were verified on 2026-08-08. If a service's results go empty,
   re-check its ID against `/watch/providers/movie?watch_region=US`.
+
+## Rating sync (production)
+
+Scores come from OMDb (1,000 requests/day on the free key), looked up by
+IMDb id and stored in Supabase's `movie_night_scores`:
+
+- On demand: `/api/omdb?ids=…` (batched, up to 25 films) and
+  `/api/recommendations` check the table first and only ask OMDb about
+  films it doesn't have. If OMDb's daily limit is reached, the films left
+  over are queued (`fetched_at` null) instead of being stored as unrated.
+- Nightly: Vercel Cron calls `/api/cron/ratings-sync` at 09:17 UTC. It
+  re-checks queued films, "no rating" answers older than 30 days, and films
+  from this year or last whose scores are over a week old, spending at most
+  `OMDB_SYNC_BUDGET` requests (default 800) and stopping at the limit.
+
+Vercel env vars: `CRON_SECRET` (required for the cron to run),
+`OMDB_SYNC_BUDGET` (optional). Apply
+`supabase/migrations/20261123000000_score_sync.sql` before deploying.

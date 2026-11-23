@@ -28,11 +28,16 @@ export default async function handler(
   const session = requireSession(req.headers, sessionConfig());
   if (!session.ok) return res.status(session.status).json(session.body);
 
+  // Read-only: scores are written server-side by /api/omdb, /api/recommendations
+  // and the nightly sync, so a browser can never cache a failed lookup.
   try {
     if (req.method === 'GET') {
       const { data, error } = await supabase
         .from('movie_night_scores')
-        .select('tmdb_id, critic, audience');
+        .select('tmdb_id, critic, audience')
+        // Pending rows have no answer yet; leaving them out keeps the browser
+        // from mistaking them for "no rating".
+        .not('fetched_at', 'is', null);
 
       if (error) throw error;
 
@@ -42,26 +47,6 @@ export default async function handler(
       }
 
       return res.status(200).json(scores);
-    }
-
-    if (req.method === 'POST') {
-      const patch: ScoreMap = req.body;
-
-      const rows = Object.entries(patch).map(([tmdbId, score]) => ({
-        tmdb_id: Number(tmdbId),
-        critic: score.critic ?? null,
-        audience: score.audience ?? null,
-      }));
-
-      if (rows.length > 0) {
-        const { error } = await supabase
-          .from('movie_night_scores')
-          .upsert(rows, { onConflict: 'tmdb_id' });
-
-        if (error) throw error;
-      }
-
-      return res.status(200).json({});
     }
 
     res.status(405).json({ error: 'Method not allowed' });
