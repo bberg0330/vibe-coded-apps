@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { handleSchedule } from '@vercel/schedules'
 import { syncRatings, DEFAULT_SYNC_BUDGET } from '../_lib/ratings.js'
 import { serverKeys } from '../_lib/respond.js'
 import { supabaseScoreCache } from '../_lib/scoreCache.js'
@@ -7,26 +7,18 @@ import { supabaseScoreCache } from '../_lib/scoreCache.js'
 const RUN_FOR_MS = 240_000
 
 /**
- * Nightly rating sync, run by Vercel Cron (see vercel.json). Vercel sends
- * `Authorization: Bearer $CRON_SECRET`; nothing else may trigger it, since
- * each run spends most of the day's OMDb quota.
+ * Nightly rating sync, run by the `ratings-sync` Vercel Schedule (see
+ * vercel.json). The function has a `schedule/v1beta` trigger, so it has no
+ * public URL and only Vercel's scheduler can invoke it — no secret to check.
+ *
+ * Safe to run twice: it only re-checks films that are still due, so a
+ * repeated delivery of the same occurrence just finds less to do.
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader('Cache-Control', 'no-store')
-  const secret = process.env.CRON_SECRET
-  if (!secret) return res.status(503).json({ error: 'cron_not_configured' })
-  if (req.headers.authorization !== `Bearer ${secret}`) return res.status(401).json({ error: 'unauthorized' })
-
+export const POST = handleSchedule(async (metadata) => {
   const cache = supabaseScoreCache()
-  if (!cache) return res.status(503).json({ error: 'score_cache_not_configured' })
+  if (!cache) throw new Error('score cache not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)')
 
   const budget = Number(process.env.OMDB_SYNC_BUDGET) || DEFAULT_SYNC_BUDGET
-  try {
-    const summary = await syncRatings(serverKeys(), cache, { budget, deadline: Date.now() + RUN_FOR_MS })
-    console.log('ratings-sync', JSON.stringify(summary))
-    res.status(200).json(summary)
-  } catch (err) {
-    console.error('ratings-sync failed', err)
-    res.status(500).json({ error: 'sync_failed' })
-  }
-}
+  const summary = await syncRatings(serverKeys(), cache, { budget, deadline: Date.now() + RUN_FOR_MS })
+  console.log('ratings-sync', metadata.executionId, JSON.stringify(summary))
+})

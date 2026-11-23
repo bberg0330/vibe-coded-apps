@@ -104,11 +104,14 @@ IMDb id and stored in Supabase's `movie_night_scores`:
   `/api/recommendations` check the table first and only ask OMDb about
   films it doesn't have. If OMDb's daily limit is reached, the films left
   over are queued (`fetched_at` null) instead of being stored as unrated.
-- Nightly: Vercel Cron calls `/api/cron/ratings-sync` at 09:17 UTC. It
+- Nightly: the `ratings-sync` Vercel Schedule runs the private
+  `api/cron/ratings-sync` function at 09:17 UTC (Hobby adds up to 15 min of
+  jitter). Run it now from the project's **Schedules** page (Run Schedule)
+  or with `vercel schedules invoke ratings-sync`. It
   re-checks queued films, "no rating" answers older than 30 days, and films
   from this year or last whose scores are over a week old, spending at most
   `OMDB_SYNC_BUDGET` requests (default 800) and stopping at the limit.
 
-Vercel env vars: `CRON_SECRET` (required for the cron to run),
-`OMDB_SYNC_BUDGET` (optional). Apply
+Vercel env vars: `OMDB_SYNC_BUDGET` (optional, default 800). The function
+has no public URL, so it needs no `CRON_SECRET`. Apply
 `supabase/migrations/20261123000000_score_sync.sql` before deploying.
