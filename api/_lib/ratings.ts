@@ -63,14 +63,17 @@ async function lookUp(film: FilmRef, keys: RatingKeys & { omdbKey: string }): Pr
   let imdbId: string | null = null
   let title = film.title
   let year = film.year ?? null
+  let goneFromTmdb = false
   if (keys.tmdbToken) {
     try {
       const d = await tmdbFetch<TmdbDetails>(keys.tmdbToken, `/movie/${film.tmdbId}`, {})
       imdbId = d.imdb_id || null
       title = d.title || title
       year = yearOf(d.release_date) ?? year
-    } catch {
-      // Fall back to the title lookup below.
+    } catch (err) {
+      // A 404 is a definitive answer: TMDB no longer has this film.
+      // Anything else falls back to the title lookup below.
+      goneFromTmdb = err instanceof UpstreamError && err.status === 404
     }
   }
 
@@ -81,6 +84,10 @@ async function lookUp(film: FilmRef, keys: RatingKeys & { omdbKey: string }): Pr
     // Title only: OMDb's `y` matches IMDb's year, which drifts from TMDB's;
     // scoresFromOmdb checks the year with a one-year tolerance instead.
     data = await omdbGet(keys.omdbKey, { t: title })
+  } else if (goneFromTmdb) {
+    // Nothing left to look it up by, and never will be: record "no rating"
+    // so it's rechecked on the slow cycle instead of retried every night.
+    return { critic: null, audience: null, imdbId: null, year }
   } else {
     throw new Error('nothing to look up by')
   }

@@ -144,6 +144,29 @@ describe('resolveScores', () => {
     })
   })
 
+  it('records "no rating" for a film TMDB no longer has, when there is no title to fall back on', async () => {
+    fetchMock = vi.fn(async (url: string) =>
+      url.includes('omdbapi.com') ? ok(hit('80%')) : { ok: false, status: 404, json: async () => ({}) })
+    vi.stubGlobal('fetch', fetchMock)
+    const cache = memoryCache()
+
+    const r = await resolveScores([{ tmdbId: 1047807, year: null }], KEYS, cache)
+
+    expect(r.scores.get(1047807)).toEqual({ critic: null, audience: null })
+    expect(r.pending).toEqual([])
+    expect(omdbCalls()).toHaveLength(0)
+    expect(cache.put).toHaveBeenCalledWith(new Map([[1047807, { critic: null, audience: null, imdbId: null, year: null }]]))
+  })
+
+  it('keeps a film queued when TMDB fails for another reason and there is no title', async () => {
+    fetchMock = vi.fn(async () => ({ ok: false, status: 500, json: async () => ({}) }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const r = await resolveScores([{ tmdbId: 1 }], KEYS)
+
+    expect(r.pending).toEqual([1])
+  })
+
   it('stops starting lookups after the deadline', async () => {
     stub(() => hit('80%'))
     const r = await resolveScores([{ tmdbId: 1 }, { tmdbId: 2 }], KEYS, undefined, { deadline: Date.now() - 1 })
