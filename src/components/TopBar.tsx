@@ -1,9 +1,13 @@
 import { Chip } from './Chip'
 import type { Profile, ProfileId } from '../data/profiles'
 
-/** Shared chrome above every screen: back link, profile switcher, Settings/History. .topbar */
+/**
+ * Shared chrome above every screen: back link, profile switcher, then ⚙
+ * Settings / History / Watchlist. Settings is a glyph so all three fit beside
+ * "← Back" and both chips at 375px. .topbar
+ */
 export function TopBar({
-  showBack, onBack, profiles, activeProfileId, onSelectProfile, onSettings, onHistory,
+  showBack, onBack, profiles, activeProfileId, onSelectProfile, onSettings, onHistory, onWatchlist,
 }: {
   showBack: boolean
   onBack: () => void
@@ -12,6 +16,7 @@ export function TopBar({
   onSelectProfile: (id: ProfileId) => void
   onSettings: () => void
   onHistory: () => void
+  onWatchlist: () => void
 }) {
   return (
     <nav className="topbar">
@@ -28,9 +33,10 @@ export function TopBar({
           />
         ))}
       </span>
-      <span>
-        <button className="link" onClick={onSettings}>Settings</button>
+      <span className="topbar-actions">
+        <button className="link" onClick={onSettings} aria-label="Settings" title="Settings">⚙</button>
         <button className="link" onClick={onHistory}>History</button>
+        <button className="link" onClick={onWatchlist}>Watchlist</button>
       </span>
     </nav>
   )

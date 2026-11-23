@@ -77,12 +77,24 @@ export type WatchingEntry = {
   discoveredVia: WatchEntry['discoveredVia']
 }
 
+/**
+ * A film on the shared household watchlist (the "to watch" backlog). One
+ * list for every profile; `profileId` only records who added it.
+ */
+export type WatchlistEntry = {
+  /** ISO 8601, when it was added. */
+  addedAt: string
+  profileId: string
+  movie: WatchEntry['movie']
+}
+
 /** Everything that lives in data/store.json. */
 export type Store = {
   version: number
   history: WatchEntry[]
   enabledServices: ServiceKey[]
   nowWatching: WatchingEntry[]
+  watchlist: WatchlistEntry[]
 }
 
 export const CURRENT_STORE_VERSION = 2
@@ -97,6 +109,7 @@ export function emptyStore(): Store {
     history: [],
     enabledServices: [...ALL_SERVICE_KEYS],
     nowWatching: [],
+    watchlist: [],
   }
 }
 
@@ -115,9 +128,12 @@ export type StoreOp =
   | { type: 'replaceHistory'; entries: WatchEntry[] }
   | { type: 'seed'; history: WatchEntry[]; enabledServices: ServiceKey[] }
   | { type: 'cancelWatching'; profileId: string; tmdbId: number }
+  | { type: 'addToWatchlist'; entry: WatchlistEntry }
+  | { type: 'removeFromWatchlist'; tmdbId: number }
 
 export type Screen =
   | { kind: 'search' }
   | { kind: 'cast'; movie: Movie }
   | { kind: 'filmography'; actor: Person; fromMovie: Movie }
   | { kind: 'history' }
+  | { kind: 'watchlist' }

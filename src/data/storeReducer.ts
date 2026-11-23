@@ -12,7 +12,7 @@
 // silently no-oping a dedupe check with no test coverage catching it. A
 // single shared implementation means that class of drift can't happen again.
 import { ALL_SERVICE_KEYS } from '../types.ts'
-import type { Store, StoreOp, ServiceKey } from '../types.ts'
+import type { Store, StoreOp, ServiceKey, WatchlistEntry } from '../types.ts'
 
 export class SeedRejectedError extends Error {
   constructor() {
@@ -32,6 +32,10 @@ export function sanitizeEnabledServices(keys: ServiceKey[]): ServiceKey[] {
   return keys.length > 0 && valid.length === 0 ? [...ALL_SERVICE_KEYS] : valid
 }
 
+function withoutFilm(watchlist: WatchlistEntry[], tmdbId: number): WatchlistEntry[] {
+  return watchlist.filter((e) => e.movie.tmdbId !== tmdbId)
+}
+
 /**
  * Applies one operation, returning a NEW store. Never mutates its input.
  *
@@ -43,7 +47,13 @@ export function applyOp(store: Store, op: StoreOp): Store {
   switch (op.type) {
     case 'logWatch':
       // Append: rewatches are meaningful signal and must not overwrite.
-      return { ...store, history: [...store.history, op.entry] }
+      // Watching a film also takes it off the watchlist — in the same op, so
+      // the two can never disagree if one of two separate writes failed.
+      return {
+        ...store,
+        history: [...store.history, op.entry],
+        watchlist: withoutFilm(store.watchlist ?? [], op.entry.movie.tmdbId),
+      }
 
     case 'undoLastWatch': {
       const history = [...store.history]
@@ -94,6 +104,17 @@ export function applyOp(store: Store, op: StoreOp): Store {
       }
       return { ...store, nowWatching }
     }
+
+    case 'addToWatchlist': {
+      const watchlist = store.watchlist ?? []
+      // Idempotent: a second device (or a double tap) adding the same film
+      // keeps the first entry and its "added by".
+      if (watchlist.some((e) => e.movie.tmdbId === op.entry.movie.tmdbId)) return { ...store, watchlist }
+      return { ...store, watchlist: [...watchlist, op.entry] }
+    }
+
+    case 'removeFromWatchlist':
+      return { ...store, watchlist: withoutFilm(store.watchlist ?? [], op.tmdbId) }
 
     default: {
       const exhaustive: never = op

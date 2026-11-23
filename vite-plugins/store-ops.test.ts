@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest'
 import { applyOp, parseStore, SeedRejectedError } from './store-ops'
 import { emptyStore } from '../src/types'
-import type { ServiceKey, Store, WatchEntry, WatchingEntry } from '../src/types'
+import type { ServiceKey, Store, WatchEntry, WatchingEntry, WatchlistEntry } from '../src/types'
 
 const entry = (tmdbId: number, title: string, watchedAt: string): WatchEntry => ({
   watchedAt,
@@ -17,6 +17,12 @@ const watchingEntry = (
   profileId,
   movie: { tmdbId, title, year: 1998, posterPath: null, tomatometer: 90, popcornmeter: null },
   discoveredVia: null,
+})
+
+const listEntry = (tmdbId: number, title: string, profileId = 'laura', addedAt = '2026-01-01T00:00:00.000Z'): WatchlistEntry => ({
+  addedAt,
+  profileId,
+  movie: { tmdbId, title, year: 1998, posterPath: null, tomatometer: 90, popcornmeter: null },
 })
 
 describe('applyOp: logWatch', () => {
@@ -174,6 +180,42 @@ describe('applyOp: cancelWatching', () => {
   })
 })
 
+describe('applyOp: watchlist', () => {
+  it('adds a film', () => {
+    const next = applyOp(emptyStore(), { type: 'addToWatchlist', entry: listEntry(1, 'Rushmore') })
+    expect(next.watchlist.map((e) => e.movie.title)).toEqual(['Rushmore'])
+  })
+
+  it('keeps the first entry (and who added it) when the same film is added again', () => {
+    let store = applyOp(emptyStore(), { type: 'addToWatchlist', entry: listEntry(1, 'Rushmore', 'laura') })
+    store = applyOp(store, { type: 'addToWatchlist', entry: listEntry(1, 'Rushmore', 'brian') })
+    expect(store.watchlist).toHaveLength(1)
+    expect(store.watchlist[0].profileId).toBe('laura')
+  })
+
+  it('removes a film and leaves the others', () => {
+    let store = applyOp(emptyStore(), { type: 'addToWatchlist', entry: listEntry(1, 'Rushmore') })
+    store = applyOp(store, { type: 'addToWatchlist', entry: listEntry(2, 'Heat') })
+    store = applyOp(store, { type: 'removeFromWatchlist', tmdbId: 1 })
+    expect(store.watchlist.map((e) => e.movie.title)).toEqual(['Heat'])
+  })
+
+  it('logging a watch takes the film off the watchlist in the same op', () => {
+    let store = applyOp(emptyStore(), { type: 'addToWatchlist', entry: listEntry(1, 'Rushmore') })
+    store = applyOp(store, { type: 'addToWatchlist', entry: listEntry(2, 'Heat') })
+    store = applyOp(store, { type: 'logWatch', entry: entry(1, 'Rushmore', '2026-08-08T20:00:00.000Z') })
+    expect(store.history).toHaveLength(1)
+    expect(store.watchlist.map((e) => e.movie.title)).toEqual(['Heat'])
+  })
+
+  it('removing from the watchlist never touches history', () => {
+    let store = applyOp(emptyStore(), { type: 'logWatch', entry: entry(1, 'Rushmore', '2026-08-08T20:00:00.000Z') })
+    store = applyOp(store, { type: 'addToWatchlist', entry: listEntry(1, 'Rushmore') })
+    store = applyOp(store, { type: 'removeFromWatchlist', tmdbId: 1 })
+    expect(store.history).toHaveLength(1)
+  })
+})
+
 describe('applyOp: unknown operation', () => {
   it('throws rather than silently doing nothing', () => {
     expect(() => applyOp(emptyStore(), { type: 'bogus' } as never)).toThrow()
@@ -200,8 +242,13 @@ describe('parseStore', () => {
       history: [entry(1, 'Kept', '2026-01-01T00:00:00.000Z')],
       enabledServices: ['netflix'],
       nowWatching: [watchingEntry('laura', 2, 'Watching', '2026-01-02T00:00:00.000Z')],
+      watchlist: [listEntry(3, 'Saved')],
     }
     expect(parseStore(JSON.stringify(store))).toEqual(store)
+  })
+
+  it('defaults a missing watchlist to an empty array (a file from before the watchlist)', () => {
+    expect(parseStore(JSON.stringify({ version: 2, history: [], enabledServices: [] })).watchlist).toEqual([])
   })
 
   it('defaults a missing nowWatching to an empty array', () => {

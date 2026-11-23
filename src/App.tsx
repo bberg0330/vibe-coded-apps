@@ -5,6 +5,7 @@ import { SearchScreen } from './screens/SearchScreen'
 import { CastScreen } from './screens/CastScreen'
 import { FilmographyScreen } from './screens/FilmographyScreen'
 import { HistoryScreen } from './screens/HistoryScreen'
+import { WatchlistScreen } from './screens/WatchlistScreen'
 import { SettingsSheet } from './screens/SettingsSheet'
 import { ProfileGate } from './components/ProfileGate'
 import { PasscodeGate } from './components/PasscodeGate'
@@ -12,6 +13,9 @@ import { TopBar } from './components/TopBar'
 import { Button } from './components/Button'
 import { logWatch, undoLastWatch, watchCount } from './data/history'
 import { getNowWatching, cancelWatching } from './data/watching'
+import {
+  getWatchlist, getWatchlistEntry, isOnWatchlist, addToWatchlist, removeFromWatchlist, restoreToWatchlist,
+} from './data/watchlist'
 import { loadStore } from './data/store'
 import { loadScores } from './data/scores'
 import { checkSession, onLocked, type SessionState } from './data/session'
@@ -19,7 +23,16 @@ import { migrateFromLocalStorage } from './data/migrate'
 import { PROFILES, type ProfileId } from './data/profiles'
 import { getActiveProfileId, setActiveProfileId } from './data/activeProfile'
 import { hashFor, parseHash, rehydrate, RehydrationError } from './router'
-import type { Movie, WatchEntry, WatchingEntry, Screen } from './types'
+import type { Movie, WatchEntry, WatchingEntry, WatchlistEntry, Screen } from './types'
+
+/** A stored film snapshot as the full `Movie` the screens and cards take. */
+function asMovie(movie: WatchEntry['movie']): Movie {
+  return { ...movie, popularity: 0, availability: { streaming: [], rent: [] }, overview: null }
+}
+
+function profileName(id: string): string {
+  return PROFILES.find((p) => p.id === id)?.name ?? id
+}
 
 export default function App() {
   const [entries, setEntries] = useState<Screen[]>([{ kind: 'search' }])
@@ -74,6 +87,19 @@ export default function App() {
   const [pendingWatch, setPendingWatch] = useState<Set<number>>(new Set())
 
   const [watchingError, setWatchingError] = useState<string | null>(null)
+
+  // Watchlist saves: same in-flight guard (ref is the truth, state mirrors it
+  // for the UI) as toggleWatched. `watchlistOverride` is the optimistic
+  // overlay — the bookmark flips the instant it's tapped, then the store's
+  // answer takes over once the save lands.
+  const pendingWatchlistRef = useRef<Set<number>>(new Set())
+  const [pendingWatchlist, setPendingWatchlist] = useState<Set<number>>(new Set())
+  const [watchlistOverride, setWatchlistOverride] = useState<Map<number, boolean>>(new Map())
+
+  // Watchlist entries that a ✓ in this session took off the list (logWatch
+  // removes them server-side). Undoing that ✓ puts the entry back exactly as
+  // it was — same "added by", same date. A ref: only read inside handlers.
+  const removedOnWatchRef = useRef<Map<number, WatchlistEntry>>(new Map())
 
   // Same in-flight-guard + optimistic-update + revert-on-error pattern as
   // toggleWatched, for cancelling a misfired "watching
@@ -195,7 +221,14 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState)
   }, [entries, pointer, settingsOpen])
 
-  const toggleWatched = async (movie: Movie, via: WatchEntry['discoveredVia']) => {
+  /**
+   * `forceLog`: a ✓ on a watchlist row always means "we watched it" — never
+   * an undo, even if the film was also logged earlier this session and then
+   * re-added to the list.
+   */
+  const toggleWatched = async (
+    movie: Movie, via: WatchEntry['discoveredVia'], { forceLog = false } = {},
+  ) => {
     // A second tap while this movie's save is still in flight is dropped
     // entirely, before it can read any state — this is what actually stops
     // the double-log/double-undo race, not anything below.
@@ -203,7 +236,9 @@ export default function App() {
     pendingWatchRef.current.add(movie.tmdbId)
     setPendingWatch(new Set(pendingWatchRef.current))
 
-    const wasLoggedThisSession = loggedThisSession.has(movie.tmdbId)
+    const wasLoggedThisSession = !forceLog && loggedThisSession.has(movie.tmdbId)
+    // Captured before the write: logWatch takes it off the list server-side.
+    const listEntry = wasLoggedThisSession ? null : getWatchlistEntry(movie.tmdbId)
     setSaveError(null)
 
     // Optimistic: update the session set immediately so the ✓ responds.
@@ -215,8 +250,13 @@ export default function App() {
     })
 
     try {
-      if (wasLoggedThisSession) await undoLastWatch(movie.tmdbId)
-      else await logWatch(movie, via)
+      if (wasLoggedThisSession) {
+        await undoLastWatch(movie.tmdbId)
+        await restoreRemovedOnWatch(movie.tmdbId)
+      } else {
+        await logWatch(movie, via)
+        if (listEntry) removedOnWatchRef.current.set(movie.tmdbId, listEntry)
+      }
       setHistoryVersion((v) => v + 1)
     } catch {
       // Revert: never let the UI claim a save that did not happen.
@@ -233,6 +273,61 @@ export default function App() {
       setPendingWatch(new Set(pendingWatchRef.current))
     }
   }
+
+  /**
+   * Puts back a watchlist entry that this session's ✓ removed. Its own
+   * try/catch: the undo itself has already succeeded by the time this runs,
+   * so a failure here must not make toggleWatched revert the ✓ as if the
+   * undo hadn't happened.
+   */
+  const restoreRemovedOnWatch = async (tmdbId: number) => {
+    const entry = removedOnWatchRef.current.get(tmdbId)
+    if (!entry) return
+    removedOnWatchRef.current.delete(tmdbId)
+    try {
+      await restoreToWatchlist(entry)
+    } catch {
+      setSaveError("Undid the watch, but couldn't put it back on the watchlist.")
+    }
+  }
+
+  const onWatchlistNow = (tmdbId: number): boolean =>
+    watchlistOverride.get(tmdbId) ?? isOnWatchlist(tmdbId)
+
+  const setOnWatchlist = async (movie: Movie | WatchEntry['movie'], target: boolean) => {
+    const { tmdbId } = movie
+    if (pendingWatchlistRef.current.has(tmdbId)) return
+    pendingWatchlistRef.current.add(tmdbId)
+    setPendingWatchlist(new Set(pendingWatchlistRef.current))
+    setSaveError(null)
+    setWatchlistOverride((prev) => new Map(prev).set(tmdbId, target))
+
+    try {
+      if (target) await addToWatchlist(movie, activeProfileId ?? PROFILES[0].id)
+      else await removeFromWatchlist(tmdbId)
+      // A manual change supersedes any pending "undo ✓ restores it".
+      removedOnWatchRef.current.delete(tmdbId)
+    } catch {
+      setSaveError("Couldn't save that — is the Movie Night server still running?")
+    } finally {
+      // Drop the overlay either way: on success the store now agrees with
+      // it, on failure the store's unchanged answer is the truth.
+      setWatchlistOverride((prev) => {
+        const next = new Map(prev)
+        next.delete(tmdbId)
+        return next
+      })
+      pendingWatchlistRef.current.delete(tmdbId)
+      setPendingWatchlist(new Set(pendingWatchlistRef.current))
+      setHistoryVersion((v) => v + 1)
+    }
+  }
+
+  const toggleWatchlist = (movie: Movie) => setOnWatchlist(movie, !onWatchlistNow(movie.tmdbId))
+  const removeWatchlistEntry = (entry: WatchlistEntry) => setOnWatchlist(entry.movie, false)
+  const markWatchlistWatched = (entry: WatchlistEntry) =>
+    toggleWatched(asMovie(entry.movie), null, { forceLog: true })
+  const isWatchlistPending = (tmdbId: number) => pendingWatchlist.has(tmdbId)
 
   const cancelWatchingTonight = async (entry: WatchingEntry) => {
     const key = `${entry.profileId}:${entry.movie.tmdbId}`
@@ -271,6 +366,9 @@ export default function App() {
     const isWatching = getNowWatching().some((e) => e.movie.tmdbId === tmdbId)
     return isWatching ? 'Watching tonight' : null
   }
+
+  // Optimistic removals vanish at once; the store's own list otherwise.
+  const visibleWatchlist = getWatchlist().filter((e) => watchlistOverride.get(e.movie.tmdbId) !== false)
 
   if (session === 'checking') {
     return <div className="app"><p className="empty">Loading…</p></div>
@@ -315,6 +413,7 @@ export default function App() {
         onSelectProfile={selectProfile}
         onSettings={() => setSettingsOpen(true)}
         onHistory={() => navigate({ kind: 'history' })}
+        onWatchlist={() => navigate({ kind: 'watchlist' })}
       />
 
       {saveError && <div className="error" role="alert">{saveError}</div>}
@@ -331,6 +430,13 @@ export default function App() {
           onToggleWatched={(movie) => toggleWatched(movie, null)}
           watchingLabelFor={watchingLabelFor}
           activeProfileId={activeProfileId}
+          watchlist={visibleWatchlist}
+          profileName={profileName}
+          onOpenWatchlist={() => navigate({ kind: 'watchlist' })}
+          onToggleWatchlist={toggleWatchlist}
+          onRemoveFromWatchlist={removeWatchlistEntry}
+          onMarkWatchlistWatched={markWatchlistWatched}
+          isWatchlistPending={isWatchlistPending}
         />
       )}
       {current.kind === 'cast' && (
@@ -342,6 +448,9 @@ export default function App() {
           onOpenActor={(actor) =>
             navigate({ kind: 'filmography', actor, fromMovie: current.movie })}
           watchingLabel={watchingLabelFor(current.movie.tmdbId)}
+          onToggleWatchlist={toggleWatchlist}
+          onWatchlist={onWatchlistNow(current.movie.tmdbId)}
+          watchlistPending={isWatchlistPending(current.movie.tmdbId)}
         />
       )}
       {current.kind === 'filmography' && (
@@ -357,6 +466,9 @@ export default function App() {
               viaActor: { tmdbId: current.actor.tmdbId, name: current.actor.name },
             })}
           watchingLabelFor={watchingLabelFor}
+          onToggleWatchlist={toggleWatchlist}
+          isOnWatchlist={onWatchlistNow}
+          isWatchlistPending={isWatchlistPending}
         />
       )}
       {current.kind === 'history' && (
@@ -367,6 +479,16 @@ export default function App() {
           onCancelWatching={cancelWatchingTonight}
           optimisticallyCancelled={optimisticallyCancelled}
           cancellingKeys={pendingCancel}
+        />
+      )}
+      {current.kind === 'watchlist' && (
+        <WatchlistScreen
+          entries={visibleWatchlist}
+          profileName={profileName}
+          onOpenMovie={(movie) => navigate({ kind: 'cast', movie: asMovie(movie) })}
+          onMarkWatched={markWatchlistWatched}
+          onRemove={removeWatchlistEntry}
+          isPending={(tmdbId) => pendingWatch.has(tmdbId) || pendingWatchlist.has(tmdbId)}
         />
       )}
       <Analytics />

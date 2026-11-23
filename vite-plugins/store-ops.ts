@@ -1,6 +1,6 @@
 // vite-plugins/store-ops.ts
 import { emptyStore, ALL_SERVICE_KEYS, CURRENT_STORE_VERSION } from '../src/types.ts'
-import type { Store, ServiceKey, WatchEntry, WatchingEntry } from '../src/types.ts'
+import type { Store, ServiceKey, WatchEntry, WatchingEntry, WatchlistEntry } from '../src/types.ts'
 import { applyOp, sanitizeEnabledServices, SeedRejectedError } from '../src/data/storeReducer.ts'
 
 // Re-exported so existing importers (this file's own tests, and
@@ -46,10 +46,13 @@ export function parseStore(raw: string | null): Store {
     ? obj.nowWatching
     : []
 
+  const watchlist: WatchlistEntry[] = Array.isArray(obj.watchlist) ? obj.watchlist : []
+
   return {
     version: typeof obj.version === 'number' ? obj.version : CURRENT_STORE_VERSION,
     history: obj.history,
     enabledServices: enabled,
     nowWatching,
+    watchlist,
   }
 }

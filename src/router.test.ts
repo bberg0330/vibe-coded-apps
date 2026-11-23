@@ -37,6 +37,10 @@ describe('hashFor', () => {
     expect(hashFor({ kind: 'search' })).toBe('#/')
   })
 
+  it('maps the watchlist screen to #/watchlist', () => {
+    expect(hashFor({ kind: 'watchlist' })).toBe('#/watchlist')
+  })
+
   it('maps the history screen to #/history', () => {
     expect(hashFor({ kind: 'history' })).toBe('#/history')
   })
@@ -77,6 +81,10 @@ describe('parseHash', () => {
     expect(parseHash('#/')).toEqual({ kind: 'search' })
     expect(parseHash('')).toEqual({ kind: 'search' })
     expect(parseHash('#')).toEqual({ kind: 'search' })
+  })
+
+  it('parses #/watchlist', () => {
+    expect(parseHash('#/watchlist')).toEqual({ kind: 'watchlist' })
   })
 
   it('parses #/history', () => {
@@ -122,6 +130,10 @@ describe('rehydrate', () => {
   it('rehydrates search to a single-entry stack', async () => {
     const stack = await rehydrate({ kind: 'search' })
     expect(stack).toEqual([{ kind: 'search' }])
+  })
+
+  it('rehydrates the watchlist behind a search entry', async () => {
+    expect(await rehydrate({ kind: 'watchlist' })).toEqual([{ kind: 'search' }, { kind: 'watchlist' }])
   })
 
   it('rehydrates history behind a search entry', async () => {

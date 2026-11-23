@@ -484,3 +484,84 @@ describe('App - passcode gate', () => {
     expect(localStorage.getItem('mn.session')).toBeNull()
   })
 })
+
+describe('App - watchlist', () => {
+  const onList = () => getStoreSnapshot().watchlist.map((e) => e.movie.tmdbId)
+
+  it('adds a search result to the shared watchlist, attributed to the active profile', async () => {
+    await renderApp('brian')
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+    await userEvent.click(await screen.findByRole('button', { name: /add rushmore to watchlist/i }))
+
+    await waitFor(() => expect(onList()).toEqual([1585]))
+    expect(getStoreSnapshot().watchlist[0].profileId).toBe('brian')
+    expect(await screen.findByRole('button', { name: /remove rushmore from watchlist/i }))
+      .toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('tapping the filled bookmark takes it back off the list', async () => {
+    await renderApp()
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+    await userEvent.click(await screen.findByRole('button', { name: /add rushmore to watchlist/i }))
+    await waitFor(() => expect(onList()).toEqual([1585]))
+
+    await userEvent.click(await screen.findByRole('button', { name: /remove rushmore from watchlist/i }))
+    await waitFor(() => expect(onList()).toEqual([]))
+  })
+
+  it('marking a listed film watched removes it, and undoing the ✓ puts it back as it was', async () => {
+    await renderApp('laura')
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+    await userEvent.click(await screen.findByRole('button', { name: /add rushmore to watchlist/i }))
+    await waitFor(() => expect(onList()).toEqual([1585]))
+    const addedAt = getStoreSnapshot().watchlist[0].addedAt
+
+    await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+    expect(onList()).toEqual([])
+
+    await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
+    await waitFor(() => expect(getHistory()).toHaveLength(0))
+    await waitFor(() => expect(onList()).toEqual([1585]))
+    expect(getStoreSnapshot().watchlist[0]).toMatchObject({ addedAt, profileId: 'laura' })
+  })
+
+  it('shows Up next on the homescreen and the full list on the Watchlist screen', async () => {
+    // Up next only shows with an empty query; earlier tests leave one behind.
+    sessionStorage.clear()
+    resetStoreForTests({
+      ...emptyStore(),
+      watchlist: [1, 2, 3].map((id) => ({
+        addedAt: `2026-0${id}-01T00:00:00.000Z`,
+        profileId: id === 2 ? 'brian' : 'laura',
+        movie: { tmdbId: id, title: `Film ${id}`, year: 2000, posterPath: null, tomatometer: null, popcornmeter: null },
+      })),
+    })
+    await renderApp()
+
+    const upNext = screen.getByRole('region', { name: 'Up next' })
+    // Newest two only.
+    expect([...upNext.querySelectorAll('[data-testid="watchlist-title"]')].map((n) => n.textContent))
+      .toEqual(['Film 3', 'Film 2'])
+
+    await userEvent.click(screen.getByRole('button', { name: 'See all 3' }))
+    expect(window.location.hash).toBe('#/watchlist')
+    expect(await screen.findByRole('heading', { name: 'Watchlist' })).toBeInTheDocument()
+    expect(screen.getAllByTestId('watchlist-title')).toHaveLength(3)
+    expect(screen.getByText(/Added by Brian/)).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /remove film 1 from watchlist/i }))
+    await waitFor(() => expect(screen.getAllByTestId('watchlist-title')).toHaveLength(2))
+    expect(getHistory()).toHaveLength(0)
+
+    await userEvent.click(screen.getByRole('button', { name: /mark film 3 as watched/i }))
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+    expect(screen.getAllByTestId('watchlist-title').map((n) => n.textContent)).toEqual(['Film 2'])
+  })
+
+  it('reaches the Watchlist screen from the top bar, showing the empty state', async () => {
+    await renderApp()
+    await userEvent.click(screen.getByRole('button', { name: 'Watchlist' }))
+    expect(await screen.findByText(/Nothing saved yet/)).toBeInTheDocument()
+  })
+})

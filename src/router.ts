@@ -18,6 +18,7 @@ export function slugify(name: string): string {
 
 export const SEARCH_ROUTE_KEY = 'search'
 export const HISTORY_ROUTE_KEY = 'history'
+export const WATCHLIST_ROUTE_KEY = 'watchlist'
 
 export function castRouteKey(movieId: number): string {
   return `movie/${movieId}`
@@ -33,6 +34,8 @@ export function hashFor(screen: Screen): string {
       return '#/'
     case 'history':
       return '#/history'
+    case 'watchlist':
+      return '#/watchlist'
     case 'cast':
       return `#/movie/${slugify(screen.movie.title)}-${screen.movie.tmdbId}`
     case 'filmography':
@@ -48,6 +51,7 @@ export type ParsedRoute =
   | { kind: 'cast'; movieId: number }
   | { kind: 'filmography'; movieId: number; actorId: number }
   | { kind: 'history' }
+  | { kind: 'watchlist' }
 
 /** The only thing parsing trusts: a trailing `-<digits>` on a path segment. */
 function extractId(segment: string): number | null {
@@ -59,6 +63,7 @@ export function parseHash(hash: string): ParsedRoute | null {
   const path = hash.replace(/^#\/?/, '')
   if (path === '') return { kind: 'search' }
   if (path === 'history') return { kind: 'history' }
+  if (path === 'watchlist') return { kind: 'watchlist' }
 
   const parts = path.split('/')
   if (parts[0] !== 'movie' || parts.length < 2) return null
@@ -103,6 +108,8 @@ export async function rehydrate(route: ParsedRoute): Promise<Screen[]> {
       return [{ kind: 'search' }]
     case 'history':
       return [{ kind: 'search' }, { kind: 'history' }]
+    case 'watchlist':
+      return [{ kind: 'search' }, { kind: 'watchlist' }]
     case 'cast': {
       const movie = await fetchOrThrow(() => getMovieDetails(route.movieId))
       return [{ kind: 'search' }, { kind: 'cast', movie }]
