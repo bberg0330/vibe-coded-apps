@@ -186,7 +186,7 @@ describe('syncRatings', () => {
 
     expect(cache.due).toHaveBeenCalledWith(2, expect.any(Date))
     expect(cache.get).not.toHaveBeenCalled()
-    expect(summary).toEqual({ checked: 2, rated: 2, pending: 0, quotaHit: false })
+    expect(summary).toEqual({ checked: 2, rated: 2, pending: 0, quotaHit: false, backfill: null })
   })
 })
 
@@ -196,5 +196,87 @@ describe('dueFilter', () => {
     expect(f).toContain('fetched_at.is.null')
     expect(f).toContain('and(critic.is.null,audience.is.null,fetched_at.lt.2026-10-24T00:00:00.000Z)')
     expect(f).toContain('and(year.gte.2025,fetched_at.lt.2026-11-16T00:00:00.000Z)')
+  })
+})
+
+describe('syncRatings backfill', () => {
+  /** Discover: `pages[year]` is that year's list of pages of TMDB ids. */
+  function stubDiscover(pages: Record<number, number[][]>) {
+    fetchMock = vi.fn(async (url: string) => {
+      if (url.includes('omdbapi.com')) return ok(hit('75%'))
+      if (url.includes('/discover/movie')) {
+        const q = new URL(url).searchParams
+        const list = pages[Number(q.get('primary_release_year'))] ?? []
+        const page = Number(q.get('page'))
+        return ok({
+          page, total_pages: Math.max(list.length, 1),
+          results: (list[page - 1] ?? []).map((id) => ({ id, title: `Film ${id}`, release_date: `${q.get('primary_release_year')}-05-01` })),
+        })
+      }
+      const id = url.match(/\/movie\/(\d+)/)?.[1]
+      return ok({ imdb_id: `tt${id}` })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+  }
+
+  function memoryBackfill(known: number[] = [], start: { year: number; page: number } | null = null) {
+    let cursor = start
+    return {
+      cursor: vi.fn(async () => cursor),
+      saveCursor: vi.fn(async (c: { year: number; page: number }) => { cursor = c }),
+      known: vi.fn(async (ids: number[]) => new Set(ids.filter((id) => known.includes(id)))),
+      get current() { return cursor },
+    }
+  }
+
+  const discoverCalls = () => fetchMock.mock.calls.filter(([u]) => String(u).includes('/discover/movie')).map(([u]) => new URL(String(u)).searchParams)
+
+  it('spends the budget left after re-checks on 2025 films we have never stored, most popular first', async () => {
+    stubDiscover({ 2025: [[1, 2, 3]] })
+    const cache = memoryCache()
+    cache.due.mockResolvedValue([{ tmdbId: 99 }])
+    const store = memoryBackfill([2])
+
+    const summary = await syncRatings(KEYS, cache, { budget: 10, backfill: store })
+
+    const q = discoverCalls()[0]
+    expect(q.get('primary_release_year')).toBe('2025')
+    expect(q.get('sort_by')).toBe('popularity.desc')
+    expect(summary.backfill).toMatchObject({ added: 2, rated: 2, pending: 0 })
+    expect(cache.put).toHaveBeenCalledWith(expect.objectContaining({ size: 2 }))
+  })
+
+  it('moves to the previous year once a year is exhausted, and remembers where it is', async () => {
+    stubDiscover({ 2025: [[1]], 2024: [[2], [3]] })
+    const store = memoryBackfill()
+
+    await syncRatings(KEYS, memoryCache(), { budget: 2, backfill: store })
+
+    expect(discoverCalls().map((q) => `${q.get('primary_release_year')}/${q.get('page')}`)).toEqual(['2025/1', '2024/1'])
+    expect(store.current).toEqual({ year: 2024, page: 2 })
+  })
+
+  it('reads a page again next time when the budget runs out part-way through it', async () => {
+    stubDiscover({ 2025: [[1, 2, 3], [4]] })
+    const store = memoryBackfill()
+
+    const summary = await syncRatings(KEYS, memoryCache(), { budget: 2, backfill: store })
+
+    expect(summary.backfill?.added).toBe(2)
+    expect(store.saveCursor).not.toHaveBeenCalled()
+  })
+
+  it('does no backfill when the re-checks use the whole budget or hit the quota', async () => {
+    stubDiscover({ 2025: [[1]] })
+    const cache = memoryCache()
+    cache.due.mockResolvedValue([{ tmdbId: 7 }])
+
+    await syncRatings(KEYS, cache, { budget: 1, backfill: memoryBackfill() })
+    expect(discoverCalls()).toHaveLength(0)
+
+    fetchMock.mockImplementation(async (url: string) =>
+      url.includes('omdbapi.com') ? ok({ Response: 'False', Error: 'Request limit reached!' }) : ok({ imdb_id: 'tt7' }))
+    await syncRatings(KEYS, cache, { budget: 10, backfill: memoryBackfill() })
+    expect(discoverCalls()).toHaveLength(0)
   })
 })

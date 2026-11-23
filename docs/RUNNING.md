@@ -111,6 +111,10 @@ IMDb id and stored in Supabase's `movie_night_scores`:
   re-checks queued films, "no rating" answers older than 30 days, and films
   from this year or last whose scores are over a week old, spending at most
   `OMDB_SYNC_BUDGET` requests (default 800) and stopping at the limit.
+  Whatever budget is left goes to a **backfill**: films not yet in the table,
+  from TMDB's discover list (most popular first, at least 50 TMDB votes), starting
+  with 2025 and moving back a year each time one is exhausted, down to 1950.
+  Progress is kept in `movie_night_backfill`; delete its row to start over.
 
 Vercel env vars: `OMDB_SYNC_BUDGET` (optional, default 800). The function
 has no public URL, so it needs no `CRON_SECRET`. Apply

@@ -2,7 +2,7 @@
 // api/scores.ts serves), for server-side lookups. Optional: without the
 // Supabase env vars it returns undefined and lookups just skip the cache.
 import { createClient } from '@supabase/supabase-js'
-import type { ScoreCache } from './ratings'
+import type { BackfillStore, ScoreCache } from './ratings'
 import type { ScoreData } from '../../src/data/scores'
 
 const TABLE = 'movie_night_scores'
@@ -72,6 +72,34 @@ export function supabaseScoreCache(): ScoreCache | undefined {
         .limit(limit)
       if (error) throw error
       return (data ?? []).map((row) => ({ tmdbId: Number(row.tmdb_id), year: row.year }))
+    },
+  }
+}
+
+/** Backfill progress in `movie_night_backfill` (one row), plus "is it stored yet" checks. */
+export function supabaseBackfillStore(): BackfillStore | undefined {
+  const url = process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return undefined
+  const supabase = createClient(url, key)
+
+  return {
+    async cursor() {
+      const { data, error } = await supabase
+        .from('movie_night_backfill').select('year, page').eq('id', 'discover').maybeSingle()
+      if (error) throw error
+      return data ? { year: data.year, page: data.page } : null
+    },
+    async saveCursor(cursor) {
+      const { error } = await supabase
+        .from('movie_night_backfill').upsert({ id: 'discover', ...cursor, updated_at: new Date().toISOString() })
+      if (error) throw error
+    },
+    async known(tmdbIds) {
+      if (tmdbIds.length === 0) return new Set()
+      const { data, error } = await supabase.from(TABLE).select('tmdb_id').in('tmdb_id', tmdbIds)
+      if (error) throw error
+      return new Set((data ?? []).map((row) => Number(row.tmdb_id)))
     },
   }
 }
