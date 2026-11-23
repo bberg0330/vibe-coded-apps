@@ -157,24 +157,112 @@ export async function resolveScores(
 /** OMDb requests the nightly sync may spend; the free tier allows 1,000 a day. */
 export const DEFAULT_SYNC_BUDGET = 800
 
+/** Where the backfill has got to in TMDB's discover list. */
+export type BackfillCursor = { year: number; page: number }
+
+/** Persistent state for the backfill (Supabase on Vercel). */
+export type BackfillStore = {
+  cursor(): Promise<BackfillCursor | null>
+  saveCursor(cursor: BackfillCursor): Promise<void>
+  /** Which of these films are already in the score table, in any state. */
+  known(tmdbIds: number[]): Promise<Set<number>>
+}
+
+/** The backfill starts here and works back a year at a time... */
+export const BACKFILL_START_YEAR = 2025
+/** ...stopping after this year. */
+export const BACKFILL_END_YEAR = 1980
+/** Films with fewer TMDB votes than this rarely have OMDb ratings; skip them to save quota. */
+export const BACKFILL_MIN_VOTES = 10
+/** TMDB's discover endpoint serves at most this many pages per query. */
+const TMDB_MAX_PAGE = 500
+
+type DiscoverPage = {
+  page: number
+  total_pages: number
+  results: { id: number; title: string; release_date?: string }[]
+}
+
 /**
- * Nightly gap-filler: re-checks films that are pending, have no rating, or
- * are recent enough that their scores still move. Stops at the budget, the
- * deadline, or the first "limit reached" from OMDb.
+ * Up to `want` films we've never stored, from TMDB's discover list, most
+ * popular first, starting at the saved cursor. The cursor only moves past
+ * a page once every film on it is taken, so a page cut short by `want` is
+ * read again next time (films stored meanwhile are skipped as known).
+ */
+async function collectBackfill(
+  token: string,
+  store: BackfillStore,
+  want: number,
+  deadline: number | undefined,
+): Promise<{ films: FilmRef[]; cursor: BackfillCursor | null }> {
+  let cursor = (await store.cursor()) ?? { year: BACKFILL_START_YEAR, page: 1 }
+  const films: FilmRef[] = []
+  while (films.length < want && cursor.year >= BACKFILL_END_YEAR) {
+    if (deadline !== undefined && Date.now() > deadline) break
+    const data = await tmdbFetch<DiscoverPage>(token, '/discover/movie', {
+      primary_release_year: String(cursor.year),
+      sort_by: 'popularity.desc',
+      'vote_count.gte': String(BACKFILL_MIN_VOTES),
+      include_adult: 'false',
+      page: String(cursor.page),
+    })
+    const known = await store.known(data.results.map((r) => r.id))
+    const fresh = data.results
+      .filter((r) => !known.has(r.id))
+      .map((r) => ({ tmdbId: r.id, title: r.title, year: yearOf(r.release_date) ?? cursor.year }))
+    const room = want - films.length
+    films.push(...fresh.slice(0, room))
+    if (fresh.length > room) break // page not finished; read it again next night
+
+    const lastPage = Math.min(data.total_pages, TMDB_MAX_PAGE)
+    cursor = cursor.page >= lastPage ? { year: cursor.year - 1, page: 1 } : { year: cursor.year, page: cursor.page + 1 }
+    await store.saveCursor(cursor)
+  }
+  return { films, cursor: cursor.year >= BACKFILL_END_YEAR ? cursor : null }
+}
+
+/**
+ * Nightly job, in two parts sharing one OMDb budget:
+ *
+ * 1. Re-check films that are pending, have no rating, or are recent enough
+ *    that their scores still move.
+ * 2. With whatever budget is left, backfill films we've never stored, from
+ *    TMDB's discover list (2025 first, then a year further back each time a
+ *    year is exhausted).
+ *
+ * Stops at the budget, the deadline, or the first "limit reached" from OMDb.
  */
 export async function syncRatings(
   keys: RatingKeys,
   cache: ScoreCache,
-  opts: { budget?: number; deadline?: number; now?: Date } = {},
+  opts: { budget?: number; deadline?: number; now?: Date; backfill?: BackfillStore } = {},
 ) {
-  const films = await cache.due(opts.budget ?? DEFAULT_SYNC_BUDGET, opts.now ?? new Date())
+  const budget = opts.budget ?? DEFAULT_SYNC_BUDGET
+  const films = await cache.due(budget, opts.now ?? new Date())
   const result = await resolveScores(films, keys, cache, {
     bypassCache: true, concurrency: 8, deadline: opts.deadline,
   })
-  return {
+  const summary = {
     checked: films.length,
     rated: [...result.scores.values()].filter((s) => s.critic != null || s.audience != null).length,
     pending: result.pending.length,
     quotaHit: result.quotaHit,
+    backfill: null as null | { added: number; rated: number; pending: number; next: BackfillCursor | null },
   }
+
+  const room = budget - films.length
+  if (!opts.backfill || !keys.tmdbToken || result.quotaHit || room <= 0) return summary
+
+  const { films: extra, cursor } = await collectBackfill(keys.tmdbToken, opts.backfill, room, opts.deadline)
+  const more = await resolveScores(extra, keys, cache, {
+    bypassCache: true, concurrency: 8, deadline: opts.deadline,
+  })
+  summary.quotaHit ||= more.quotaHit
+  summary.backfill = {
+    added: extra.length,
+    rated: [...more.scores.values()].filter((s) => s.critic != null || s.audience != null).length,
+    pending: more.pending.length,
+    next: cursor,
+  }
+  return summary
 }

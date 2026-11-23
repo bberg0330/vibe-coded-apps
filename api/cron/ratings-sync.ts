@@ -1,7 +1,7 @@
 import { handleSchedule } from '@vercel/schedules'
 import { syncRatings, DEFAULT_SYNC_BUDGET } from '../_lib/ratings.js'
 import { serverKeys } from '../_lib/respond.js'
-import { supabaseScoreCache } from '../_lib/scoreCache.js'
+import { supabaseBackfillStore, supabaseScoreCache } from '../_lib/scoreCache.js'
 
 /** Leave headroom under the function's maxDuration (vercel.json) to write results. */
 const RUN_FOR_MS = 240_000
@@ -19,6 +19,8 @@ export const POST = handleSchedule(async (metadata) => {
   if (!cache) throw new Error('score cache not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)')
 
   const budget = Number(process.env.OMDB_SYNC_BUDGET) || DEFAULT_SYNC_BUDGET
-  const summary = await syncRatings(serverKeys(), cache, { budget, deadline: Date.now() + RUN_FOR_MS })
+  const summary = await syncRatings(serverKeys(), cache, {
+    budget, deadline: Date.now() + RUN_FOR_MS, backfill: supabaseBackfillStore(),
+  })
   console.log('ratings-sync', metadata.executionId, JSON.stringify(summary))
 })
