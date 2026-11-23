@@ -171,9 +171,9 @@ export type BackfillStore = {
 /** The backfill starts here and works back a year at a time... */
 export const BACKFILL_START_YEAR = 2025
 /** ...stopping after this year. */
-export const BACKFILL_END_YEAR = 1980
+export const BACKFILL_END_YEAR = 1950
 /** Films with fewer TMDB votes than this rarely have OMDb ratings; skip them to save quota. */
-export const BACKFILL_MIN_VOTES = 10
+export const BACKFILL_MIN_VOTES = 50
 /** TMDB's discover endpoint serves at most this many pages per query. */
 const TMDB_MAX_PAGE = 500
 
