@@ -30,7 +30,9 @@ export type OmdbFailure = 'not_found' | 'quota' | 'transient'
 export function omdbFailure(data: OmdbResponse): OmdbFailure | null {
   if (data.Response === 'True') return null
   const error = (data.Error ?? '').toLowerCase()
-  if (error.includes('not found') || error.includes('incorrect imdb id')) return 'not_found'
+  // "Error getting data." comes back for valid IMDb ids OMDb has no record
+  // of (typically new or obscure titles), every time, so it's an answer too.
+  if (error.includes('not found') || error.includes('incorrect imdb id') || error.includes('error getting data')) return 'not_found'
   if (error.includes('limit') || error.includes('api key')) return 'quota'
   return 'transient'
 }

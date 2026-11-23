@@ -37,6 +37,7 @@ describe('omdbFailure', () => {
   it.each([
     ['Movie not found!', 'not_found'],
     ['Incorrect IMDb ID.', 'not_found'],
+    ['Error getting data.', 'not_found'],
     ['Request limit reached!', 'quota'],
     ['Invalid API key!', 'quota'],
     ['No API key provided.', 'quota'],
