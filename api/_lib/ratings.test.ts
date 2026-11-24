@@ -186,7 +186,7 @@ describe('syncRatings', () => {
 
     expect(cache.due).toHaveBeenCalledWith(2, expect.any(Date))
     expect(cache.get).not.toHaveBeenCalled()
-    expect(summary).toEqual({ checked: 2, rated: 2, pending: 0, quotaHit: false, backfill: null })
+    expect(summary).toEqual({ checked: 2, rated: 2, pending: 0, quotaHit: false, current: null, backfill: null })
   })
 })
 
@@ -201,12 +201,12 @@ describe('dueFilter', () => {
 
 describe('syncRatings backfill', () => {
   /** Discover: `pages[year]` is that year's list of pages of TMDB ids. */
-  function stubDiscover(pages: Record<number, number[][]>) {
+  function stubDiscover(pages: Record<number, number[][]>, current: Record<number, number[][]> = {}) {
     fetchMock = vi.fn(async (url: string) => {
       if (url.includes('omdbapi.com')) return ok(hit('75%'))
       if (url.includes('/discover/movie')) {
         const q = new URL(url).searchParams
-        const list = pages[Number(q.get('primary_release_year'))] ?? []
+        const list = (q.get('vote_count.gte') === '300' ? current : pages)[Number(q.get('primary_release_year'))] ?? []
         const page = Number(q.get('page'))
         return ok({
           page, total_pages: Math.max(list.length, 1),
@@ -229,7 +229,8 @@ describe('syncRatings backfill', () => {
     }
   }
 
-  const discoverCalls = () => fetchMock.mock.calls.filter(([u]) => String(u).includes('/discover/movie')).map(([u]) => new URL(String(u)).searchParams)
+  const allDiscover = () => fetchMock.mock.calls.filter(([u]) => String(u).includes('/discover/movie')).map(([u]) => new URL(String(u)).searchParams)
+  const discoverCalls = () => allDiscover().filter((q) => q.get('vote_count.gte') === '50')
 
   it('spends the budget left after re-checks on 2025 films we have never stored, most popular first', async () => {
     stubDiscover({ 2025: [[1, 2, 3]] })
@@ -275,8 +276,45 @@ describe('syncRatings backfill', () => {
     expect(discoverCalls()).toHaveLength(0)
 
     fetchMock.mockImplementation(async (url: string) =>
-      url.includes('omdbapi.com') ? ok({ Response: 'False', Error: 'Request limit reached!' }) : ok({ imdb_id: 'tt7' }))
+      url.includes('omdbapi.com') ? ok({ Response: 'False', Error: 'Request limit reached!' })
+        : url.includes('/discover/movie') ? ok({ page: 1, total_pages: 1, results: [] })
+        : ok({ imdb_id: 'tt7' }))
     await syncRatings(KEYS, cache, { budget: 10, backfill: memoryBackfill() })
     expect(discoverCalls()).toHaveLength(0)
+  })
+
+  describe('current year first', () => {
+    const NOW = new Date('2026-11-24T09:17:00Z')
+
+    it('rates this year\'s 300+ vote films we have never stored before anything else', async () => {
+      stubDiscover({ 2025: [[9]] }, { 2026: [[1, 2], [3]] })
+      const cache = memoryCache()
+      cache.due.mockResolvedValue([{ tmdbId: 7 }])
+      const store = memoryBackfill([2])
+
+      const summary = await syncRatings(KEYS, cache, { budget: 3, backfill: store, now: NOW })
+
+      const q = allDiscover()[0]
+      expect(q.get('primary_release_year')).toBe('2026')
+      expect(q.get('vote_count.gte')).toBe('300')
+      expect(summary.current).toEqual({ added: 2, rated: 2, pending: 0 })
+      expect(cache.due).toHaveBeenCalledWith(1, NOW)
+      expect(summary.backfill).toBeNull()
+    })
+
+    it('stops for the night when OMDb runs out during the current year', async () => {
+      stubDiscover({}, { 2026: [[1]] })
+      fetchMock.mockImplementation(async (url: string) => {
+        if (url.includes('omdbapi.com')) return ok({ Response: 'False', Error: 'Request limit reached!' })
+        if (url.includes('/discover/movie')) return ok({ page: 1, total_pages: 1, results: [{ id: 1, title: 'A', release_date: '2026-02-01' }] })
+        return ok({ imdb_id: 'tt1' })
+      })
+      const cache = memoryCache()
+
+      const summary = await syncRatings(KEYS, cache, { budget: 5, backfill: memoryBackfill(), now: NOW })
+
+      expect(summary.quotaHit).toBe(true)
+      expect(cache.due).not.toHaveBeenCalled()
+    })
   })
 })

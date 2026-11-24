@@ -107,15 +107,23 @@ IMDb id and stored in Supabase's `movie_night_scores`:
 - Nightly: the `ratings-sync` Vercel Schedule runs the private
   `api/cron/ratings-sync` function at 09:17 UTC (Hobby adds up to 15 min of
   jitter). Run it now from the project's **Schedules** page (Run Schedule)
-  or with `vercel schedules invoke ratings-sync`. It
-  re-checks queued films, "no rating" answers older than 30 days, and films
+  or with `vercel schedules invoke ratings-sync`. It first rates this year's
+  films with 300+ TMDB votes that aren't in the table yet (Rewind's current
+  year), then re-checks queued films, "no rating" answers older than 30 days, and films
   from this year or last whose scores are over a week old, spending at most
   `OMDB_SYNC_BUDGET` requests (default 800) and stopping at the limit.
   Whatever budget is left goes to a **backfill**: films not yet in the table,
   from TMDB's discover list (most popular first, at least 50 TMDB votes), starting
   with 2025 and moving back a year each time one is exhausted, down to 1950.
   Progress is kept in `movie_night_backfill`; delete its row to start over.
+- **Rewind lists**, at the end of the same run, using TMDB only: for this
+  year and up to 5 past years the backfill has passed, once every film from
+  that year with 300+ TMDB votes has an OMDb answer, the year's top 50 by
+  TMDB rating is saved to `movie_night_rewind_years`. Past years are saved
+  once; this year is rebuilt weekly (`refresh_after`). Delete a year's row
+  to rebuild it.
 
 Vercel env vars: `OMDB_SYNC_BUDGET` (optional, default 800). The function
 has no public URL, so it needs no `CRON_SECRET`. Apply
-`supabase/migrations/20261123000000_score_sync.sql` before deploying.
+`supabase/migrations/20261123000000_score_sync.sql` and
+`supabase/migrations/20261124000000_rewind_years.sql` before deploying.
