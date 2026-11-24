@@ -1,7 +1,7 @@
 # Rewind — Design
 
 **Date:** 2026-11-24
-**Status:** Agreed in a grilling session; UI pending a Figma proposal
+**Status:** Approved, design in Figma (03 Screens → section 08)
 
 ## Problem
 
@@ -21,9 +21,7 @@ rent tonight, and tracks how many of them the household has seen.
 - `#/rewind/<year>` — that year's **top 50**.
 - A year that isn't finished yet (see *Years*) shows "Rewind 1987 unlocks
   soon" with a rough date (one year per night) and a link back to the grid.
-- How you reach Rewind from the rest of the app is **open**: it depends on
-  the header/navigation critique (see *Follow-ups*). `TopBar` now has a
-  `current` prop (#39), so a Rewind link would follow the same pattern.
+- Rewind is reached from the new bottom tab bar (see *Navigation*).
 
 ## Data
 
@@ -62,15 +60,33 @@ rent tonight, and tracks how many of them the household has seen.
   - Any sheet (sort, filter) as a real modal using `useDialogFocus` (#40).
   - The focus-ring and `--accent-fg` tokens (#38, #39).
 
+## Navigation
+
+Approved in Figma after a design critique of the 375px `TopBar`, which had no
+room left (it overflowed by 3px on the Watchlist screen) and had tap targets
+under 44px.
+
+- A **bottom tab bar**: Search · Rewind · Watchlist · History (`TabItem`,
+  52px tall, active tab in `color/accent-text`). It replaces the History and
+  Watchlist links in `TopBar`.
+- The **top bar** keeps Back on the left and, on the right, 🔔 (watchlist
+  alerts), ⚙ Settings and a **profile avatar**, each 44×44. The avatar shows the
+  active profile's initial; tapping it switches profile. It replaces the
+  always-visible profile chips. The left side is free for later use.
+
 ## Changes to watched history
 
 - **Mark as watched** saves a **"seen before"** entry with no date. Today
   every `WatchEntry` must have a valid `watchedAt` (`src/data/history.ts`),
   so the type, the store reducer, the import check and `HistoryScreen` all
   change.
-- The History screen keeps real movie nights in date order and shows "seen
-  before" entries in their own section (or hides them; decide in the Figma
-  proposal). Its delete-with-undo flow (#39) must handle undated entries.
+- The History screen keeps real movie nights in date order. Undated entries
+  collapse into one **"Seen before · N films ›"** row, which opens a **Seen
+  before** screen grouped by release year, newest first. A year with more than
+  5 films is collapsed until tapped.
+- Each seen-before film has a ⋯ menu: **Unmark**, and **Add a date**, which
+  turns it into a dated movie night.
+- The delete-with-undo flow (#39) must handle undated entries.
 - Rewind progress counts both kinds.
 
 ## Not in this plan
@@ -79,17 +95,21 @@ rent tonight, and tracks how many of them the household has seen.
   Follow-up once we confirm which sources we can legally use.
 - **Watchlist availability alerts.** Their own plan, grilled next.
 
-## Process
+## Design
 
-Rewind is a new screen, so per `CLAUDE.md` the UI is drafted on a
-"Proposal — Rewind" page in Figma and approved before any UI code: the year
-grid, the year list with row actions and badges, the "unlocks soon" state,
-and the "seen before" section of History. The sync and the history-data
-changes don't change anything you see, so they can be built alongside it.
+Approved on 2026-11-24. Figma file `ajsVg5LjRT7Y5D346WMif3`:
 
-## Follow-ups, in order
+- **02 Components → 09 · Navigation, Rewind & alerts:** `TabItem`, the tab
+  icons, `AlertRow`, `YearTile`, `RewindRow`.
+- **03 Screens → 08 · Approved, not built yet:** new nav, alerts panel, Rewind
+  year grid, Rewind 2019, unlocks soon, History with "Seen before", and the
+  Seen before list.
 
-1. Grill the watchlist alerts plan.
-2. `/design:design-critique` on the header and navigation: where
-   notifications and the Rewind entry point go.
-3. Figma proposal for Rewind.
+## Build order
+
+1. Nightly sync: rate the current year first; save each finished year's top 50.
+2. Watched history: undated "seen before" entries (type, store, import check).
+3. Navigation: tab bar, new top bar with bell and avatar.
+4. Rewind screens.
+5. History "Seen before" row and screen.
+6. Watchlist alerts (see `2026-11-24-watchlist-alerts-design.md`).
