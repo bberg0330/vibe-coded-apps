@@ -39,8 +39,16 @@ beforeEach(() => {
 const noop = () => {}
 
 describe('SearchScreen', () => {
-  it('shows results for a typed query', async () => {
+  it('waits for typing to stop before searching (real debounce)', async () => {
     render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+    expect(await screen.findByText('Rushmore')).toBeInTheDocument()
+    const searches = vi.mocked(fetch).mock.calls.filter(([u]) => String(u).includes('search'))
+    expect(searches).toHaveLength(1)
+  })
+
+  it('shows results for a typed query', async () => {
+    render(<SearchScreen debounceMs={0} onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
 
     expect(await screen.findByText('Rushmore')).toBeInTheDocument()
@@ -48,7 +56,7 @@ describe('SearchScreen', () => {
 
   it('opens a tapped result', async () => {
     const onOpenMovie = vi.fn()
-    render(<SearchScreen onOpenMovie={onOpenMovie} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+    render(<SearchScreen debounceMs={0} onOpenMovie={onOpenMovie} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
 
     // Anchored: an unanchored /rushmore/i also matches the watch button's
@@ -59,7 +67,7 @@ describe('SearchScreen', () => {
 
   it('logs a watch for a directly searched result', async () => {
     const onToggleWatched = vi.fn()
-    render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={onToggleWatched} watchCountFor={() => 0} />)
+    render(<SearchScreen debounceMs={0} onOpenMovie={vi.fn()} onToggleWatched={onToggleWatched} watchCountFor={() => 0} />)
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
 
     await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
@@ -67,7 +75,7 @@ describe('SearchScreen', () => {
   })
 
   it('reflects the real watch count for a result already in history', async () => {
-    render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 1} />)
+    render(<SearchScreen debounceMs={0} onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 1} />)
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
 
     expect(await screen.findByRole('button', { name: /undo watched for rushmore/i })).toBeInTheDocument()
@@ -77,7 +85,7 @@ describe('SearchScreen', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true, status: 200, json: async () => ({ results: [] }),
     }))
-    render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+    render(<SearchScreen debounceMs={0} onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
     await userEvent.type(screen.getByRole('searchbox'), 'zzzz')
 
     expect(await screen.findByText(/no movies found/i)).toBeInTheDocument()
@@ -85,7 +93,7 @@ describe('SearchScreen', () => {
 
   it('offers a retry when the request fails', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
-    render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+    render(<SearchScreen debounceMs={0} onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
 
     expect(await screen.findByRole('button', { name: /try again/i })).toBeInTheDocument()
@@ -95,7 +103,7 @@ describe('SearchScreen', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false, status: 503, json: async () => ({ error: 'missing_key', which: 'TMDB' }),
     }))
-    render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={noop} watchCountFor={() => 0} />)
+    render(<SearchScreen debounceMs={0} onOpenMovie={vi.fn()} onToggleWatched={noop} watchCountFor={() => 0} />)
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
 
     await waitFor(() => {
@@ -112,13 +120,13 @@ describe('search text persistence', () => {
 
   it('restores a previously typed query on mount', async () => {
     sessionStorage.setItem('mn.searchQuery', 'rushmore')
-    render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+    render(<SearchScreen debounceMs={0} onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
 
     expect(screen.getByRole('searchbox')).toHaveValue('rushmore')
   })
 
   it('saves the query as the user types', async () => {
-    render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+    render(<SearchScreen debounceMs={0} onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
     await userEvent.type(screen.getByRole('searchbox'), 'gladiator')
 
     expect(sessionStorage.getItem('mn.searchQuery')).toBe('gladiator')
@@ -158,7 +166,7 @@ describe('search scroll restoration', () => {
     sessionStorage.setItem('mn.searchQuery', 'rushmore')
     sessionStorage.setItem('mn.scroll:search', '500')
 
-    render(<SearchScreen onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+    render(<SearchScreen debounceMs={0} onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
 
     // While the restored query is in flight, the saved position must stay
     // untouched — no premature restore-then-erase cycle.
@@ -197,7 +205,7 @@ describe('recommendations carousel', () => {
 
   it('renders once the query is empty and a recommendation list resolves', async () => {
     render(
-      <SearchScreen
+      <SearchScreen debounceMs={0}
         onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0}
         activeProfileId="laura"
       />,
@@ -212,7 +220,7 @@ describe('recommendations carousel', () => {
   it('renders each card as a single tap target with no watched button', async () => {
     const onOpenMovie = vi.fn()
     render(
-      <SearchScreen
+      <SearchScreen debounceMs={0}
         onOpenMovie={onOpenMovie} onToggleWatched={vi.fn()} watchCountFor={() => 0}
         activeProfileId="laura"
       />,
@@ -229,7 +237,7 @@ describe('recommendations carousel', () => {
 
   it('drops a recommendation from the row once it has been watched', async () => {
     const { rerender } = render(
-      <SearchScreen
+      <SearchScreen debounceMs={0}
         onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0}
         activeProfileId="laura"
       />,
@@ -237,7 +245,7 @@ describe('recommendations carousel', () => {
     await screen.findByText('Fantastic Mr. Fox')
 
     rerender(
-      <SearchScreen
+      <SearchScreen debounceMs={0}
         onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={(id) => (id === 999 ? 1 : 0)}
         activeProfileId="laura"
       />,
@@ -248,7 +256,7 @@ describe('recommendations carousel', () => {
 
   it('unmounts the carousel entirely (not just hides it) once a query is typed', async () => {
     const { container } = render(
-      <SearchScreen
+      <SearchScreen debounceMs={0}
         onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0}
         activeProfileId="laura"
       />,
@@ -263,7 +271,7 @@ describe('recommendations carousel', () => {
 
   it('remounts the carousel once the query is cleared back to empty', async () => {
     render(
-      <SearchScreen
+      <SearchScreen debounceMs={0}
         onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0}
         activeProfileId="laura"
       />,
@@ -281,7 +289,7 @@ describe('recommendations carousel', () => {
   it('resolves gracefully (no unhandled rejection, no carousel) when getRecommendationsFor rejects', async () => {
     vi.mocked(getRecommendationsFor).mockRejectedValue(new Error('TMDB unreachable'))
     const { container } = render(
-      <SearchScreen
+      <SearchScreen debounceMs={0}
         onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0}
         activeProfileId="laura"
       />,
@@ -295,7 +303,7 @@ describe('recommendations carousel', () => {
 
   it('renders no carousel section and never fetches when there is no active profile', async () => {
     const { container } = render(
-      <SearchScreen
+      <SearchScreen debounceMs={0}
         onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0}
         activeProfileId={null}
       />,
