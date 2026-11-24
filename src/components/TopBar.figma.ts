@@ -4,30 +4,20 @@
 
 import figma from 'figma'
 
-const current = figma.selectedInstance.getEnum('Current', {
-  None: 'null',
-  History: "'history'",
-  Watchlist: "'watchlist'",
-})
-
 // The single instance in the app (App.tsx renders it once, above whichever
-// screen is active), so this shows the real prop wiring rather than a
-// per-instance value — except `current`, which follows the Current variant. The Figma component always shows the back label; the
-// component's showBack=false state (the homescreen, no back arrow) has no
-// design counterpart to point at.
+// screen is active), so this shows the real prop wiring. Screens are reached
+// from the bottom TabBar now; the bell (onAlerts) arrives with watchlist
+// alerts. The Figma component's "Current" variants predate the tab bar and
+// no longer map to a prop.
 export default {
   id: 'TopBar',
   imports: ["import { TopBar } from './TopBar'"],
   example: figma.code`<TopBar
-  current={${current}}
   showBack={pointer > 0}
   onBack={goBack}
-  profiles={PROFILES}
-  activeProfileId={activeProfileId}
-  onSelectProfile={selectProfile}
+  profile={activeProfile}
+  onSwitchProfile={() => setProfileSheetOpen(true)}
   onSettings={() => setSettingsOpen(true)}
-  onHistory={() => navigate({ kind: 'history' })}
-  onWatchlist={() => navigate({ kind: 'watchlist' })}
 />`,
   metadata: { nestable: true },
 }

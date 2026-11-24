@@ -10,6 +10,8 @@ import { SettingsSheet } from './screens/SettingsSheet'
 import { ProfileGate } from './components/ProfileGate'
 import { PasscodeGate } from './components/PasscodeGate'
 import { TopBar } from './components/TopBar'
+import { TabBar, type Tab } from './components/TabBar'
+import { OptionSheet } from './components/OptionSheet'
 import { Button } from './components/Button'
 import { Toast } from './components/Toast'
 import { logWatch, undoLastWatch, watchCount, deleteWatch, type DatedWatch } from './data/history'
@@ -30,6 +32,11 @@ import type { Movie, WatchEntry, WatchingEntry, WatchlistEntry, Screen } from '.
 const UNDO_MS = 5000
 
 /** A stored film snapshot as the full `Movie` the screens and cards take. */
+/** The tab a screen belongs to: Cast and Filmography are reached from Search. */
+function tabFor(screen: Screen): Tab {
+  return screen.kind === 'history' || screen.kind === 'watchlist' ? screen.kind : 'search'
+}
+
 function asMovie(movie: WatchEntry['movie']): Movie {
   return { ...movie, popularity: 0, availability: { streaming: [], rent: [] }, overview: null }
 }
@@ -72,6 +79,7 @@ export default function App() {
   // A counter forces re-render after a history write, since history lives outside React state.
   const [, setHistoryVersion] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [profileSheetOpen, setProfileSheetOpen] = useState(false)
 
   // Films logged during THIS session. Undo is scoped to a misfired tap in
   // the current session, not to lifetime history: a film watched in a
@@ -487,15 +495,11 @@ export default function App() {
   return (
     <div className="app">
       <TopBar
-        current={current.kind === 'history' || current.kind === 'watchlist' ? current.kind : null}
         showBack={pointer > 0}
         onBack={goBack}
-        profiles={PROFILES}
-        activeProfileId={activeProfileId}
-        onSelectProfile={selectProfile}
+        profile={PROFILES.find((p) => p.id === activeProfileId) ?? PROFILES[0]}
+        onSwitchProfile={() => setProfileSheetOpen(true)}
         onSettings={() => setSettingsOpen(true)}
-        onHistory={() => navigate({ kind: 'history' })}
-        onWatchlist={() => navigate({ kind: 'watchlist' })}
       />
 
       {saveError && <div className="error" role="alert">{saveError}</div>}
@@ -503,6 +507,15 @@ export default function App() {
       {locationError && <div className="error" role="alert">{locationError}</div>}
 
       {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+      {profileSheetOpen && (
+        <OptionSheet
+          title="Who's watching"
+          options={PROFILES.map((p) => ({ value: p.id, label: p.name }))}
+          selected={activeProfileId}
+          onSelect={selectProfile}
+          onClose={() => setProfileSheetOpen(false)}
+        />
+      )}
 
       {current.kind === 'search' && (
         <SearchScreen
@@ -576,6 +589,11 @@ export default function App() {
           isPending={(tmdbId) => pendingWatch.has(tmdbId) || pendingWatchlist.has(tmdbId)}
         />
       )}
+      <TabBar
+        current={tabFor(current)}
+        tabs={['search', 'watchlist', 'history']}
+        onSelect={(tab) => navigate({ kind: tab === 'rewind' ? 'search' : tab })}
+      />
       {toast && <Toast message={toast.message} onUndo={() => settleToast('undo')} />}
       <Analytics />
     </div>
