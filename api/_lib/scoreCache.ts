@@ -210,15 +210,10 @@ export function supabaseAlertStore(): AlertStore | undefined {
       return ((data ?? []) as Row[]).map(toAlert)
     },
     async clear(profileId, ids) {
-      // A household has a handful of alerts, so read-modify-write is fine.
-      let q = supabase.from('movie_night_alerts').select('id, cleared_by').not('cleared_by', 'cs', `{${profileId}}`)
-      if (ids) q = q.in('id', ids)
-      const { data, error } = await q
+      // One atomic UPDATE (supabase/migrations/20261124020000_clear_alerts_function.sql),
+      // so two profiles clearing at once can't lose each other's clear.
+      const { error } = await supabase.rpc('movie_night_clear_alerts', { p_profile: profileId, p_ids: ids ?? null })
       if (error) throw error
-      for (const r of data ?? []) {
-        const { error: e } = await supabase.from('movie_night_alerts').update({ cleared_by: [...r.cleared_by, profileId] }).eq('id', r.id)
-        if (e) throw e
-      }
     },
   }
 }

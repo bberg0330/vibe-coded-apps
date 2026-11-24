@@ -137,4 +137,5 @@ Vercel env vars: `OMDB_SYNC_BUDGET` (optional, default 800). The function
 has no public URL, so it needs no `CRON_SECRET`. Apply
 `supabase/migrations/20261123000000_score_sync.sql` and
 `supabase/migrations/20261124000000_rewind_years.sql` and
-`supabase/migrations/20261124010000_watchlist_alerts.sql` before deploying.
+`supabase/migrations/20261124010000_watchlist_alerts.sql` and
+`supabase/migrations/20261124020000_clear_alerts_function.sql` before deploying.
