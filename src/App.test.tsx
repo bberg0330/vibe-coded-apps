@@ -14,6 +14,18 @@ import { hashFor } from './router'
 import { PROFILES, type ProfileId } from './data/profiles'
 import { getActiveProfileId, setActiveProfileId } from './data/activeProfile'
 
+// The 300ms search debounce is covered in SearchScreen.test.tsx; here it would
+// only add ~300ms to every test that types a query, so it is 0 unless a test
+// sets it. The two "moves back … without refetching" tests keep the real 300ms:
+// they check the fetch count before the debounce fires. With it off they see the
+// search screen re-query on Back (8 -> 10 calls), which is a behaviour question
+// for a separate change, not something to hide by changing these tests.
+const searchDebounce = vi.hoisted(() => ({ ms: 0 }))
+vi.mock('./screens/SearchScreen', async (importOriginal) => {
+  const real = await importOriginal<typeof import('./screens/SearchScreen')>()
+  return { ...real, SearchScreen: (props: React.ComponentProps<typeof real.SearchScreen>) => <real.SearchScreen {...props} debounceMs={searchDebounce.ms} /> }
+})
+
 const rushmoreSearchResults = {
   results: [{
     id: 1585, title: 'Rushmore', release_date: '1998-10-09',
@@ -50,6 +62,7 @@ function stubAppServer() {
 }
 
 beforeEach(() => {
+  searchDebounce.ms = 0
   window.location.hash = ''
   clearHttpCache()
   resetStoreForTests()
@@ -245,6 +258,7 @@ describe('App - URL navigation', () => {
 
   it('moves back via popstate without refetching an already-visited screen', async () => {
     await renderApp()
+    searchDebounce.ms = 300 // see the note on `searchDebounce`
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     await userEvent.click(await screen.findByRole('button', { name: /^rushmore/i }))
     await screen.findByRole('button', { name: /mark rushmore as watched/i })
@@ -259,6 +273,7 @@ describe('App - URL navigation', () => {
 
   it('moves back via a raw popstate event, identically to the Back button', async () => {
     await renderApp()
+    searchDebounce.ms = 300 // see the note on `searchDebounce`
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     await userEvent.click(await screen.findByRole('button', { name: /^rushmore/i }))
     await screen.findByRole('button', { name: /mark rushmore as watched/i })

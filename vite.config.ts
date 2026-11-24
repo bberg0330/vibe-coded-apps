@@ -18,8 +18,12 @@ export default defineConfig({
     allowedHosts: ['.local'],
   },
   test: {
-    environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test-setup.ts'],
+    // Server code needs no DOM; skipping jsdom there saves most of its per-file setup time.
+    projects: [
+      { extends: true, test: { name: 'browser', environment: 'jsdom', include: ['src/**/*.test.{ts,tsx}'] } },
+      { extends: true, test: { name: 'server', environment: 'node', include: ['api/**/*.test.ts', 'vite-plugins/**/*.test.ts'] } },
+    ],
   },
 })
