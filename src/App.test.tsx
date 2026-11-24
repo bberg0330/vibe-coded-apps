@@ -698,7 +698,7 @@ describe('App - Mark as watched sheet', () => {
   async function openSheetForRushmore() {
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
-    return screen.findByRole('dialog', { name: 'Mark as watched' })
+    return screen.findByRole('dialog', { name: 'When did you watch it?' })
   }
 
   it('asks when for a film with no history, and logs nothing until a row is picked', async () => {
@@ -719,7 +719,7 @@ describe('App - Mark as watched sheet', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
-    await userEvent.click(screen.getByRole('button', { name: 'Close Mark as watched' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Close When did you watch it?' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
@@ -779,7 +779,7 @@ describe('App - Mark as watched sheet', () => {
     await waitFor(() => expect(getSeenBefore()).toHaveLength(0))
     // Back to a film with no history: ✓ asks again.
     await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
-    expect(await screen.findByRole('dialog', { name: 'Mark as watched' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'When did you watch it?' })).toBeInTheDocument()
   })
 
   it('a ✓ after "Some time ago" in the same session undoes it, with no sheet', async () => {
@@ -803,6 +803,18 @@ describe('App - Mark as watched sheet', () => {
     await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
 
     await waitFor(() => expect(getHistory()).toHaveLength(2))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('skips the sheet for a film labelled "Watching tonight" and logs it straight away', async () => {
+    seedWatching({ tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null, popularity: 18, tomatometer: null, popcornmeter: null, availability: { streaming: [], rent: [] }, overview: null }, PROFILES[0].id, null)
+    await renderApp()
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+    expect(await screen.findByText('Watching tonight')).toBeInTheDocument()
+    await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
+
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+    expect(getSeenBefore()).toHaveLength(0)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
