@@ -1,0 +1,15 @@
+// url=https://www.figma.com/design/ajsVg5LjRT7Y5D346WMif3/Movie-Night-UX-UI-Baseline?node-id=370-63
+// component=Toast
+// source=https://github.com/bberg0330/vibe-coded-apps/blob/main/src/components/Toast.tsx
+
+import figma from 'figma'
+
+const message = figma.selectedInstance.getString('Message')
+
+// App.tsx renders the one toast; timing and one-at-a-time live there.
+export default {
+  id: 'Toast',
+  imports: ["import { Toast } from './Toast'"],
+  example: figma.code`<Toast message="${message}" onUndo={undo} />`,
+  metadata: { nestable: true },
+}

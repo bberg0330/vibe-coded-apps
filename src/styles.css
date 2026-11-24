@@ -27,6 +27,9 @@
    */
   --accent-fg: #0f1115;
 
+  /* Destructive action labels ("Delete this watch"). Figma: color/danger-text. */
+  --danger-text: #ff8a9a;  /* 7.59:1 on --surface */
+
   /*
    * Resting background of the ✓ / ⋮ buttons. Identical to --bg in dark
    * mode, which is why the app never needed a separate token — but that same
@@ -68,6 +71,7 @@
 
     --accent: #f5c518;
     --accent-text: #8a6500;  /* 5.33:1 on white; the brand gold is 1.63:1 */
+    --danger-text: #b4233c;  /* 6.47:1 on white */
 
     --control-bg: #e5e8ed;
 
@@ -270,7 +274,8 @@ body {
   font: inherit; font-size: 18px; text-align: center; letter-spacing: 4px;
 }
 .passcode-field::placeholder { color: var(--muted); letter-spacing: normal; }
-.passcode-field:focus { outline: none; border-color: var(--border); }
+/* The 2px ring is :focus-visible below; this only keeps the border in step. */
+.passcode-field:focus { border-color: var(--border); }
 .passcode-field[aria-invalid="true"] { border: 2px solid var(--accent); }
 /*
  * This button sits on the page, not on a card, and --control-bg is identical to
@@ -284,6 +289,19 @@ body {
   background: var(--control-bg); color: var(--muted);
   border: 1px solid var(--border); opacity: 1; cursor: default;
 }
+/*
+ * Keyboard / switch-control focus. --accent-text clears 3:1 against --bg and
+ * --surface in both modes (5.0:1 at worst), so one rule serves every control.
+ * :focus-visible, not :focus — a tap never shows it.
+ */
+:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+
+/* Read by screen readers, not shown — e.g. the text a skeleton stands in for. */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
 h1 { font-size: 22px; margin: 4px 0 12px; }
 h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
 
@@ -408,6 +426,8 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   z-index: 21;
 }
 .toggle-row { display: flex; gap: 10px; align-items: center; padding: 10px 0; }
+/* Brand gold instead of the browser's blue; the UA picks a dark tick for a light accent. */
+.toggle-row input[type="checkbox"] { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; }
 
 /*
  * History rows used to be <button class="card">, which inherited the UA
@@ -427,6 +447,8 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   cursor: pointer;
 }
 .history-menu button:disabled { opacity: .5; cursor: default; }
+.history-menu .danger { color: var(--danger-text); }
+.history-menu .danger svg { vertical-align: -2px; margin-right: 6px; }
 
 /*
  * Watchlist toggle. Shares .icon-btn's 52x52 shape and --control-bg; the
@@ -461,6 +483,8 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 .watchlist-filters .chip { flex: none; }
 .watchlist-count { margin: 0; color: var(--muted); font-size: 14px; }
 .link.inline { padding: 0; font-size: inherit; }
+/* The top-bar link for the screen you're on: plain text, not a link to itself. */
+.link.current { color: var(--text); font-weight: 600; cursor: default; }
 
 /* One single-select row in a picker sheet (Figma: SheetOption). */
 .sheet-option {
@@ -469,3 +493,41 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   color: var(--text); font: inherit; text-align: left; cursor: pointer;
 }
 .sheet-option.selected { color: var(--accent-text); }
+
+/* ✓ on a watchlist row is the primary action; × stays muted beside it. */
+.icon-btn.primary { color: var(--watched-fg); }
+
+/* "ADDED BY" / "FILTER" over the two Watchlist chip rows. */
+.controls-label {
+  margin: 0; color: var(--muted); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .5px;
+}
+
+/*
+ * Undo toast. Pinned above the safe area so it never covers the top bar;
+ * one at a time — a new undoable action replaces it.
+ */
+.toast {
+  position: fixed; left: 12px; right: 12px; z-index: 30;
+  bottom: calc(24px + env(safe-area-inset-bottom));
+  max-width: 616px; margin: 0 auto;
+  display: flex; align-items: center; gap: 12px;
+  padding: 4px 4px 4px 16px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--sheet-shadow);
+}
+.toast-message { flex: 1; margin: 0; }
+.toast .link { font-weight: 600; min-height: 44px; padding: 0 12px; }
+
+/* Placeholder rows shown while cast / filmography load — same box as the real row. */
+.skeleton-row { display: flex; gap: 12px; align-items: center; }
+.skeleton-block { background: var(--poster-empty); border-radius: 6px; flex: none; }
+.skeleton-poster { width: 54px; height: 81px; }
+.skeleton-lines { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.skeleton-line { height: 12px; }
+.skeleton-line.short { width: 40%; }
+.skeleton-line.long { width: 70%; }
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton-block { animation: skeleton-pulse 1.2s ease-in-out infinite alternate; }
+}
+@keyframes skeleton-pulse { from { opacity: 1; } to { opacity: .5; } }

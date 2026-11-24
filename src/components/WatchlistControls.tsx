@@ -4,6 +4,8 @@ import type { Profile } from '../data/profiles'
 
 /**
  * Sort and filter controls under the Watchlist heading.
+ * Each chip row has a visible label ("Added by" / "Filter") that also names
+ * its group, because the two rows look alike but behave differently:
  * Row 1: who added it (Everyone + one chip per profile, single-select) and
  * the sort link. Row 2: toggle chips, scrolling sideways if they overflow.
  * Then the count, with "Clear filters" whenever a filter is on.
@@ -26,8 +28,9 @@ export function WatchlistControls({
 
   return (
     <div className="watchlist-controls">
+      <p className="controls-label" id="watchlist-added-by-label">Added by</p>
       <div className="watchlist-controls-row">
-        <span className="chip-group" role="group" aria-label="Added by">
+        <span className="chip-group" role="group" aria-labelledby="watchlist-added-by-label">
           <Chip label="Everyone" active={view.addedBy === null} onClick={() => onChange({ ...view, addedBy: null })} />
           {profiles.map((p) => (
             <Chip
@@ -43,7 +46,8 @@ export function WatchlistControls({
         </button>
       </div>
 
-      <div className="watchlist-filters" role="group" aria-label="Filters">
+      <p className="controls-label" id="watchlist-filter-label">Filter</p>
+      <div className="watchlist-filters" role="group" aria-labelledby="watchlist-filter-label">
         <Chip
           label="On our services"
           active={view.onOurServices}

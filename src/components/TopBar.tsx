@@ -7,8 +7,10 @@ import type { Profile, ProfileId } from '../data/profiles'
  * "← Back" and both chips at 375px. .topbar
  */
 export function TopBar({
-  showBack, onBack, profiles, activeProfileId, onSelectProfile, onSettings, onHistory, onWatchlist,
+  current = null, showBack, onBack, profiles, activeProfileId, onSelectProfile, onSettings, onHistory, onWatchlist,
 }: {
+  /** The screen on show: its link renders as plain text with aria-current, not a link to itself. */
+  current?: 'history' | 'watchlist' | null
   showBack: boolean
   onBack: () => void
   profiles: Profile[]
@@ -35,9 +37,15 @@ export function TopBar({
       </span>
       <span className="topbar-actions">
         <button className="link" onClick={onSettings} aria-label="Settings" title="Settings">⚙</button>
-        <button className="link" onClick={onHistory}>History</button>
-        <button className="link" onClick={onWatchlist}>Watchlist</button>
+        <NavLink label="History" current={current === 'history'} onClick={onHistory} />
+        <NavLink label="Watchlist" current={current === 'watchlist'} onClick={onWatchlist} />
       </span>
     </nav>
   )
+}
+
+function NavLink({ label, current, onClick }: { label: string; current: boolean; onClick: () => void }) {
+  return current
+    ? <span className="link current" aria-current="page">{label}</span>
+    : <button className="link" onClick={onClick}>{label}</button>
 }

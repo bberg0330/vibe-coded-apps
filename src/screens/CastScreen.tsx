@@ -8,6 +8,7 @@ import { SectionHeading } from '../components/SectionHeading'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { castRouteKey } from '../router'
 import type { CastMember, Movie } from '../types'
+import { SkeletonRows } from '../components/SkeletonRows'
 
 const INITIAL_CAST = 15
 
@@ -95,7 +96,7 @@ export function CastScreen({
       )}
 
       <SectionHeading>Cast</SectionHeading>
-      {status === 'loading' && <p className="empty">Loading cast…</p>}
+      {status === 'loading' && <SkeletonRows label="Loading cast…" />}
       {status === 'error' && (
         <ErrorRetry message="Couldn't load the cast." onRetry={() => setAttempt((a) => a + 1)} />
       )}

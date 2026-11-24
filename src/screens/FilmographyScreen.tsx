@@ -9,6 +9,7 @@ import { SectionHeading } from '../components/SectionHeading'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { filmographyRouteKey } from '../router'
 import type { Person, Movie } from '../types'
+import { SkeletonRows } from '../components/SkeletonRows'
 
 type Props = {
   actor: Person
@@ -116,7 +117,7 @@ export function FilmographyScreen({
         </div>
       </div>
 
-      {status === 'loading' && <p className="empty">Finding what's available…</p>}
+      {status === 'loading' && <SkeletonRows label="Finding what's available…" />}
       {status === 'error' && (
         <ErrorRetry
           message="Couldn't load this filmography."
