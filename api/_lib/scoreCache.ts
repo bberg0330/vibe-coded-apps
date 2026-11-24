@@ -3,6 +3,7 @@
 // Supabase env vars it returns undefined and lookups just skip the cache.
 import { createClient } from '@supabase/supabase-js'
 import type { BackfillStore, ScoreCache } from './ratings'
+import type { RewindStore } from './rewind'
 import type { ScoreData } from '../../src/data/scores'
 
 const TABLE = 'movie_night_scores'
@@ -100,6 +101,39 @@ export function supabaseBackfillStore(): BackfillStore | undefined {
       const { data, error } = await supabase.from(TABLE).select('tmdb_id').in('tmdb_id', tmdbIds)
       if (error) throw error
       return new Set((data ?? []).map((row) => Number(row.tmdb_id)))
+    },
+  }
+}
+
+/** Saved Rewind lists in `movie_night_rewind_years`, plus "has OMDb answered" checks on the score table. */
+export function supabaseRewindStore(): RewindStore | undefined {
+  const url = process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return undefined
+  const supabase = createClient(url, key)
+
+  return {
+    async saved() {
+      const { data, error } = await supabase.from('movie_night_rewind_years').select('year, refresh_after')
+      if (error) throw error
+      return new Map((data ?? []).map((row) => [Number(row.year), row.refresh_after ? new Date(row.refresh_after) : null]))
+    },
+    async save(year, films, computedAt, refreshAfter) {
+      const { error } = await supabase.from('movie_night_rewind_years').upsert({
+        year, films, computed_at: computedAt.toISOString(), refresh_after: refreshAfter?.toISOString() ?? null,
+      })
+      if (error) throw error
+    },
+    async checked(tmdbIds) {
+      const found = new Set<number>()
+      // Chunked: a year can have a few hundred rankable films, too many for one URL.
+      for (let i = 0; i < tmdbIds.length; i += 200) {
+        const { data, error } = await supabase
+          .from(TABLE).select('tmdb_id').in('tmdb_id', tmdbIds.slice(i, i + 200)).not('fetched_at', 'is', null)
+        if (error) throw error
+        for (const row of data ?? []) found.add(Number(row.tmdb_id))
+      }
+      return found
     },
   }
 }

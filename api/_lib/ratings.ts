@@ -221,9 +221,38 @@ async function collectBackfill(
   return { films, cursor: cursor.year >= BACKFILL_END_YEAR ? cursor : null }
 }
 
+/** Rewind ranks films with this many votes (REWIND_MIN_VOTES); the sync rates this year's first. */
+export const CURRENT_YEAR_MIN_VOTES = 300
+
+/** Up to `want` films from `year` with `minVotes`+ votes that we've never stored, most popular first. */
+async function collectUnknown(
+  token: string, store: BackfillStore, year: number, minVotes: number, want: number, deadline: number | undefined,
+): Promise<FilmRef[]> {
+  const films: FilmRef[] = []
+  for (let page = 1; page <= TMDB_MAX_PAGE && films.length < want; page++) {
+    if (deadline !== undefined && Date.now() > deadline) break
+    const data = await tmdbFetch<DiscoverPage>(token, '/discover/movie', {
+      primary_release_year: String(year),
+      sort_by: 'popularity.desc',
+      'vote_count.gte': String(minVotes),
+      include_adult: 'false',
+      page: String(page),
+    })
+    const known = await store.known(data.results.map((r) => r.id))
+    films.push(...data.results
+      .filter((r) => !known.has(r.id))
+      .slice(0, want - films.length)
+      .map((r) => ({ tmdbId: r.id, title: r.title, year: yearOf(r.release_date) ?? year })))
+    if (page >= data.total_pages) break
+  }
+  return films
+}
+
 /**
- * Nightly job, in two parts sharing one OMDb budget:
+ * Nightly job, in three parts sharing one OMDb budget:
  *
+ * 0. Rate this year's films with CURRENT_YEAR_MIN_VOTES+ votes that we've
+ *    never stored, so Rewind's current year is ready first.
  * 1. Re-check films that are pending, have no rating, or are recent enough
  *    that their scores still move.
  * 2. With whatever budget is left, backfill films we've never stored, from
@@ -238,19 +267,35 @@ export async function syncRatings(
   opts: { budget?: number; deadline?: number; now?: Date; backfill?: BackfillStore } = {},
 ) {
   const budget = opts.budget ?? DEFAULT_SYNC_BUDGET
-  const films = await cache.due(budget, opts.now ?? new Date())
+  const now = opts.now ?? new Date()
+  const rated = (r: Resolution) => [...r.scores.values()].filter((s) => s.critic != null || s.audience != null).length
+
+  // 0. This year's rankable films first, so Rewind's current year fills in
+  //    before the older backfill. Films already stored are left to step 1.
+  let current: null | { added: number; rated: number; pending: number } = null
+  let spent = 0
+  if (opts.backfill && keys.tmdbToken) {
+    const fresh = await collectUnknown(keys.tmdbToken, opts.backfill, now.getUTCFullYear(), CURRENT_YEAR_MIN_VOTES, budget, opts.deadline)
+    const r = await resolveScores(fresh, keys, cache, { bypassCache: true, concurrency: 8, deadline: opts.deadline })
+    current = { added: fresh.length, rated: rated(r), pending: r.pending.length }
+    spent = fresh.length
+    if (r.quotaHit) return { checked: 0, rated: 0, pending: 0, quotaHit: true, current, backfill: null }
+  }
+
+  const films = budget - spent > 0 ? await cache.due(budget - spent, now) : []
   const result = await resolveScores(films, keys, cache, {
     bypassCache: true, concurrency: 8, deadline: opts.deadline,
   })
   const summary = {
     checked: films.length,
-    rated: [...result.scores.values()].filter((s) => s.critic != null || s.audience != null).length,
+    rated: rated(result),
     pending: result.pending.length,
     quotaHit: result.quotaHit,
+    current,
     backfill: null as null | { added: number; rated: number; pending: number; next: BackfillCursor | null },
   }
 
-  const room = budget - films.length
+  const room = budget - spent - films.length
   if (!opts.backfill || !keys.tmdbToken || result.quotaHit || room <= 0) return summary
 
   const { films: extra, cursor } = await collectBackfill(keys.tmdbToken, opts.backfill, room, opts.deadline)
