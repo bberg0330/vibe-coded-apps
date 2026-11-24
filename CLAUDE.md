@@ -53,4 +53,6 @@ For code review, use `mattpocock-skills:code-review` rather than the built-in `/
 
 ## Code review
 
+Coding standards live in `docs/CODING_STANDARDS.md`; the review's Standards axis checks against it.
+
 After opening any PR that changes code, review it before it merges: run `mattpocock-skills:code-review` against the PR's base branch, fix what it finds (or say on the PR why a finding doesn't apply), push, and only then enable auto-merge or merge. Docs-only PRs (specs, `CLAUDE.md`, `docs/`) don't need it. Summarise the findings and what was done about each in the PR description.
