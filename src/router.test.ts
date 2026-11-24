@@ -207,3 +207,19 @@ describe('rehydrate', () => {
       .rejects.toBeInstanceOf(RehydrationError)
   })
 })
+
+describe('Rewind routes', () => {
+  it('round-trips the grid and a year', () => {
+    expect(hashFor({ kind: 'rewind' })).toBe('#/rewind')
+    expect(hashFor({ kind: 'rewindYear', year: 2019 })).toBe('#/rewind/2019')
+    expect(parseHash('#/rewind')).toEqual({ kind: 'rewind' })
+    expect(parseHash('#/rewind/2019')).toEqual({ kind: 'rewindYear', year: 2019 })
+    expect(parseHash('#/rewind/19')).toBeNull()
+  })
+
+  it('rebuilds Search → Rewind → year so Back walks out', async () => {
+    expect(await rehydrate({ kind: 'rewindYear', year: 2019 })).toEqual([
+      { kind: 'search' }, { kind: 'rewind' }, { kind: 'rewindYear', year: 2019 },
+    ])
+  })
+})

@@ -119,3 +119,51 @@ export async function refreshRewind(
   }
   return summary
 }
+
+/** Read side of the saved lists, for /api/rewind. */
+export type RewindReader = {
+  /** Every saved year with at least one film, newest first, with its films' ids (for progress). */
+  years(): Promise<{ year: number; ids: number[] }[]>
+  /** A year's saved list, or null if it isn't ready yet. */
+  year(year: number): Promise<RewindFilm[] | null>
+}
+
+type Result = { status: number; body: unknown; cacheControl?: string }
+
+/**
+ * GET /api/rewind            → { years: [{ year, ids }] }
+ * GET /api/rewind?year=2019  → { year, films } or 404 { locked: true }
+ *
+ * With no saved lists (local dev, no Supabase) it ranks this year and the
+ * five before it live from TMDB instead, so the screens work without the
+ * nightly sync.
+ */
+export async function handleRewind(
+  query: Record<string, unknown>, token: string | undefined, reader: RewindReader | undefined, now = new Date(),
+): Promise<Result> {
+  const raw = query.year
+  const year = raw === undefined ? null : Number(raw)
+  if (year !== null && !(Number.isInteger(year) && year >= 1900 && year <= now.getUTCFullYear())) {
+    return { status: 400, body: { error: 'Bad year' } }
+  }
+  const cache = 'private, max-age=300'
+  try {
+    if (reader) {
+      if (year === null) return { status: 200, body: { years: await reader.years() }, cacheControl: cache }
+      const films = await reader.year(year)
+      return films ? { status: 200, body: { year, films }, cacheControl: cache } : { status: 404, body: { locked: true } }
+    }
+    if (!token) return { status: 503, body: { error: 'TMDB not configured' } }
+    const current = now.getUTCFullYear()
+    if (year === null) {
+      const years = await Promise.all(Array.from({ length: 6 }, async (_, i) => ({
+        year: current - i, ids: (await rankedFilms(token, current - i)).slice(0, REWIND_SIZE).map((f) => f.tmdbId),
+      })))
+      return { status: 200, body: { years: years.filter((y) => y.ids.length > 0) } }
+    }
+    if (year < current - 5) return { status: 404, body: { locked: true } }
+    return { status: 200, body: { year, films: (await rankedFilms(token, year)).slice(0, REWIND_SIZE) } }
+  } catch {
+    return { status: 502, body: { error: 'Rewind lookup failed' } }
+  }
+}

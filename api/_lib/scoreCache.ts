@@ -3,7 +3,7 @@
 // Supabase env vars it returns undefined and lookups just skip the cache.
 import { createClient } from '@supabase/supabase-js'
 import type { BackfillStore, ScoreCache } from './ratings'
-import type { RewindStore } from './rewind'
+import type { RewindReader, RewindStore } from './rewind'
 import type { ScoreData } from '../../src/data/scores'
 
 const TABLE = 'movie_night_scores'
@@ -134,6 +134,28 @@ export function supabaseRewindStore(): RewindStore | undefined {
         for (const row of data ?? []) found.add(Number(row.tmdb_id))
       }
       return found
+    },
+  }
+}
+
+/** Read-only view of `movie_night_rewind_years` for /api/rewind. */
+export function supabaseRewindReader(): RewindReader | undefined {
+  const url = process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return undefined
+  const supabase = createClient(url, key)
+  return {
+    async years() {
+      const { data, error } = await supabase.from('movie_night_rewind_years').select('year, films').order('year', { ascending: false })
+      if (error) throw error
+      return (data ?? [])
+        .map((row) => ({ year: Number(row.year), ids: Array.isArray(row.films) ? row.films.map((f: { tmdbId: number }) => f.tmdbId) : [] }))
+        .filter((y) => y.ids.length > 0)
+    },
+    async year(year) {
+      const { data, error } = await supabase.from('movie_night_rewind_years').select('films').eq('year', year).maybeSingle()
+      if (error) throw error
+      return data && Array.isArray(data.films) && data.films.length > 0 ? data.films : null
     },
   }
 }

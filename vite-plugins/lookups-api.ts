@@ -6,12 +6,13 @@ import {
   type LookupKeys, type LookupResult,
 } from '../api/_lib/lookups.ts'
 import { handleSession, type SessionConfig } from '../api/_lib/session.ts'
+import { handleRewind } from '../api/_lib/rewind.ts'
 
 /** `path` is whatever follows the route (connect strips the mount point), e.g. '/movie/123'. */
 type Handler = (path: string, query: Record<string, string>, keys: LookupKeys) => Promise<LookupResult>
 
 /**
- * Dev-server twin of api/tmdb.ts, api/omdb.ts and api/recommendations.ts,
+ * Dev-server twin of api/tmdb.ts, api/omdb.ts, api/recommendations.ts and api/rewind.ts,
  * running the same handlers so dev and prod can't drift. Keys come from
  * TMDB_TOKEN / OMDB_KEY in .env.local (no VITE_ prefix, so Vite never puts
  * them in the client bundle). No persistent score cache in dev.
@@ -23,6 +24,8 @@ export function lookupsApi(): Plugin {
     '/api/tmdb': handleTmdb,
     '/api/omdb': (_path, q, k) => handleOmdb(q, k),
     '/api/recommendations': (_path, q, k) => handleRecommendations(q, k),
+    // No Supabase in dev: ranks recent years live from TMDB.
+    '/api/rewind': (_path, q, k) => handleRewind(q, k.tmdbToken, undefined),
   }
 
   return {

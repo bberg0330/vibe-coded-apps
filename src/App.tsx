@@ -14,7 +14,11 @@ import { TabBar, type Tab } from './components/TabBar'
 import { OptionSheet } from './components/OptionSheet'
 import { Button } from './components/Button'
 import { Toast } from './components/Toast'
-import { logWatch, undoLastWatch, watchCount, deleteWatch, type DatedWatch } from './data/history'
+import { logWatch, undoLastWatch, watchCount, deleteWatch, markSeenBefore, unmarkSeenBefore, getSeenBefore, type DatedWatch } from './data/history'
+import { getCachedScores } from './data/scores'
+import { RewindScreen } from './screens/RewindScreen'
+import { RewindYearScreen } from './screens/RewindYearScreen'
+import type { RewindFilm } from './api/rewind'
 import { getNowWatching, cancelWatching } from './data/watching'
 import {
   getWatchlist, getWatchlistEntry, isOnWatchlist, addToWatchlist, removeFromWatchlist, restoreToWatchlist,
@@ -34,7 +38,19 @@ const UNDO_MS = 5000
 /** A stored film snapshot as the full `Movie` the screens and cards take. */
 /** The tab a screen belongs to: Cast and Filmography are reached from Search. */
 function tabFor(screen: Screen): Tab {
+  if (screen.kind === 'rewind' || screen.kind === 'rewindYear') return 'rewind'
   return screen.kind === 'history' || screen.kind === 'watchlist' ? screen.kind : 'search'
+}
+
+/** A Rewind film as the Movie the rest of the app stores (watchlist, history, Cast screen). */
+function rewindMovie(film: RewindFilm, availability: Movie['availability'] = { streaming: [], rent: [] }): Movie {
+  const scores = getCachedScores(film.tmdbId)
+  return {
+    tmdbId: film.tmdbId, title: film.title, posterPath: film.posterPath, popularity: film.popularity,
+    year: film.releaseDate ? Number(film.releaseDate.slice(0, 4)) : null,
+    tomatometer: scores?.critic ?? null, popcornmeter: scores?.audience ?? null,
+    availability, overview: null,
+  }
 }
 
 function asMovie(movie: WatchEntry['movie']): Movie {
@@ -77,7 +93,7 @@ export default function App() {
   const goBack = () => history.back()
 
   // A counter forces re-render after a history write, since history lives outside React state.
-  const [, setHistoryVersion] = useState(0)
+  const [historyVersion, setHistoryVersion] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
 
@@ -418,6 +434,33 @@ export default function App() {
     toggleWatched(asMovie(entry.movie), null, { forceLog: true })
   const isWatchlistPending = (tmdbId: number) => pendingWatchlist.has(tmdbId)
 
+  /* Rewind: "Mark as watched" records a dated-less "seen before" entry, with Undo. */
+  const toggleSeenBefore = async (film: RewindFilm, availability: Movie['availability'] | undefined) => {
+    const { tmdbId, title } = film
+    if (pendingWatch.has(tmdbId)) return
+    const isSeen = getSeenBefore().some((e) => e.movie.tmdbId === tmdbId)
+    if (watchCount(tmdbId) > 0 && !isSeen) return // a dated movie night: not Rewind's to undo
+    setPendingWatch((p) => new Set(p).add(tmdbId))
+    setSaveError(null)
+    try {
+      if (isSeen) {
+        await unmarkSeenBefore(tmdbId)
+      } else {
+        await markSeenBefore(rewindMovie(film, availability))
+        showUndo({
+          message: `Marked ${title} as watched`,
+          undo: () => { void unmarkSeenBefore(tmdbId).then(() => setHistoryVersion((v) => v + 1)) },
+          commit: async () => {},
+        })
+      }
+    } catch {
+      setSaveError("Couldn't save that — is the Movie Night server still running?")
+    } finally {
+      setPendingWatch((p) => { const n = new Set(p); n.delete(tmdbId); return n })
+      setHistoryVersion((v) => v + 1)
+    }
+  }
+
   const cancelWatchingTonight = async (entry: WatchingEntry) => {
     const key = `${entry.profileId}:${entry.movie.tmdbId}`
 
@@ -591,9 +634,23 @@ export default function App() {
       )}
       <TabBar
         current={tabFor(current)}
-        tabs={['search', 'watchlist', 'history']}
-        onSelect={(tab) => navigate({ kind: tab === 'rewind' ? 'search' : tab })}
+        onSelect={(tab) => navigate({ kind: tab })}
       />
+      {current.kind === 'rewind' && (
+        <RewindScreen onOpenYear={(year) => navigate({ kind: 'rewindYear', year })} />
+      )}
+      {current.kind === 'rewindYear' && (
+        <RewindYearScreen
+          year={current.year}
+          version={historyVersion}
+          onBackToRewind={() => navigate({ kind: 'rewind' })}
+          onOpenFilm={(film) => navigate({ kind: 'cast', movie: rewindMovie(film) })}
+          isOnWatchlist={onWatchlistNow}
+          onToggleWatchlist={(film, a) => { void setOnWatchlist(rewindMovie(film, a), !onWatchlistNow(film.tmdbId)) }}
+          onToggleWatched={(film, a) => { void toggleSeenBefore(film, a) }}
+          isPending={(tmdbId) => pendingWatch.has(tmdbId) || pendingWatchlist.has(tmdbId)}
+        />
+      )}
       {toast && <Toast message={toast.message} onUndo={() => settleToast('undo')} />}
       <Analytics />
     </div>

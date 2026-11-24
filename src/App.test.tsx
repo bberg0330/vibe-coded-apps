@@ -669,8 +669,12 @@ describe('App - tab bar', () => {
     expect(await screen.findByRole('searchbox')).toBeInTheDocument()
   })
 
-  it('leaves Rewind out until its screen ships', async () => {
+  it('opens Rewind from its tab', async () => {
     await renderApp()
-    expect(within(screen.getByRole('navigation', { name: 'Main' })).queryByRole('button', { name: 'Rewind' })).not.toBeInTheDocument()
+    const tabs = screen.getByRole('navigation', { name: 'Main' })
+    await userEvent.click(within(tabs).getByRole('button', { name: 'Rewind' }))
+    expect(await screen.findByRole('heading', { name: 'Rewind' })).toBeInTheDocument()
+    expect(within(tabs).getByRole('button', { name: 'Rewind' })).toHaveAttribute('aria-current', 'page')
+    expect(window.location.hash).toBe('#/rewind')
   })
 })
