@@ -48,3 +48,5 @@ Manage Vercel environment variables directly via the connector, without asking f
 ## Skills
 
 For debugging (something broken, throwing, failing or slow), use `mattpocock-skills:diagnosing-bugs` rather than `engineering:debug`.
+
+For code review, use `mattpocock-skills:code-review` rather than the built-in `/code-review`.
