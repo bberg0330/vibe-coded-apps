@@ -12,6 +12,8 @@ Figma file: `ajsVg5LjRT7Y5D346WMif3` (Movie Night — UX/UI Baseline). Component
 
 Review designs before changing UI code. Unless the user has provided Figma designs for the change, draft the proposed UI in Figma first (on a new "Proposal — …" page, leaving existing components untouched), share the link, and wait for approval before writing or merging code. Behaviour-only changes with no visual difference don't need this. If UI code was already written without a design, set the PR to draft and design it in Figma before it goes further.
 
+**Critique every proposal before sharing it.** Once the "Proposal — …" page is drafted, run `design:design-critique` on it (pass the page's link, with its `node-id`) before asking for approval. Fix what it finds, or say why a finding doesn't apply, and give the user the link together with a short summary of the critique. Run it again on the revised page whenever the proposal changes materially (for example after the user's feedback or after applying an earlier critique's recommendations), so the version that is approved is the version that was critiqued. A proposal that is only a small tweak to an approved one (a copy change, a one-state fix) doesn't need a fresh critique.
+
 Once a proposal is approved, move it into the evergreen pages (02 Components, 03 Screens, 04 Flows), then delete the "Proposal — …" page. Before deleting, check that no instance on those pages still uses a component that lives on the proposal page.
 
 Figma changes never update the React code automatically. When the user shares Figma links (with a `node-id`) or says a component was updated in Figma, review and compare without being asked:
@@ -50,6 +52,8 @@ Manage Vercel environment variables directly via the connector, without asking f
 For debugging (something broken, throwing, failing or slow), use `mattpocock-skills:diagnosing-bugs` rather than `engineering:debug`.
 
 For code review, use `mattpocock-skills:code-review` rather than the built-in `/code-review`.
+
+For design proposals, use `design:design-critique` (see *Design first*).
 
 ## Code review
 
