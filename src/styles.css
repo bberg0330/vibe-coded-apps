@@ -184,22 +184,58 @@ body {
 }
 .btn:disabled { opacity: .5; cursor: default; }
 
-.app { max-width: 640px; margin: 0 auto; padding: 12px; padding-top: max(12px, env(safe-area-inset-top)); }
-.topbar { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.app {
+  max-width: 640px; margin: 0 auto; padding: 12px; padding-top: max(12px, env(safe-area-inset-top));
+  padding-bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom));
+}
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .link { background: none; border: 0; color: var(--accent-text); font: inherit; cursor: pointer; padding: 8px; }
-.profile-switcher { display: flex; gap: 6px; align-items: center; }
-/*
- * ⚙ / History / Watchlist. Figma spaces the three 8px apart with no padding;
- * 4px either side keeps that 8px between the texts while leaving a 38px-tall
- * tap target, and nowrap stops "Watchlist" dropping to a second line beside
- * "← Back" and both chips.
- */
-.topbar-actions { display: flex; }
 .topbar .link { white-space: nowrap; }
-/* Figma sets "← Back" flush left and the last link flush right — no outer padding. */
+/* Figma sets "← Back" flush left. */
 .topbar > .link:first-child { padding-left: 0; }
-.topbar-actions .link:last-child { padding-right: 0; }
-.topbar-actions .link { padding: 8px 4px; }
+/* 🔔 ⚙ and the profile avatar: 44x44 targets, no gap, flush right (Figma: TopBar actions). */
+.topbar-actions { display: flex; }
+.icon-btn-bare {
+  position: relative; width: 44px; height: 44px; flex: none;
+  display: grid; place-items: center;
+  background: none; border: 0; padding: 0; cursor: pointer; color: var(--accent-text);
+}
+.avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--accent); color: var(--accent-fg); font-size: 13px; line-height: 18.2px;
+}
+/* Unseen-alert dot: 10px --accent ringed in --bg, on the icon's top-right (Figma: alert-dot). */
+.alert-dot {
+  position: absolute; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 2px var(--bg);
+}
+.icon-btn-bare .alert-dot { top: 8px; left: 28px; }
+.tab-icon .alert-dot { top: -3px; left: 18px; }
+
+/*
+ * Bottom tab bar (Figma: TabBar / TabItem). Fixed to the viewport; 6px over
+ * and 24px under the 52px items, plus the iPhone home-indicator inset.
+ * Items share the width equally. .app reserves the same height so the last
+ * row of a screen can scroll clear of it.
+ */
+:root { --tabbar-h: 83px; } /* 1px border + 6 + 52 + 24 */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 15;
+  display: flex; justify-content: center;
+  padding: 6px max(0px, calc((100vw - 640px) / 2)) calc(24px + env(safe-area-inset-bottom));
+  background: var(--surface); border-top: 1px solid var(--border);
+}
+.tab-item {
+  flex: 1 1 0; min-width: 0; height: 52px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+  color: var(--icon-muted);
+}
+.tab-item.current { color: var(--accent-text); cursor: default; }
+.tab-icon { position: relative; width: 24px; height: 24px; }
+.tab-icon .icon { display: block; }
+.tab-label { font-size: 14px; line-height: 19.6px; white-space: nowrap; }
 .chip {
   background: var(--surface); color: var(--muted); border: 0; border-radius: 999px;
   font: inherit; font-size: 13px; cursor: pointer; padding: 6px 12px;
@@ -506,12 +542,12 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 }
 
 /*
- * Undo toast. Pinned above the safe area so it never covers the top bar;
+ * Undo toast. Pinned 12px above the tab bar so it never covers it;
  * one at a time — a new undoable action replaces it.
  */
 .toast {
   position: fixed; left: 12px; right: 12px; z-index: 30;
-  bottom: calc(24px + env(safe-area-inset-bottom));
+  bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom));
   max-width: 616px; margin: 0 auto;
   display: flex; align-items: center; gap: 12px;
   padding: 4px 4px 4px 16px; border-radius: 10px;

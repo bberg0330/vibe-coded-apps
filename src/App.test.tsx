@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { render, screen, within, waitFor, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { clearHttpCache } from './api/http'
@@ -329,26 +329,32 @@ describe('App - profile gate', () => {
     expect(await screen.findByRole('searchbox')).toBeInTheDocument()
     expect(screen.queryByText(/who's watching\?/i)).not.toBeInTheDocument()
     expect(getActiveProfileId()).toBe(PROFILES[0].id)
-    expect(screen.getByRole('button', { name: PROFILES[0].name })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: `Watching as ${PROFILES[0].name}. Switch profile` })).toBeInTheDocument()
   })
 })
 
 describe('App - profile switcher', () => {
-  it('shows a chip for every configured profile once past the gate', async () => {
-    await renderApp()
+  const avatar = (name: string) => screen.getByRole('button', { name: `Watching as ${name}. Switch profile` })
 
+  it('shows the active profile as an avatar that opens a picker of every profile', async () => {
+    await renderApp(PROFILES[0].id)
+
+    expect(avatar(PROFILES[0].name)).toHaveTextContent(PROFILES[0].name[0].toUpperCase())
+    await userEvent.click(avatar(PROFILES[0].name))
+
+    const sheet = screen.getByRole('dialog', { name: "Who's watching" })
     for (const profile of PROFILES) {
-      expect(screen.getByRole('button', { name: profile.name })).toBeInTheDocument()
+      expect(within(sheet).getByRole('radio', { name: profile.name })).toBeInTheDocument()
     }
   })
 
-  it('persists a topbar profile switch across a simulated reload', async () => {
+  it('persists a profile switch across a simulated reload', async () => {
     const { unmount } = await renderApp(PROFILES[0].id)
 
-    const chip = screen.getByRole('button', { name: PROFILES[1].name })
-    expect(chip).toHaveAttribute('aria-pressed', 'false')
-    await userEvent.click(chip)
-    expect(chip).toHaveAttribute('aria-pressed', 'true')
+    await userEvent.click(avatar(PROFILES[0].name))
+    await userEvent.click(screen.getByRole('radio', { name: PROFILES[1].name }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(avatar(PROFILES[1].name)).toBeInTheDocument()
 
     // Simulate a fresh app load: unmount and remount, re-reading whatever
     // was persisted to localStorage rather than any in-memory state.
@@ -356,8 +362,7 @@ describe('App - profile switcher', () => {
     render(<App />)
     await screen.findByRole('searchbox')
 
-    expect(screen.getByRole('button', { name: PROFILES[1].name }))
-      .toHaveAttribute('aria-pressed', 'true')
+    expect(avatar(PROFILES[1].name)).toBeInTheDocument()
   })
 })
 
@@ -649,13 +654,23 @@ describe('App - undo toast', () => {
   })
 })
 
-describe('App - top bar current screen', () => {
-  it('shows the current screen as text, not a link to itself', async () => {
+describe('App - tab bar', () => {
+  it('switches screens and marks the current tab, which does nothing when tapped again', async () => {
     await renderApp()
-    await userEvent.click(screen.getByRole('button', { name: 'Watchlist' }))
+    const tabs = screen.getByRole('navigation', { name: 'Main' })
+    expect(within(tabs).getByRole('button', { name: 'Search' })).toHaveAttribute('aria-current', 'page')
+
+    await userEvent.click(within(tabs).getByRole('button', { name: 'Watchlist' }))
     await screen.findByText(/Nothing saved yet/)
-    expect(screen.queryByRole('button', { name: 'Watchlist' })).not.toBeInTheDocument()
-    expect(screen.getByText('Watchlist', { selector: '[aria-current="page"]' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^history$/i })).toBeInTheDocument()
+    expect(within(tabs).getByRole('button', { name: 'Watchlist' })).toHaveAttribute('aria-current', 'page')
+    expect(within(tabs).getByRole('button', { name: 'Search' })).not.toHaveAttribute('aria-current')
+
+    await userEvent.click(within(tabs).getByRole('button', { name: 'Search' }))
+    expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+  })
+
+  it('leaves Rewind out until its screen ships', async () => {
+    await renderApp()
+    expect(within(screen.getByRole('navigation', { name: 'Main' })).queryByRole('button', { name: 'Rewind' })).not.toBeInTheDocument()
   })
 })

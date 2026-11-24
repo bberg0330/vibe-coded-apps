@@ -1,51 +1,47 @@
-import { Chip } from './Chip'
-import type { Profile, ProfileId } from '../data/profiles'
+import { Icon } from './icons'
+import type { Profile } from '../data/profiles'
 
 /**
- * Shared chrome above every screen: back link, profile switcher, then ⚙
- * Settings / History / Watchlist. Settings is a glyph so all three fit beside
- * "← Back" and both chips at 375px. .topbar
+ * Shared chrome above every screen: "← Back" on the left (when there is
+ * somewhere to go back to), and on the right 44x44 icon buttons for alerts
+ * (🔔, once alerts ship), Settings, and the active profile's avatar, which
+ * opens the "Who's watching" switcher. Screens are reached from the bottom
+ * TabBar, not from here. .topbar
  */
-export function TopBar({
-  current = null, showBack, onBack, profiles, activeProfileId, onSelectProfile, onSettings, onHistory, onWatchlist,
-}: {
-  /** The screen on show: its link renders as plain text with aria-current, not a link to itself. */
-  current?: 'history' | 'watchlist' | null
+export function TopBar({ showBack, onBack, profile, onSwitchProfile, onSettings, onAlerts, hasAlerts = false }: {
   showBack: boolean
   onBack: () => void
-  profiles: Profile[]
-  activeProfileId: ProfileId
-  onSelectProfile: (id: ProfileId) => void
+  profile: Profile
+  onSwitchProfile: () => void
   onSettings: () => void
-  onHistory: () => void
-  onWatchlist: () => void
+  /** Leave out to hide the bell (alerts arrive in a later step). */
+  onAlerts?: () => void
+  hasAlerts?: boolean
 }) {
   return (
-    <nav className="topbar">
+    <nav className="topbar" aria-label="Top">
       {showBack
         ? <button className="link" onClick={onBack}>← Back</button>
         : <span />}
-      <span className="profile-switcher" role="group" aria-label="Who's watching">
-        {profiles.map((profile) => (
-          <Chip
-            key={profile.id}
-            label={profile.name}
-            active={activeProfileId === profile.id}
-            onClick={() => onSelectProfile(profile.id)}
-          />
-        ))}
-      </span>
       <span className="topbar-actions">
-        <button className="link" onClick={onSettings} aria-label="Settings" title="Settings">⚙</button>
-        <NavLink label="History" current={current === 'history'} onClick={onHistory} />
-        <NavLink label="Watchlist" current={current === 'watchlist'} onClick={onWatchlist} />
+        {onAlerts && (
+          <button className="icon-btn-bare" onClick={onAlerts} aria-label={hasAlerts ? 'Alerts, new' : 'Alerts'}>
+            <Icon name="bell" />
+            {hasAlerts && <span className="alert-dot" />}
+          </button>
+        )}
+        <button className="icon-btn-bare" onClick={onSettings} aria-label="Settings" title="Settings">
+          <Icon name="gear" />
+        </button>
+        <button
+          className="icon-btn-bare avatar-btn"
+          onClick={onSwitchProfile}
+          aria-label={`Watching as ${profile.name}. Switch profile`}
+          title={`Watching as ${profile.name}`}
+        >
+          <span className="avatar" aria-hidden="true">{profile.name.slice(0, 1).toUpperCase()}</span>
+        </button>
       </span>
     </nav>
   )
-}
-
-function NavLink({ label, current, onClick }: { label: string; current: boolean; onClick: () => void }) {
-  return current
-    ? <span className="link current" aria-current="page">{label}</span>
-    : <button className="link" onClick={onClick}>{label}</button>
 }
