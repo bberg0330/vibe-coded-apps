@@ -44,3 +44,7 @@ Manage Vercel environment variables directly via the connector, without asking f
 - When a change stops using a variable, remove it in the same piece of work. The connector can't delete variables, so tell the user exactly which ones to delete (Settings → Environment Variables) rather than leaving them behind silently.
 - Mark secrets as `sensitive` and never print their values.
 - Keep `docs/RUNNING.md` in step with what the code reads.
+
+## Skills
+
+For debugging (something broken, throwing, failing or slow), use `mattpocock-skills:diagnosing-bugs` rather than `engineering:debug`.
