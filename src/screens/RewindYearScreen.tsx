@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { getRewindYear, type RewindFilm } from '../api/rewind'
 import { getWatchProviders } from '../api/tmdb'
 import { getCachedScores } from '../data/scores'
-import { getEnabledServices, RENT_SERVICES, SERVICES } from '../data/providers'
+import { getEnabledServices } from '../data/providers'
+import { whereToWatch } from '../data/providerIds'
 import { getSeenBefore, watchCount } from '../data/history'
 import { Button } from '../components/Button'
 import { Chip } from '../components/Chip'
@@ -20,14 +21,6 @@ const SORTS: { value: Sort; label: string }[] = [
   { value: 'critic', label: 'Critic score' },
   { value: 'popularity', label: 'Popularity' },
 ]
-
-/** "Stream · Netflix" for a service you have, else "Rent · Apple TV", else null. */
-export function whereToWatch(a: Availability | undefined, enabled = getEnabledServices()): string | null {
-  const stream = a?.streaming.find((k) => enabled.includes(k))
-  if (stream) return `Stream · ${SERVICES[stream].label}`
-  const rent = a?.rent[0]
-  return rent ? `Rent · ${RENT_SERVICES[rent].label}` : null
-}
 
 /**
  * One Rewind year: the top films in rank order, household progress, sort,
@@ -92,6 +85,7 @@ export function RewindYearScreen({
     )
   }
 
+  const enabled = getEnabledServices()
   const list = films ?? []
   const watchedCount = list.filter((f) => watchCount(f.tmdbId) > 0).length
   const loadingWhere = list.some((f) => !where.has(f.tmdbId))
@@ -100,7 +94,7 @@ export function RewindYearScreen({
     sort === 'popularity'
       ? b.film.popularity - a.film.popularity
       : (getCachedScores(b.film.tmdbId)?.critic ?? -1) - (getCachedScores(a.film.tmdbId)?.critic ?? -1))
-  const shown = watchableOnly ? sorted.filter(({ film }) => whereToWatch(where.get(film.tmdbId)) !== null) : sorted
+  const shown = watchableOnly ? sorted.filter(({ film }) => whereToWatch(where.get(film.tmdbId), enabled) !== null) : sorted
 
   return (
     <div className="screen">
@@ -130,7 +124,7 @@ export function RewindYearScreen({
             title={film.title}
             posterPath={film.posterPath}
             scores={getCachedScores(film.tmdbId)}
-            where={whereToWatch(where.get(film.tmdbId))}
+            where={whereToWatch(where.get(film.tmdbId), enabled)}
             watched={watched}
             canUnmark={!watched || seenBefore.has(film.tmdbId)}
             onWatchlist={isOnWatchlist(film.tmdbId)}

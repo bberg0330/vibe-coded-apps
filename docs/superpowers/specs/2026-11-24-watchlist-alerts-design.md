@@ -31,12 +31,17 @@ Tell the household when a watchlist film becomes watchable, inside the app.
 ## Check
 
 - Runs **nightly** on the existing Vercel schedule, alongside the ratings sync.
-- One run produces **one grouped alert** ("3 watchlist films are now
-  watchable"), listing each film and where it's available.
+- Each film that becomes watchable gets its own alert, shown as one row in
+  the bell's "Now watchable" panel with where it's available (the approved
+  Figma design). The bell's dot is the single grouped signal that there's
+  something new.
 
 ## Who sees alerts
 
 - Alerts belong to the **household**, like the watchlist.
+- An alert hides once the film is watched **after** the alert, so a rewatch
+  put back on the watchlist can still alert. A film taken off the
+  watchlist loses its recorded availability, so re-adding it starts fresh.
 - **Seen/cleared per profile:** each profile clears alerts for itself, one at
   a time or with **Clear all**.
 - An alert also disappears after **30 days**, or once the film is watched or
