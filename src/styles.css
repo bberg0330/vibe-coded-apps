@@ -617,3 +617,27 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   background: var(--control-bg); color: var(--text);
 }
 .rewind-controls .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+
+/* History → "Seen before" (Figma: "History — with Seen before" / "History — Seen before list"). */
+.seen-before-link {
+  display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 56px;
+  margin-top: 4px; padding: 0 16px; border: 0; border-radius: 12px; background: var(--surface);
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.seen-before-text { display: flex; flex-direction: column; gap: 2px; }
+.seen-before-title, .seen-before-chevron { font-size: 16px; line-height: 22.4px; font-weight: 600; }
+.seen-before-chevron { color: var(--accent-text); }
+.seen-before-count { font-size: 14px; line-height: 19.6px; color: var(--muted); }
+.seen-year { background: var(--surface); border-radius: 12px; padding: 4px 0; margin-bottom: 12px; }
+.seen-year-head, .seen-film {
+  display: flex; align-items: center; justify-content: space-between; min-height: 44px; padding: 0 16px;
+}
+.seen-year-head { width: 100%; border: 0; background: none; color: var(--muted); font: inherit; cursor: pointer; }
+.seen-year-label { font-size: 11px; line-height: 15.4px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; }
+.seen-year-count { font-size: 14px; line-height: 19.6px; }
+.seen-year-count.more { color: var(--accent-text); }
+.seen-film-title { font-size: 16px; line-height: 22.4px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.seen-film-menu { position: relative; flex: none; margin-right: -16px; }
+.seen-more { color: var(--muted); font-size: 16px; font-weight: 600; }
+.seen-date { display: flex; align-items: center; gap: 4px; flex: none; }
+.seen-date input { font: inherit; font-size: 14px; background: var(--control-bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }

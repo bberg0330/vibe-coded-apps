@@ -223,3 +223,11 @@ describe('Rewind routes', () => {
     ])
   })
 })
+
+describe('Seen before route', () => {
+  it('round-trips and rebuilds Search → History → Seen before', async () => {
+    expect(hashFor({ kind: 'seenBefore' })).toBe('#/history/seen-before')
+    expect(parseHash('#/history/seen-before')).toEqual({ kind: 'seenBefore' })
+    expect(await rehydrate({ kind: 'seenBefore' })).toEqual([{ kind: 'search' }, { kind: 'history' }, { kind: 'seenBefore' }])
+  })
+})

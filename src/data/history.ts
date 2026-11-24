@@ -62,6 +62,11 @@ export async function markSeenBefore(movie: Movie): Promise<WatchEntry | null> {
   return entry
 }
 
+/** Puts back an entry exactly as it was (for Undo after an unmark). */
+export async function restoreWatch(entry: WatchEntry): Promise<void> {
+  await applyRemoteOp({ type: 'logWatch', entry })
+}
+
 /** Removes a film's "seen before" entry (a mistaken mark). Movie nights are untouched. */
 export async function unmarkSeenBefore(tmdbId: number): Promise<void> {
   await applyRemoteOp({ type: 'deleteWatch', tmdbId, watchedAt: null })

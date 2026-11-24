@@ -145,3 +145,4 @@ export type Screen =
   | { kind: 'watchlist' }
   | { kind: 'rewind' }
   | { kind: 'rewindYear'; year: number }
+  | { kind: 'seenBefore' }
