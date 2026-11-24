@@ -6,6 +6,11 @@ import { resetScoresForTests } from '../data/scores'
 import { getRottenTomatoesScores } from '../api/omdb'
 import type { Person, Movie } from '../types'
 
+/** Matches a score element by its visible text (the emoji is aria-hidden and a screen-reader label follows). */
+const scoreText = (text: string) => (_: string, el: Element | null) =>
+  !!el?.classList.contains('score') && (el.textContent ?? '').startsWith(text)
+
+
 // Only `getRottenTomatoesScores` is stubbable, and it delegates to the real
 // implementation unless a test overrides it (see beforeEach). That lets one
 // test inject a rejecting score lookup without changing how the others behave.
@@ -115,7 +120,7 @@ describe('FilmographyScreen', () => {
     })
     renderScreen()
 
-    expect(await screen.findByText('⭐ 80%')).toBeInTheDocument()
+    expect(await screen.findByText(scoreText('⭐ 80%'))).toBeInTheDocument()
   })
 
   it('keeps unscored films in the list, at the bottom', async () => {
@@ -208,7 +213,7 @@ describe('FilmographyScreen', () => {
     renderScreen()
 
     // The survivor's score landing proves stage two ran to completion.
-    expect(await screen.findByText('\u{1F345} 90%')).toBeInTheDocument()
+    expect(await screen.findByText(scoreText('\u{1F345} 90%'))).toBeInTheDocument()
     expect(screen.getByText('Survivor')).toBeInTheDocument()
     expect(screen.getByText('Rejects')).toBeInTheDocument()
     expect(screen.queryByText(/couldn't load this filmography/i)).not.toBeInTheDocument()
@@ -223,7 +228,7 @@ describe('FilmographyScreen', () => {
 
     renderScreen()
 
-    expect(await screen.findByText('\u{1F345} 90%')).toBeInTheDocument()
+    expect(await screen.findByText(scoreText('\u{1F345} 90%'))).toBeInTheDocument()
     expect(screen.getByText('No critic score')).toBeInTheDocument()
   })
 

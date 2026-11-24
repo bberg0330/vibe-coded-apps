@@ -38,10 +38,10 @@ export function WatchlistRow({
           <div className="card-meta">
             {movie.year !== null && <span>{movie.year}</span>}
             {typeof movie.tomatometer === 'number' && (
-              <span className="score" title="Critic score">🍅 {movie.tomatometer}%</span>
+              <span className="score" title="Critic score"><span aria-hidden="true">🍅</span> {movie.tomatometer}%<span className="sr-only"> critic score</span></span>
             )}
             {typeof movie.popcornmeter === 'number' && (
-              <span className="score" title="IMDb user rating">⭐ {movie.popcornmeter}%</span>
+              <span className="score" title="IMDb user rating"><span aria-hidden="true">⭐</span> {movie.popcornmeter}%<span className="sr-only"> audience score</span></span>
             )}
           </div>
           <div className="card-meta added-by">

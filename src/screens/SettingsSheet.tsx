@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { SERVICES, getEnabledServices, setServiceEnabled } from '../data/providers'
 import { SectionHeading } from '../components/SectionHeading'
+import { useDialogFocus } from '../components/useDialogFocus'
 import type { ServiceKey } from '../types'
 
 export function SettingsSheet({ onClose }: { onClose: () => void }) {
   const [enabled, setEnabled] = useState<ServiceKey[]>(getEnabledServices())
   const [error, setError] = useState<string | null>(null)
+  const dialogRef = useDialogFocus<HTMLDivElement>(onClose)
 
   const toggle = async (key: ServiceKey) => {
     const next = !enabled.includes(key)
@@ -26,8 +28,8 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
         * own, so History rows painted over the top of it. It doubles as a
         * tap-outside-to-close target, which the sheet never had.
         */}
-      <button className="scrim" aria-label="Close settings" onClick={onClose} />
-      <div className="sheet" role="dialog" aria-modal="true" aria-label="Our subscriptions">
+      <button className="scrim" aria-label="Close settings" tabIndex={-1} onClick={onClose} />
+      <div className="sheet" role="dialog" tabIndex={-1} ref={dialogRef} aria-modal="true" aria-label="Our subscriptions">
       <div className="topbar">
         <SectionHeading>Our subscriptions</SectionHeading>
         <button className="link" onClick={onClose}>Done</button>

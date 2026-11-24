@@ -39,7 +39,7 @@ export function HistoryRow({
             <div className="card-meta">
               <span>{new Date(entry.watchedAt).toLocaleDateString()}</span>
               {entry.movie.tomatometer !== null && (
-                <span className="score" title="Critic score">🍅 {entry.movie.tomatometer}%</span>
+                <span className="score" title="Critic score"><span aria-hidden="true">🍅</span> {entry.movie.tomatometer}%<span className="sr-only"> critic score</span></span>
               )}
               {/*
                 * Guard on the value, not just on null: entries written
@@ -49,7 +49,7 @@ export function HistoryRow({
                 * not Rotten Tomatoes' Popcornmeter.
                 */}
               {typeof entry.movie.popcornmeter === 'number' && (
-                <span className="score" title="IMDb user rating">⭐ {entry.movie.popcornmeter}%</span>
+                <span className="score" title="IMDb user rating"><span aria-hidden="true">⭐</span> {entry.movie.popcornmeter}%<span className="sr-only"> audience score</span></span>
               )}
               {count > 1 && <span className="rewatch">watched {count}×</span>}
             </div>
