@@ -5,7 +5,7 @@ import { Toast } from './Toast'
 describe('Toast', () => {
   it('holds while hovered or focused, and releases only when both have left', () => {
     const onHold = vi.fn()
-    render(<Toast message="Removed Heat" onUndo={() => {}} onHold={onHold} />)
+    render(<Toast message="Removed Heat" onAction={() => {}} onHold={onHold} />)
     const toast = screen.getByRole('status')
     fireEvent.pointerEnter(toast)
     fireEvent.focus(screen.getByRole('button', { name: 'Undo' }))
@@ -16,18 +16,18 @@ describe('Toast', () => {
   })
 
   it('shows the Undo label by default and the caller\'s label when it gives one', () => {
-    const { rerender } = render(<Toast message="Removed Heat" onUndo={() => {}} />)
+    const { rerender } = render(<Toast message="Removed Heat" onAction={() => {}} />)
     expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
 
-    rerender(<Toast message="Logged Heat for tonight" actionLabel="Not tonight?" onUndo={() => {}} />)
+    rerender(<Toast message="Logged Heat for tonight" actionLabel="Not tonight?" onAction={() => {}} />)
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Not tonight?' })).toBeInTheDocument()
   })
 
-  it('calls onUndo from whatever the button says', () => {
-    const onUndo = vi.fn()
-    render(<Toast message="Logged Heat for tonight" actionLabel="Not tonight?" onUndo={onUndo} />)
+  it('calls onAction from whatever the button says', () => {
+    const onAction = vi.fn()
+    render(<Toast message="Logged Heat for tonight" actionLabel="Not tonight?" onAction={onAction} />)
     fireEvent.click(screen.getByRole('button', { name: 'Not tonight?' }))
-    expect(onUndo).toHaveBeenCalledTimes(1)
+    expect(onAction).toHaveBeenCalledTimes(1)
   })
 })
