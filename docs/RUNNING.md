@@ -122,6 +122,9 @@ IMDb id and stored in Supabase's `movie_night_scores`:
   TMDB rating is saved to `movie_night_rewind_years`. Past years are saved
   once; this year is rebuilt weekly (`refresh_after`). Delete a year's row
   to rebuild it.
+- **`/api/rewind`** serves those lists to the app (`?year=2019` for one
+  year; 404 `{ locked: true }` until a year is saved). In local dev, with no
+  Supabase, it ranks this year and the five before it live from TMDB.
 
 Vercel env vars: `OMDB_SYNC_BUDGET` (optional, default 800). The function
 has no public URL, so it needs no `CRON_SECRET`. Apply

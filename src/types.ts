@@ -143,3 +143,5 @@ export type Screen =
   | { kind: 'filmography'; actor: Person; fromMovie: Movie }
   | { kind: 'history' }
   | { kind: 'watchlist' }
+  | { kind: 'rewind' }
+  | { kind: 'rewindYear'; year: number }

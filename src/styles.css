@@ -572,3 +572,48 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 
 /* "🍅 Critics · ⭐ Audience" — one per scored list, tucked under its heading. */
 .score-legend { margin: -4px 0 8px; color: var(--muted); font-size: 12px; white-space: pre; }
+
+/*
+ * Rewind (Figma: 03 Screens → 08, "Rewind — year grid" / "Rewind — 2019 top
+ * 50" / "Rewind — 1987 unlocks soon"; components YearTile and RewindRow).
+ */
+.rewind-title { margin-bottom: 4px; }
+.rewind-sub { margin: 0 0 12px; font-size: 14px; }
+.progress {
+  display: block; width: 100%; height: 6px; border-radius: 3px; overflow: hidden;
+  background: var(--control-bg);
+}
+.progress-fill { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+/* Two tiles a row with a 12px gap. */
+.year-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+.year-tile {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  padding: 14px; border: 0; border-radius: 12px; background: var(--surface);
+  color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.year-tile-year { font-size: 16px; line-height: 22.4px; letter-spacing: .64px; color: var(--text); }
+.year-tile-count { font-size: 14px; line-height: 19.6px; color: var(--muted); }
+.rewind-progress { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; font-size: 14px; }
+.rewind-progress .progress { width: 100%; }
+.rewind-controls { display: flex; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+/* RewindRow: 10px padding (8 on the left, before the rank), 12px radius, 10px gaps. */
+.rewind-row { align-items: center; gap: 10px; padding: 10px 10px 10px 8px; border-radius: 12px; }
+.rewind-row.watched { opacity: .55; }
+.rewind-rank {
+  flex: none; width: 24px; text-align: center;
+  font-size: 16px; line-height: 22.4px; letter-spacing: .64px; color: var(--muted);
+}
+.rewind-row .card-body { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.rewind-row .card-title { white-space: normal; }
+.rewind-row .card-actions { width: 44px; gap: 6px; }
+.rewind-row .icon-btn { width: 44px; height: 44px; }
+.rewind-locked { display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 80px; text-align: center; }
+.rewind-locked h1 { margin: 0; font-size: 16px; letter-spacing: .64px; text-transform: uppercase; }
+.rewind-lock { font-size: 22px; }
+.rewind-row .card-main { gap: 10px; }
+/* Sort / Watchable now: 36px pills in the Meta/Label style (11px semibold caps). */
+.rewind-controls .chip {
+  height: 36px; padding: 0 12px; font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase;
+  background: var(--control-bg); color: var(--text);
+}
+.rewind-controls .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
