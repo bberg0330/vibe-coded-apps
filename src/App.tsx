@@ -66,6 +66,7 @@ function alertMovie(a: Alert): Movie {
   }
 }
 
+/** A stored film snapshot as the full `Movie` the screens and cards take. */
 function asMovie(movie: WatchEntry['movie']): Movie {
   return { ...movie, popularity: 0, availability: { streaming: [], rent: [] }, overview: null }
 }
