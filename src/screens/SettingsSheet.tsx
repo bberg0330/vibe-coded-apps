@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { SERVICES, getEnabledServices, setServiceEnabled } from '../data/providers'
 import { SectionHeading } from '../components/SectionHeading'
-import { useDialogFocus } from '../components/useDialogFocus'
+import { useDialogFocus } from '../hooks/useDialogFocus'
 import type { ServiceKey } from '../types'
 
 export function SettingsSheet({ onClose }: { onClose: () => void }) {

@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { usePendingSet } from './hooks/usePendingSet'
+import { useUndoToast } from './hooks/useUndoToast'
 import { flushSync } from 'react-dom'
 import { Analytics } from '@vercel/analytics/react'
 import { SearchScreen } from './screens/SearchScreen'
@@ -13,7 +15,8 @@ import { TopBar } from './components/TopBar'
 import { TabBar, type Tab } from './components/TabBar'
 import { OptionSheet } from './components/OptionSheet'
 import { AlertsPanel } from './components/AlertsPanel'
-import { getAlerts, clearAlerts, type Alert } from './api/alerts'
+import type { Alert } from './api/alerts'
+import { useAlerts } from './hooks/useAlerts'
 import { Button } from './components/Button'
 import { Toast } from './components/Toast'
 import { logWatch, undoLastWatch, watchCount, deleteWatch, markSeenBefore, unmarkSeenBefore, getSeenBefore, restoreWatch, setSeenBeforeDate, type DatedWatch } from './data/history'
@@ -35,10 +38,6 @@ import { getActiveProfileId, setActiveProfileId } from './data/activeProfile'
 import { hashFor, parseHash, rehydrate, RehydrationError } from './router'
 import type { Movie, WatchEntry, WatchingEntry, WatchlistEntry, Screen } from './types'
 
-/** How long the undo toast stays up. */
-const UNDO_MS = 5000
-
-/** A stored film snapshot as the full `Movie` the screens and cards take. */
 /** The tab a screen belongs to: Cast and Filmography are reached from Search. */
 function tabFor(screen: Screen): Tab {
   if (screen.kind === 'rewind' || screen.kind === 'rewindYear') return 'rewind'
@@ -67,6 +66,7 @@ function alertMovie(a: Alert): Movie {
   }
 }
 
+/** A stored film snapshot as the full `Movie` the screens and cards take. */
 function asMovie(movie: WatchEntry['movie']): Movie {
   return { ...movie, popularity: 0, availability: { streaming: [], rent: [] }, overview: null }
 }
@@ -111,22 +111,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
   const [alertsOpen, setAlertsOpen] = useState(false)
-  const [alerts, setAlerts] = useState<Alert[]>([])
-  // This profile's alerts: on load, on switching profile, and whenever the app comes back to the foreground.
-  useEffect(() => {
-    if (!activeProfileId) return
-    let live = true
-    const load = () => { getAlerts(activeProfileId).then((a) => { if (live) setAlerts(a) }, () => {}) }
-    load()
-    const onVisible = () => { if (document.visibilityState === 'visible') load() }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => { live = false; document.removeEventListener('visibilitychange', onVisible) }
-  }, [activeProfileId])
-  const dropAlerts = (ids?: number[]) => {
-    if (!activeProfileId) return
-    setAlerts((a) => (ids ? a.filter((x) => !ids.includes(x.id)) : []))
-    clearAlerts(activeProfileId, ids).catch(() => setSaveError("Couldn't clear that alert — is the Movie Night server still running?"))
-  }
+  const { alerts, dropAlerts } = useAlerts(activeProfileId, () => setSaveError("Couldn't clear that alert — is the Movie Night server still running?"))
 
   // Films logged during THIS session. Undo is scoped to a misfired tap in
   // the current session, not to lifetime history: a film watched in a
@@ -134,16 +119,10 @@ export default function App() {
   // one. See the spec's "Logging trigger" and "Rewatches" sections.
   const [loggedThisSession, setLoggedThisSession] = useState<Set<number>>(new Set())
 
-  // Authoritative guard against a second tap landing while the first
-  // save is still in flight. A ref, not state: two taps fired in the same
-  // tick (a real double-tap) both read this synchronously before either
-  // has awaited anything, so only a value mutated in place — not one that
-  // waits for a re-render to update — can actually block the second call.
-  // useState alone cannot do this: both calls would read the same
-  // pre-render snapshot. `pendingWatch` (state) mirrors this ref purely so
-  // the UI can disable the button; it is never the source of truth.
-  const pendingWatchRef = useRef<Set<number>>(new Set())
-  const [pendingWatch, setPendingWatch] = useState<Set<number>>(new Set())
+  // Guard against a second ✓ tap (or Rewind's Mark as watched) landing while a
+  // save for the same film is in flight; see usePendingSet for why it's a ref.
+  // `pendingWatch` is only for disabling buttons.
+  const { pending: pendingWatch, start: startWatchSave, finish: finishWatchSave } = usePendingSet<number>()
 
   const [watchingError, setWatchingError] = useState<string | null>(null)
 
@@ -151,8 +130,7 @@ export default function App() {
   // for the UI) as toggleWatched. `watchlistOverride` is the optimistic
   // overlay — the bookmark flips the instant it's tapped, then the store's
   // answer takes over once the save lands.
-  const pendingWatchlistRef = useRef<Set<number>>(new Set())
-  const [pendingWatchlist, setPendingWatchlist] = useState<Set<number>>(new Set())
+  const { pending: pendingWatchlist, start: startWatchlistSave, finish: finishWatchlistSave } = usePendingSet<number>()
   const [watchlistOverride, setWatchlistOverride] = useState<Map<number, boolean>>(new Map())
 
   // Watchlist entries that a ✓ in this session took off the list (logWatch
@@ -165,8 +143,7 @@ export default function App() {
   // tonight" tap from HistoryScreen's Tonight rows. Keyed by
   // `${profileId}:${tmdbId}` since, unlike a single tmdbId, more than one
   // profile can be watching the same film at once.
-  const pendingCancelRef = useRef<Set<string>>(new Set())
-  const [pendingCancel, setPendingCancel] = useState<Set<string>>(new Set())
+  const { pending: pendingCancel, start: startCancel, finish: finishCancel } = usePendingSet<string>()
   const [optimisticallyCancelled, setOptimisticallyCancelled] = useState<Set<string>>(new Set())
 
   // Household passcode: nothing loads until this device is unlocked. Any
@@ -184,42 +161,7 @@ export default function App() {
   const [bootAttempt, setBootAttempt] = useState(0)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  /*
-   * Undo toast. One at a time: showing a new one commits the previous
-   * action. `commit` is for actions deferred until the toast goes (History
-   * deletes); `undo` reverses one that already happened (watchlist removes).
-   */
-  type Undoable = { message: string; undo: () => void; commit?: () => void }
-  const [toast, setToast] = useState<Undoable | null>(null)
-  const toastRef = useRef<Undoable | null>(null)
-  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const settleToast = (action: 'commit' | 'undo') => {
-    const t = toastRef.current
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    toastTimerRef.current = null
-    toastRef.current = null
-    setToast(null)
-    if (t) (action === 'undo' ? t.undo : t.commit)?.()
-  }
-  const showUndo = (t: Undoable) => {
-    settleToast('commit')
-    toastRef.current = t
-    setToast(t)
-    toastTimerRef.current = setTimeout(() => settleToast('commit'), UNDO_MS)
-  }
-  /** Stops the toast's clock while it's hovered or focused; leaving restarts it in full. */
-  const holdToast = (held: boolean) => {
-    if (!toastRef.current) return
-    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
-    toastTimerRef.current = held ? null : setTimeout(() => settleToast('commit'), UNDO_MS)
-  }
-  // Leaving the page commits whatever is pending, so a deferred delete is
-  // never silently dropped by closing the tab.
-  useEffect(() => {
-    const flush = () => settleToast('commit')
-    window.addEventListener('pagehide', flush)
-    return () => window.removeEventListener('pagehide', flush)
-  }, [])
+  const { toast, showUndo, settleToast, holdToast } = useUndoToast()
 
   /* History deletes wait for the toast; until then the entry is only hidden. */
   const [hiddenWatches, setHiddenWatches] = useState<Set<string>>(new Set())
@@ -358,9 +300,7 @@ export default function App() {
     // A second tap while this movie's save is still in flight is dropped
     // entirely, before it can read any state — this is what actually stops
     // the double-log/double-undo race, not anything below.
-    if (pendingWatchRef.current.has(movie.tmdbId)) return false
-    pendingWatchRef.current.add(movie.tmdbId)
-    setPendingWatch(new Set(pendingWatchRef.current))
+    if (!startWatchSave(movie.tmdbId)) return false
 
     const wasLoggedThisSession = !forceLog && loggedThisSession.has(movie.tmdbId)
     // Captured before the write: logWatch takes it off the list server-side.
@@ -397,8 +337,7 @@ export default function App() {
       setHistoryVersion((v) => v + 1)
       return false
     } finally {
-      pendingWatchRef.current.delete(movie.tmdbId)
-      setPendingWatch(new Set(pendingWatchRef.current))
+      finishWatchSave(movie.tmdbId)
     }
   }
 
@@ -425,9 +364,7 @@ export default function App() {
   /** Resolves true once the store has the change, false if it was skipped or failed. */
   const setOnWatchlist = async (movie: Movie | WatchEntry['movie'], target: boolean): Promise<boolean> => {
     const { tmdbId } = movie
-    if (pendingWatchlistRef.current.has(tmdbId)) return false
-    pendingWatchlistRef.current.add(tmdbId)
-    setPendingWatchlist(new Set(pendingWatchlistRef.current))
+    if (!startWatchlistSave(tmdbId)) return false
     setSaveError(null)
     setWatchlistOverride((prev) => new Map(prev).set(tmdbId, target))
 
@@ -448,8 +385,7 @@ export default function App() {
         next.delete(tmdbId)
         return next
       })
-      pendingWatchlistRef.current.delete(tmdbId)
-      setPendingWatchlist(new Set(pendingWatchlistRef.current))
+      finishWatchlistSave(tmdbId)
       setHistoryVersion((v) => v + 1)
     }
   }
@@ -463,16 +399,13 @@ export default function App() {
       undo: async () => {
         const { tmdbId } = entry.movie
         // Same in-flight guard as the bookmark, so Undo and a quick re-tap can't race.
-        if (pendingWatchlistRef.current.has(tmdbId)) return
-        pendingWatchlistRef.current.add(tmdbId)
-        setPendingWatchlist(new Set(pendingWatchlistRef.current))
+        if (!startWatchlistSave(tmdbId)) return
         try {
           await restoreToWatchlist(entry)
         } catch {
           setSaveError("Couldn't put that back on the watchlist.")
         } finally {
-          pendingWatchlistRef.current.delete(tmdbId)
-          setPendingWatchlist(new Set(pendingWatchlistRef.current))
+          finishWatchlistSave(tmdbId)
           setHistoryVersion((v) => v + 1)
         }
       },
@@ -485,10 +418,9 @@ export default function App() {
   /* Rewind: "Mark as watched" records a dated-less "seen before" entry, with Undo. */
   const toggleSeenBefore = async (film: RewindFilm, availability: Movie['availability'] | undefined) => {
     const { tmdbId, title } = film
-    if (pendingWatch.has(tmdbId)) return
     const isSeen = getSeenBefore().some((e) => e.movie.tmdbId === tmdbId)
     if (watchCount(tmdbId) > 0 && !isSeen) return // a dated movie night: not Rewind's to undo
-    setPendingWatch((p) => new Set(p).add(tmdbId))
+    if (!startWatchSave(tmdbId)) return
     setSaveError(null)
     try {
       if (isSeen) {
@@ -507,7 +439,7 @@ export default function App() {
     } catch {
       setSaveError("Couldn't save that — is the Movie Night server still running?")
     } finally {
-      setPendingWatch((p) => { const n = new Set(p); n.delete(tmdbId); return n })
+      finishWatchSave(tmdbId)
       setHistoryVersion((v) => v + 1)
     }
   }
@@ -515,9 +447,7 @@ export default function App() {
   const cancelWatchingTonight = async (entry: WatchingEntry) => {
     const key = `${entry.profileId}:${entry.movie.tmdbId}`
 
-    if (pendingCancelRef.current.has(key)) return
-    pendingCancelRef.current.add(key)
-    setPendingCancel(new Set(pendingCancelRef.current))
+    if (!startCancel(key)) return
     setWatchingError(null)
 
     // Optimistic: the row should disappear the instant it's tapped, not
@@ -536,8 +466,7 @@ export default function App() {
       })
       setWatchingError("Couldn't save that — is the Movie Night server still running?")
     } finally {
-      pendingCancelRef.current.delete(key)
-      setPendingCancel(new Set(pendingCancelRef.current))
+      finishCancel(key)
     }
   }
 
