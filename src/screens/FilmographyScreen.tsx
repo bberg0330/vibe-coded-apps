@@ -10,6 +10,7 @@ import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { filmographyRouteKey } from '../router'
 import type { Person, Movie } from '../types'
 import { SkeletonRows } from '../components/SkeletonRows'
+import { ScoreLegend } from '../components/ScoreLegend'
 
 type Props = {
   actor: Person
@@ -133,12 +134,14 @@ export function FilmographyScreen({
       {status === 'done' && streaming.length > 0 && (
         <>
           <SectionHeading>Streaming now</SectionHeading>
+          <ScoreLegend />
           {streaming.map(renderMovie)}
         </>
       )}
       {status === 'done' && rent.length > 0 && (
         <>
           <SectionHeading>Rent</SectionHeading>
+          <ScoreLegend />
           {rent.map(renderMovie)}
         </>
       )}

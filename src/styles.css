@@ -533,3 +533,6 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   .skeleton-block { animation: skeleton-pulse 1.2s ease-in-out infinite alternate; }
 }
 @keyframes skeleton-pulse { from { opacity: 1; } to { opacity: .5; } }
+
+/* "🍅 Critics · ⭐ Audience" — one per scored list, tucked under its heading. */
+.score-legend { margin: -4px 0 8px; color: var(--muted); font-size: 12px; white-space: pre; }
