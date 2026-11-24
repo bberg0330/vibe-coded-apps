@@ -21,8 +21,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 function applyOp(store: Store, op: StoreOp): Store {
   switch (op.type) {
     case 'logWatch': {
-      // A "seen before" mark for a film already in history is a no-op (two devices at once).
-      if (op.entry.watchedAt === null && store.history.some((e) => e.movie.tmdbId === op.entry.movie.tmdbId)) return store;
+      // A second undated "seen before" mark for the same film is a no-op (two devices at once).
+      if (op.entry.watchedAt === null && store.history.some((e) => e.movie.tmdbId === op.entry.movie.tmdbId && e.watchedAt === null)) return store;
       // Watching a film also takes it off the watchlist, in the same write.
       return {
         ...store,

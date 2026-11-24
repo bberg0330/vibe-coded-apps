@@ -53,7 +53,8 @@ export function useDialogFocus<T extends HTMLElement>(onClose: () => void) {
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
-      stack.splice(stack.indexOf(dialog), 1)
+      const at = stack.indexOf(dialog)
+      if (at >= 0) stack.splice(at, 1)
       if (opener && document.contains(opener)) opener.focus()
     }
   }, [])

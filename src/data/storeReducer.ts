@@ -36,6 +36,12 @@ function withoutFilm(watchlist: WatchlistEntry[], tmdbId: number): WatchlistEntr
   return watchlist.filter((e) => e.movie.tmdbId !== tmdbId)
 }
 
+/** Gives the first undated entry for a film this date; leaves any others (and movie nights) alone. */
+export function dateFirstUndated(history: WatchEntry[], tmdbId: number, watchedAt: string): WatchEntry[] {
+  const i = history.findIndex((e) => e.movie.tmdbId === tmdbId && e.watchedAt === null)
+  return i < 0 ? history : history.map((e, j) => (j === i ? { ...e, watchedAt } : e))
+}
+
 /**
  * Applies one operation, returning a NEW store. Never mutates its input.
  *
@@ -43,18 +49,14 @@ function withoutFilm(watchlist: WatchlistEntry[], tmdbId: number): WatchlistEntr
  * clobber: the server applies the change to whatever is currently on disk
  * (or in Supabase).
  */
-/** Gives the first undated entry for a film this date; leaves any others (and movie nights) alone. */
-export function dateFirstUndated(history: WatchEntry[], tmdbId: number, watchedAt: string): WatchEntry[] {
-  const i = history.findIndex((e) => e.movie.tmdbId === tmdbId && e.watchedAt === null)
-  return i < 0 ? history : history.map((e, j) => (j === i ? { ...e, watchedAt } : e))
-}
-
 export function applyOp(store: Store, op: StoreOp): Store {
   switch (op.type) {
     case 'logWatch':
-      // A "seen before" mark (no date) for a film already in history is a
-      // no-op, so two devices marking at once can't add it twice.
-      if (op.entry.watchedAt === null && store.history.some((e) => e.movie.tmdbId === op.entry.movie.tmdbId)) return store
+      // A second "seen before" mark (no date) for a film that already has one is
+      // a no-op, so two devices marking at once can't add it twice. Only undated
+      // entries count: putting a mark back on Undo must work even if the film
+      // has since had a movie night.
+      if (op.entry.watchedAt === null && store.history.some((e) => e.movie.tmdbId === op.entry.movie.tmdbId && e.watchedAt === null)) return store
       // Append: rewatches are meaningful signal and must not overwrite.
       // Watching a film also takes it off the watchlist — in the same op, so
       // the two can never disagree if one of two separate writes failed.

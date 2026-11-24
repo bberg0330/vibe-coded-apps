@@ -56,6 +56,19 @@ describe('sheets as modal dialogs', () => {
   })
 })
 
+describe('stacked dialogs', () => {
+  it('only the top sheet closes on Escape', async () => {
+    const outer = vi.fn(), inner = vi.fn()
+    render(<>
+      <OptionSheet title="Outer" options={[{ value: 'a', label: 'A' }]} selected="a" onSelect={() => {}} onClose={outer} />
+      <OptionSheet title="Inner" options={[{ value: 'b', label: 'B' }]} selected="b" onSelect={() => {}} onClose={inner} />
+    </>)
+    await userEvent.keyboard('{Escape}')
+    expect(inner).toHaveBeenCalledTimes(1)
+    expect(outer).not.toHaveBeenCalled()
+  })
+})
+
 describe('score labels', () => {
   it('gives each score a spoken name and hides the emoji from screen readers', () => {
     render(

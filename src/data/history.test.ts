@@ -265,4 +265,11 @@ describe('seen before, on two devices at once', () => {
     s = applyOp({ ...s, history: [...s.history, entry] }, { type: 'setWatchDate', tmdbId: 2, watchedAt: '2020-01-01T12:00:00.000Z' })
     expect(s.history.map((e) => e.watchedAt)).toEqual(['2020-01-01T12:00:00.000Z', null])
   })
+
+  it('still lets Undo put a mark back after the film has had a movie night', () => {
+    const night = { watchedAt: '2026-01-01T00:00:00.000Z', movie: { tmdbId: 3, title: 'Heat', year: 1995, posterPath: null, tomatometer: null, popcornmeter: null }, discoveredVia: null }
+    const mark = { ...night, watchedAt: null }
+    const s = applyOp({ ...getStoreSnapshot(), history: [night] }, { type: 'logWatch', entry: mark })
+    expect(s.history).toEqual([night, mark])
+  })
 })
