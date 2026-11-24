@@ -78,6 +78,15 @@ export async function setSeenBeforeDate(tmdbId: number, date: string): Promise<v
   await applyRemoteOp({ type: 'setWatchDate', tmdbId, watchedAt: date })
 }
 
+/**
+ * Moves a movie night to Seen before: the same entry, with no date, in one
+ * write (a film that is already in Seen before is left as it is). Undo with
+ * `setSeenBeforeDate(tmdbId, watchedAt)` and the original date.
+ */
+export async function moveToSeenBefore(tmdbId: number, watchedAt: string): Promise<void> {
+  await applyRemoteOp({ type: 'moveToSeenBefore', tmdbId, watchedAt })
+}
+
 /** Removes the most recent entry for a film. For undoing a misfired tap. */
 export async function undoLastWatch(tmdbId: number): Promise<void> {
   await applyRemoteOp({ type: 'undoLastWatch', tmdbId })

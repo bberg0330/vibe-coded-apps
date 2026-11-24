@@ -478,13 +478,13 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   border: 1px solid var(--border); border-radius: 8px;
 }
 .history-menu button {
-  display: block; width: 100%; padding: 10px 12px; text-align: left;
+  display: flex; align-items: center; gap: 6px; width: 100%; min-height: 44px; padding: 0 12px; text-align: left;
   border: 0; background: none; color: inherit; font: inherit; font-size: 14px;
   cursor: pointer;
 }
 .history-menu button:disabled { opacity: .5; cursor: default; }
 .history-menu .danger { color: var(--danger-text); }
-.history-menu .danger svg { vertical-align: -2px; margin-right: 6px; }
+.history-menu svg { width: 14px; height: 14px; flex: none; }
 
 /*
  * Watchlist toggle. Shares .icon-btn's 52x52 shape and --control-bg; the

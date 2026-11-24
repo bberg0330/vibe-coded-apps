@@ -54,6 +54,13 @@ function applyOp(store: Store, op: StoreOp): Store {
         history: dateFirstUndated(store.history, op.tmdbId, op.watchedAt),
       };
     }
+    case 'moveToSeenBefore': {
+      // Same rule as src/data/storeReducer.ts: one write, and a film already in Seen before is left alone.
+      if (store.history.some((e) => e.movie.tmdbId === op.tmdbId && e.watchedAt === null)) return store;
+      const i = store.history.findIndex((e) => e.movie.tmdbId === op.tmdbId && e.watchedAt === op.watchedAt);
+      if (i < 0) return store;
+      return { ...store, history: store.history.map((e, j) => (j === i ? { ...e, watchedAt: null } : e)) };
+    }
     case 'setService': {
       const services = [...store.enabledServices];
       const idx = services.indexOf(op.key);

@@ -130,6 +130,12 @@ export type StoreOp =
   | { type: 'deleteWatch'; tmdbId: number; watchedAt: string | null }
   /** Gives a film's undated "seen before" entry a real date, turning it into a movie night. */
   | { type: 'setWatchDate'; tmdbId: number; watchedAt: string }
+  /**
+   * Turns a dated movie night into the film's undated "seen before" entry, in one
+   * write. Undone with `setWatchDate` and the original date. A no-op if the film
+   * already has an undated entry.
+   */
+  | { type: 'moveToSeenBefore'; tmdbId: number; watchedAt: string }
   | { type: 'setService'; key: ServiceKey; enabled: boolean }
   | { type: 'replaceHistory'; entries: WatchEntry[] }
   | { type: 'seed'; history: WatchEntry[]; enabledServices: ServiceKey[] }

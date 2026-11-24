@@ -278,4 +278,45 @@ describe('HistoryScreen', () => {
     expect(screen.getByText('1 film you’ve seen before')).toBeInTheDocument()
     expect(screen.queryByText(/marked from rewind/i)).not.toBeInTheDocument()
   })
+
+  describe('Move to Seen before', () => {
+    async function openMenu(onMove?: (entry: unknown, count: number) => void) {
+      stubStoreServer()
+      await logWatch(movie(1585, 'Rushmore'), via)
+      render(<HistoryScreen onMoveToSeenBefore={onMove} />)
+      fireEvent.click(screen.getByRole('button', { name: /menu for rushmore/i }))
+    }
+
+    it('is in the row menu beside Delete, and calls back with the watch and its count', async () => {
+      const onMove = vi.fn()
+      await openMenu(onMove)
+      const item = screen.getByRole('button', { name: /move to seen before/i })
+      expect(screen.getByRole('button', { name: /delete this watch/i })).toBeInTheDocument()
+      fireEvent.click(item)
+
+      expect(onMove).toHaveBeenCalledTimes(1)
+      expect(onMove.mock.calls[0][0]).toMatchObject({ movie: { tmdbId: 1585 } })
+      expect(onMove.mock.calls[0][1]).toBe(1)
+      // the menu closes
+      expect(screen.queryByRole('button', { name: /move to seen before/i })).not.toBeInTheDocument()
+    })
+
+    it('counts every movie night of the film', async () => {
+      const onMove = vi.fn()
+      stubStoreServer()
+      await logWatch(movie(1585, 'Rushmore'), via)
+      vi.setSystemTime(new Date('2026-09-01T20:00:00Z'))
+      await logWatch(movie(1585, 'Rushmore'), via)
+      render(<HistoryScreen onMoveToSeenBefore={onMove} />)
+      fireEvent.click(screen.getByRole('button', { name: /menu for rushmore/i }))
+      fireEvent.click(screen.getByRole('button', { name: /move to seen before/i }))
+      expect(onMove.mock.calls[0][1]).toBe(2)
+    })
+
+    it('is left out of the menu when nothing handles it', async () => {
+      await openMenu(undefined)
+      expect(screen.queryByRole('button', { name: /move to seen before/i })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /delete this watch/i })).toBeInTheDocument()
+    })
+  })
 })

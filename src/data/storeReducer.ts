@@ -88,6 +88,15 @@ export function applyOp(store: Store, op: StoreOp): Store {
       return { ...store, history: dateFirstUndated(store.history, op.tmdbId, op.watchedAt) }
     }
 
+    case 'moveToSeenBefore': {
+      // One write, so a failure can never leave the film in neither place. A film
+      // that already has an undated entry is left alone: it is in Seen before.
+      if (store.history.some((e) => e.movie.tmdbId === op.tmdbId && e.watchedAt === null)) return store
+      const i = store.history.findIndex((e) => e.movie.tmdbId === op.tmdbId && e.watchedAt === op.watchedAt)
+      if (i < 0) return store
+      return { ...store, history: store.history.map((e, j) => (j === i ? { ...e, watchedAt: null } : e)) }
+    }
+
     case 'setService': {
       const set = new Set(store.enabledServices)
       if (op.enabled) set.add(op.key)
