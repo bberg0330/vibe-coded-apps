@@ -22,7 +22,12 @@ const QUERY_STORAGE_KEY = 'mn.searchQuery'
 /** How many watchlist films the homescreen previews under "Up next". */
 export const UP_NEXT_COUNT = 2
 
+/** Pause after the last keystroke before searching, so typing doesn't fire a request per letter. */
+export const SEARCH_DEBOUNCE_MS = 300
+
 type Props = {
+  /** Overrides SEARCH_DEBOUNCE_MS; tests pass 0 so they don't wait it out. */
+  debounceMs?: number
   onOpenMovie: (m: Movie) => void
   onToggleWatched: (movie: Movie) => void
   watchCountFor: (tmdbId: number) => number
@@ -43,7 +48,7 @@ export function SearchScreen({
   onOpenMovie, onToggleWatched, watchCountFor, isPending,
   watchingLabelFor, activeProfileId = null,
   watchlist, profileName = (id) => id, onOpenWatchlist, onToggleWatchlist,
-  onRemoveFromWatchlist, onMarkWatchlistWatched, isWatchlistPending,
+  onRemoveFromWatchlist, onMarkWatchlistWatched, isWatchlistPending, debounceMs = SEARCH_DEBOUNCE_MS,
 }: Props) {
   const onWatchlist = (tmdbId: number) => watchlist?.some((e) => e.movie.tmdbId === tmdbId) ?? false
 
@@ -107,14 +112,14 @@ export function SearchScreen({
         if (cancelled) return
         setStatus(err instanceof MissingKeyError ? 'nokey' : 'error')
       }
-    }, 300)
+    }, debounceMs)
 
     return () => {
       cancelled = true
       clearTimeout(timer)
       controller.abort()
     }
-  }, [query, attempt])
+  }, [query, attempt, debounceMs])
 
   // Independent of the search query: only depends on who's watching
   // tonight. No active profile means nothing to derive recommendations
