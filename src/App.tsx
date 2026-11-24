@@ -367,7 +367,7 @@ export default function App() {
   const requestWatched = (
     movie: Movie, via: WatchEntry['discoveredVia'], opts: { forceLog?: boolean } = {},
   ) => {
-    if (watchCount(movie.tmdbId) > 0 || loggedThisSession.has(movie.tmdbId) || watchingLabelFor(movie.tmdbId)) {
+    if (watchCount(movie.tmdbId) > 0 || loggedThisSession.has(movie.tmdbId) || isWatchingTonight(movie.tmdbId)) {
       void toggleWatched(movie, via, opts)
       return
     }
@@ -529,10 +529,10 @@ export default function App() {
   // film tonight. Recomputed on every render, including the ones forced by
   // `historyVersion` bumps after a store write — the same mechanism
   // `watchCount` relies on for its own freshness.
-  const watchingLabelFor = (tmdbId: number): string | null => {
-    const isWatching = getNowWatching().some((e) => e.movie.tmdbId === tmdbId)
-    return isWatching ? 'Watching tonight' : null
-  }
+  const isWatchingTonight = (tmdbId: number): boolean =>
+    getNowWatching().some((e) => e.movie.tmdbId === tmdbId)
+  const watchingLabelFor = (tmdbId: number): string | null =>
+    isWatchingTonight(tmdbId) ? 'Watching tonight' : null
 
   // Optimistic removals vanish at once; the store's own list otherwise.
   const visibleWatchlist = getWatchlist().filter((e) => watchlistOverride.get(e.movie.tmdbId) !== false)

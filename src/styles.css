@@ -527,8 +527,10 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 /* One single-select row in a picker sheet (Figma: SheetOption). */
 .sheet-option {
   display: flex; justify-content: space-between; align-items: center;
-  /* 12px of padding offset by a -12px margin: the text stays put, and the pressed fill gets room around it. */
-  width: calc(100% + 24px); margin: 0 -12px; padding: 10px 12px; border-radius: 8px;
+  /* The bleed is padding offset by an equal negative margin: the text stays put, and the pressed fill gets room around it. */
+  --sheet-option-bleed: 12px;
+  width: calc(100% + 2 * var(--sheet-option-bleed)); margin: 0 calc(-1 * var(--sheet-option-bleed));
+  padding: 10px var(--sheet-option-bleed); border-radius: 8px;
   min-height: 43px; background: none; border: 0;
   color: var(--text); font: inherit; text-align: left; cursor: pointer;
 }
@@ -552,7 +554,7 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 /* The hairline between Tonight and Some time ago, inset to the text edges (not the 12px pressed bleed). */
 .mark-sheet .sheet-option + .sheet-option {
   background-image: linear-gradient(var(--border), var(--border));
-  background-size: calc(100% - 24px) 1px; background-position: center top; background-repeat: no-repeat;
+  background-size: calc(100% - 2 * var(--sheet-option-bleed)) 1px; background-position: center top; background-repeat: no-repeat;
 }
 
 /* The film a Mark as watched sheet is about. */
