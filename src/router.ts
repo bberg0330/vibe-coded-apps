@@ -19,6 +19,7 @@ export function slugify(name: string): string {
 export const SEARCH_ROUTE_KEY = 'search'
 export const HISTORY_ROUTE_KEY = 'history'
 export const WATCHLIST_ROUTE_KEY = 'watchlist'
+export const LOG_ROUTE_KEY = 'history/log'
 
 export function castRouteKey(movieId: number): string {
   return `movie/${movieId}`
@@ -38,6 +39,8 @@ export function hashFor(screen: Screen): string {
       return '#/watchlist'
     case 'seenBefore':
       return '#/history/seen-before'
+    case 'logFilm':
+      return '#/history/log'
     case 'rewind':
       return '#/rewind'
     case 'rewindYear':
@@ -61,6 +64,7 @@ export type ParsedRoute =
   | { kind: 'rewind' }
   | { kind: 'rewindYear'; year: number }
   | { kind: 'seenBefore' }
+  | { kind: 'logFilm' }
 
 /** The only thing parsing trusts: a trailing `-<digits>` on a path segment. */
 function extractId(segment: string): number | null {
@@ -74,6 +78,7 @@ export function parseHash(hash: string): ParsedRoute | null {
   if (path === 'history') return { kind: 'history' }
   if (path === 'watchlist') return { kind: 'watchlist' }
   if (path === 'history/seen-before') return { kind: 'seenBefore' }
+  if (path === 'history/log') return { kind: 'logFilm' }
   if (path === 'rewind') return { kind: 'rewind' }
   const rewind = /^rewind\/(\d{4})$/.exec(path)
   if (rewind) return { kind: 'rewindYear', year: Number(rewind[1]) }
@@ -125,6 +130,8 @@ export async function rehydrate(route: ParsedRoute): Promise<Screen[]> {
       return [{ kind: 'search' }, { kind: 'watchlist' }]
     case 'seenBefore':
       return [{ kind: 'search' }, { kind: 'history' }, { kind: 'seenBefore' }]
+    case 'logFilm':
+      return [{ kind: 'search' }, { kind: 'history' }, { kind: 'logFilm' }]
     case 'rewind':
       return [{ kind: 'search' }, { kind: 'rewind' }]
     case 'rewindYear':

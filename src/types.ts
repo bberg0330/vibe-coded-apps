@@ -168,3 +168,4 @@ export type Screen =
   | { kind: 'rewind' }
   | { kind: 'rewindYear'; year: number }
   | { kind: 'seenBefore' }
+  | { kind: 'logFilm' }

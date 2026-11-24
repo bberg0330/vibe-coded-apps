@@ -11,13 +11,15 @@ import { SectionHeading } from '../components/SectionHeading'
 import { SearchInput } from '../components/SearchInput'
 import { WatchlistRow } from '../components/WatchlistRow'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
-import { SEARCH_ROUTE_KEY } from '../router'
+import { SEARCH_ROUTE_KEY, LOG_ROUTE_KEY } from '../router'
 import { getRecommendationsFor, pickSourceMovie, type RecommendationWithAttribution } from '../data/recommendations'
 import type { ProfileId } from '../data/profiles'
 import type { Movie, WatchEntry, WatchlistEntry, Availability } from '../types'
 import { ScoreLegend } from '../components/ScoreLegend'
 
 const QUERY_STORAGE_KEY = 'mn.searchQuery'
+/** Log a film keeps its own query, so searching for one doesn't leak into the other. */
+const LOG_QUERY_STORAGE_KEY = 'mn.logQuery'
 
 /** How many watchlist films the homescreen previews under "Up next". */
 export const UP_NEXT_COUNT = 2
@@ -26,6 +28,12 @@ export const UP_NEXT_COUNT = 2
 export const SEARCH_DEBOUNCE_MS = 300
 
 type Props = {
+  /**
+   * 'log' is History's "+ Add a film": the same search, but with a title in
+   * place of the logo and none of the home sections (Last watched, Up next,
+   * recommendations), so the screen is only about finding a film to ✓.
+   */
+  mode?: 'search' | 'log'
   /** Overrides SEARCH_DEBOUNCE_MS; tests pass 0 so they don't wait it out. */
   debounceMs?: number
   onOpenMovie: (m: Movie) => void
@@ -45,14 +53,16 @@ type Props = {
 }
 
 export function SearchScreen({
-  onOpenMovie, onToggleWatched, watchCountFor, isPending,
+  mode = 'search', onOpenMovie, onToggleWatched, watchCountFor, isPending,
   watchingLabelFor, activeProfileId = null,
   watchlist, profileName = (id) => id, onOpenWatchlist, onToggleWatchlist,
   onRemoveFromWatchlist, onMarkWatchlistWatched, isWatchlistPending, debounceMs = SEARCH_DEBOUNCE_MS,
 }: Props) {
   const onWatchlist = (tmdbId: number) => watchlist?.some((e) => e.movie.tmdbId === tmdbId) ?? false
 
-  const [query, setQuery] = useState(() => sessionStorage.getItem(QUERY_STORAGE_KEY) ?? '')
+  const logMode = mode === 'log'
+  const queryKey = logMode ? LOG_QUERY_STORAGE_KEY : QUERY_STORAGE_KEY
+  const [query, setQuery] = useState(() => sessionStorage.getItem(queryKey) ?? '')
   const [results, setResults] = useState<Movie[]>([])
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>('idle')
   const [attempt, setAttempt] = useState(0)
@@ -61,11 +71,11 @@ export function SearchScreen({
   const [recommendationsFor, setRecommendationsFor] = useState<string | null>(null)
   const [lastWatched, setLastWatched] = useState<(WatchEntry['movie'] & { availability: Availability }) | null>(null)
 
-  useScrollRestoration(SEARCH_ROUTE_KEY, status === 'done' || status === 'error' || status === 'nokey')
+  useScrollRestoration(logMode ? LOG_ROUTE_KEY : SEARCH_ROUTE_KEY, status === 'done' || status === 'error' || status === 'nokey')
 
   useEffect(() => {
-    sessionStorage.setItem(QUERY_STORAGE_KEY, query)
-  }, [query])
+    sessionStorage.setItem(queryKey, query)
+  }, [query, queryKey])
 
   useEffect(() => {
     const trimmed = query.trim()
@@ -126,7 +136,7 @@ export function SearchScreen({
   // from, so this deliberately skips the fetch entirely rather than
   // calling getRecommendationsFor with a null id.
   useEffect(() => {
-    if (!activeProfileId) {
+    if (!activeProfileId || logMode) {
       setRecommendations([])
       setRecommendationsFor(null)
       setLastWatched(null)
@@ -182,20 +192,29 @@ export function SearchScreen({
     })
 
     return () => { cancelled = true }
-  }, [activeProfileId])
+  }, [activeProfileId, logMode])
 
   return (
     <div className="screen">
-      <MovieNightHeader />
+      {logMode ? (
+        <div>
+          <h1 className="rewind-title">Log a film</h1>
+          <p className="empty rewind-sub log-sub">Search any film you’ve seen, then tap ✓ to say when.</p>
+        </div>
+      ) : (
+        <MovieNightHeader />
+      )}
 
       <SearchInput
         value={query}
         onChange={setQuery}
-        placeholder="Type something lovebug"
+        placeholder={logMode ? 'Search for a film' : 'Type something lovebug'}
         autoFocus
       />
 
-      {query === '' && lastWatched && (
+      {logMode && query === '' && <p className="empty log-hint">Type a title to find a film you’ve seen.</p>}
+
+      {!logMode && query === '' && lastWatched && (
         <section className="last-watched" aria-label="Last watched">
           <SectionHeading>Last watched</SectionHeading>
           <ScoreLegend />
@@ -206,7 +225,7 @@ export function SearchScreen({
         </section>
       )}
 
-      {query === '' && watchlist && watchlist.length > 0 && onMarkWatchlistWatched && onRemoveFromWatchlist && (
+      {!logMode && query === '' && watchlist && watchlist.length > 0 && onMarkWatchlistWatched && onRemoveFromWatchlist && (
         <section className="up-next" aria-label="Up next">
           <div className="section-heading-row">
             <SectionHeading>Up next</SectionHeading>
@@ -231,7 +250,7 @@ export function SearchScreen({
         </section>
       )}
 
-      {query === '' && recommendationsFor && (
+      {!logMode && query === '' && recommendationsFor && (
         <RecommendationsCarousel
           // Filtered at render so a film marked watched (from its details
           // page) drops out without refetching the whole list.

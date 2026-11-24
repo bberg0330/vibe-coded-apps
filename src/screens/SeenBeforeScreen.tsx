@@ -17,7 +17,7 @@ export function groupByYear(entries: WatchEntry[]): Group[] {
 }
 
 /**
- * Films marked as watched from Rewind, with no date, grouped by release
+ * Films marked as watched some time ago (from Rewind or a ✓), with no date, grouped by release
  * year (Figma: "History — Seen before list"). Each film's ⋯ menu can unmark
  * it or add a date, which turns it into a movie night on History.
  */
@@ -53,7 +53,7 @@ export function SeenBeforeScreen({ version, onUnmark, onAddDate }: {
       <h1 className="rewind-title">Seen before</h1>
       <p className="empty rewind-sub">
         {entries.length === 0
-          ? 'Nothing here yet. Films you mark as watched in Rewind collect here.'
+          ? 'Nothing here yet. Films you mark as watched some time ago collect here.'
           : `${entries.length} ${entries.length === 1 ? 'film' : 'films'} · grouped by release year`}
       </p>
       {groupByYear(entries).map(({ year, entries: films }) => {
