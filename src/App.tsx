@@ -38,8 +38,6 @@ import { getActiveProfileId, setActiveProfileId } from './data/activeProfile'
 import { hashFor, parseHash, rehydrate, RehydrationError } from './router'
 import type { Movie, WatchEntry, WatchingEntry, WatchlistEntry, Screen } from './types'
 
-/** How long the undo toast stays up. */
-/** A stored film snapshot as the full `Movie` the screens and cards take. */
 /** The tab a screen belongs to: Cast and Filmography are reached from Search. */
 function tabFor(screen: Screen): Tab {
   if (screen.kind === 'rewind' || screen.kind === 'rewindYear') return 'rewind'
@@ -120,14 +118,9 @@ export default function App() {
   // one. See the spec's "Logging trigger" and "Rewatches" sections.
   const [loggedThisSession, setLoggedThisSession] = useState<Set<number>>(new Set())
 
-  // Authoritative guard against a second tap landing while the first
-  // save is still in flight. A ref, not state: two taps fired in the same
-  // tick (a real double-tap) both read this synchronously before either
-  // has awaited anything, so only a value mutated in place — not one that
-  // waits for a re-render to update — can actually block the second call.
-  // useState alone cannot do this: both calls would read the same
-  // pre-render snapshot. `pendingWatch` (state) mirrors this ref purely so
-  // the UI can disable the button; it is never the source of truth.
+  // Guard against a second ✓ tap (or Rewind's Mark as watched) landing while a
+  // save for the same film is in flight; see usePendingSet for why it's a ref.
+  // `pendingWatch` is only for disabling buttons.
   const { pending: pendingWatch, start: startWatchSave, finish: finishWatchSave } = usePendingSet<number>()
 
   const [watchingError, setWatchingError] = useState<string | null>(null)
