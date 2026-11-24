@@ -1,4 +1,4 @@
-import { getHistory } from './history'
+import { getHistory, getSeenBefore } from './history'
 import { apiFetch } from './session'
 import { getAllWatchingTonight, getRecentlyWatchedBy } from './watching'
 import type { RecommendationWithAttribution } from './recommendationEngine'
@@ -48,6 +48,7 @@ export async function getRecommendationsFor(profileId: string): Promise<Recommen
 
   const seen = new Set<number>([
     ...getHistory().map((e) => e.movie.tmdbId),
+    ...getSeenBefore().map((e) => e.movie.tmdbId),
     ...getAllWatchingTonight().map((e) => e.movie.tmdbId),
   ])
 

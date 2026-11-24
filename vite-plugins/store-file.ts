@@ -169,7 +169,9 @@ export async function commitStore(dir: string, message: string): Promise<boolean
 export function commitMessageFor(op: StoreOp): string {
   switch (op.type) {
     case 'logWatch':
-      return `watch: ${op.entry.movie.title} (${op.entry.watchedAt.slice(0, 10)})`
+      return `watch: ${op.entry.movie.title} (${op.entry.watchedAt?.slice(0, 10) ?? 'seen before'})`
+    case 'setWatchDate':
+      return `watch: date seen-before film (tmdb ${op.tmdbId}, ${op.watchedAt.slice(0, 10)})`
     case 'undoLastWatch':
       return `watch: undo (tmdb ${op.tmdbId})`
     case 'setService':

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   logWatch, getHistory, undoLastWatch, watchCount, exportJson, importJson,
+  markSeenBefore, unmarkSeenBefore, setSeenBeforeDate, getSeenBefore,
 } from './history'
 import { resetStoreForTests, getStoreSnapshot } from './store'
 import { applyOp } from '../../vite-plugins/store-ops'
@@ -25,6 +26,8 @@ const via = {
   fromMovie: { tmdbId: 153, title: 'Lost in Translation' },
   viaActor: { tmdbId: 1532, name: 'Bill Murray' },
 }
+
+const applyOpViaServer = (op: StoreOp) => fetch('/api/store', { method: 'POST', body: JSON.stringify(op) })
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -111,6 +114,63 @@ describe('undoLastWatch', () => {
   })
 })
 
+describe('seen before', () => {
+  it('records a film with no date, kept out of movie nights but counted as watched', async () => {
+    await logWatch(movie(1, 'Heat'), null)
+    const entry = await markSeenBefore(movie(2, 'Parasite'))
+
+    expect(entry?.watchedAt).toBeNull()
+    expect(entry?.discoveredVia).toBeNull()
+    expect(getHistory().map((e) => e.movie.tmdbId)).toEqual([1])
+    expect(getSeenBefore().map((e) => e.movie.tmdbId)).toEqual([2])
+    expect(watchCount(2)).toBe(1)
+  })
+
+  it('does nothing for a film already in history in any form', async () => {
+    await logWatch(movie(1, 'Heat'), null)
+    await markSeenBefore(movie(2, 'Parasite'))
+
+    expect(await markSeenBefore(movie(1, 'Heat'))).toBeNull()
+    expect(await markSeenBefore(movie(2, 'Parasite'))).toBeNull()
+    expect(getStoreSnapshot().history).toHaveLength(2)
+  })
+
+  it('takes the film off the watchlist, like any watch', async () => {
+    await applyOpViaServer({ type: 'addToWatchlist', entry: { addedAt: '2026-08-01T00:00:00Z', profileId: 'laura', movie: { tmdbId: 2, title: 'Parasite', year: 2019, posterPath: null, tomatometer: null, popcornmeter: null } } } as StoreOp)
+    await markSeenBefore(movie(2, 'Parasite'))
+    expect(getStoreSnapshot().watchlist).toEqual([])
+  })
+
+  it('unmarks only the undated entry', async () => {
+    await logWatch(movie(1, 'Heat'), null)
+    await markSeenBefore(movie(2, 'Parasite'))
+
+    await unmarkSeenBefore(2)
+    await unmarkSeenBefore(1)
+
+    expect(getSeenBefore()).toEqual([])
+    expect(getHistory().map((e) => e.movie.tmdbId)).toEqual([1])
+  })
+
+  it('becomes a movie night, in date order, once given a date', async () => {
+    await logWatch(movie(1, 'Heat'), null) // 2026-08-08
+    await markSeenBefore(movie(2, 'Parasite'))
+
+    await setSeenBeforeDate(2, '2020-02-14T20:00:00.000Z')
+
+    expect(getSeenBefore()).toEqual([])
+    expect(getHistory().map((e) => [e.movie.tmdbId, e.watchedAt])).toEqual([
+      [1, '2026-08-08T20:00:00.000Z'],
+      [2, '2020-02-14T20:00:00.000Z'],
+    ])
+  })
+
+  it('rejects a date that does not parse', async () => {
+    await markSeenBefore(movie(2, 'Parasite'))
+    await expect(setSeenBeforeDate(2, 'last spring')).rejects.toThrow('Invalid date')
+  })
+})
+
 describe('export and import', () => {
   it('round-trips without loss', async () => {
     await logWatch(movie(1585, 'Rushmore'), via)
@@ -122,6 +182,17 @@ describe('export and import', () => {
     const count = await importJson(json)
     expect(count).toBe(1)
     expect(getHistory()[0].discoveredVia).toEqual(via)
+  })
+
+  it('round-trips "seen before" entries, which have no date', async () => {
+    await logWatch(movie(1585, 'Rushmore'), via)
+    await markSeenBefore(movie(2, 'Parasite'))
+    const json = exportJson()
+
+    resetStoreForTests()
+    expect(await importJson(json)).toBe(2)
+    expect(getSeenBefore().map((e) => e.movie.tmdbId)).toEqual([2])
+    expect(getHistory().map((e) => e.movie.tmdbId)).toEqual([1585])
   })
 
   it('exports human-readable JSON', async () => {

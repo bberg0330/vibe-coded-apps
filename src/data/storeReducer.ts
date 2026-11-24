@@ -73,6 +73,12 @@ export function applyOp(store: Store, op: StoreOp): Store {
       return { ...store, history }
     }
 
+    case 'setWatchDate': {
+      const history = store.history.map((e) =>
+        e.movie.tmdbId === op.tmdbId && e.watchedAt === null ? { ...e, watchedAt: op.watchedAt } : e)
+      return { ...store, history }
+    }
+
     case 'setService': {
       const set = new Set(store.enabledServices)
       if (op.enabled) set.add(op.key)

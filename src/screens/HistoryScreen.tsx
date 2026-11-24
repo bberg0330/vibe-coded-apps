@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { getHistory, exportJson, deleteWatch } from '../data/history'
+import { getHistory, exportJson, deleteWatch, type DatedWatch } from '../data/history'
 import { getAllWatchingTonight } from '../data/watching'
 import { HistoryRow } from '../components/HistoryRow'
 import { SectionHeading } from '../components/SectionHeading'
@@ -21,14 +21,14 @@ function download(): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-type Group = { entry: WatchEntry; count: number }
+type Group = { entry: DatedWatch; count: number }
 
 /**
  * Collapses repeat watches of the same film into one row: "watched 2×".
  * `entries` is newest-first, so the first occurrence of a tmdbId is its most
  * recent watch — that's the one whose date and discovery path we keep.
  */
-function groupByFilm(entries: WatchEntry[]): Group[] {
+function groupByFilm(entries: DatedWatch[]): Group[] {
   const groups = new Map<number, Group>()
   const order: Group[] = []
 
@@ -73,7 +73,7 @@ type Props = {
    */
   hiddenWatches?: Set<string>
   /** Deletes with undo (App owns the toast). Without it, deletes go straight to the store. */
-  onDeleteWatch?: (entry: WatchEntry) => void
+  onDeleteWatch?: (entry: DatedWatch) => void
 }
 
 export function HistoryScreen({

@@ -1,7 +1,7 @@
 import { posterUrl } from '../api/tmdb'
 import { IconButton } from './IconButton'
 import { Poster } from './Poster'
-import type { WatchEntry } from '../types'
+import type { DatedWatch } from '../data/history'
 
 /**
  * One row in the History list, plus its own dropdown menu. A div, not a
@@ -15,9 +15,9 @@ import type { WatchEntry } from '../types'
 export function HistoryRow({
   entry, count, onOpenMovie, isMenuOpen, isDeleting, onToggleMenu, onDelete,
 }: {
-  entry: WatchEntry
+  entry: DatedWatch
   count: number
-  onOpenMovie?: (movie: WatchEntry['movie']) => void
+  onOpenMovie?: (movie: DatedWatch['movie']) => void
   isMenuOpen: boolean
   isDeleting: boolean
   onToggleMenu: () => void
