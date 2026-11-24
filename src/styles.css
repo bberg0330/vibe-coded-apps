@@ -531,6 +531,37 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   color: var(--text); font: inherit; text-align: left; cursor: pointer;
 }
 .sheet-option.selected { color: var(--accent-text); }
+/* With a description (Mark as watched): a muted second line, 63px tall. */
+.sheet-option.has-description { min-height: 63px; }
+.sheet-option-text { display: flex; flex-direction: column; }
+.sheet-option-description { color: var(--muted); font-size: 14px; line-height: 19.6px; }
+
+/*
+ * The Mark as watched sheet is tighter than the picker sheets (Figma: Mark as
+ * watched sheet): 8px up top because its Cancel already has a 44px target, 4px
+ * between rows, and 32px below (or the home-indicator inset, if larger).
+ */
+.mark-sheet { display: flex; flex-direction: column; gap: 4px; padding-top: 8px; padding-bottom: max(32px, calc(16px + env(safe-area-inset-bottom))); }
+.mark-sheet .topbar { margin-bottom: 0; }
+.mark-sheet .topbar h2 { margin: 0; }
+.mark-sheet [role="radiogroup"] { display: flex; flex-direction: column; gap: 4px; }
+
+/* The film a Mark as watched sheet is about. */
+.mark-sheet-film { display: flex; gap: 12px; align-items: center; }
+.mark-sheet-film .poster { width: 40px; height: 60px; }
+.mark-sheet-film-text { display: flex; flex-direction: column; gap: 2px; }
+.mark-sheet-title { font-weight: 600; }
+.mark-sheet-year { color: var(--muted); font-size: 14px; }
+
+/* A text link with a 44px tap target; the text stays flush with the right edge. */
+.link.hit { display: inline-flex; align-items: center; min-height: 44px; padding: 0 0 0 12px; }
+
+/* History title row: "History" left, "+ Add a film" right. */
+.title-row { display: flex; justify-content: space-between; align-items: center; min-height: 44px; margin: 4px 0 12px; }
+.title-row h1 { margin: 0; }
+.log-hint { text-align: center; margin: 24px 0; font-size: 14px; }
+/* If the Log a film prompt ever wraps, split it evenly rather than leaving one word alone. */
+.log-sub { text-wrap: balance; }
 
 /* ✓ on a watchlist row is the primary action; × stays muted beside it. */
 .icon-btn.primary { color: var(--watched-fg); }

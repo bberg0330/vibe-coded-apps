@@ -248,4 +248,34 @@ describe('HistoryScreen', () => {
       expect(screen.queryByTestId('tonight-title')).not.toBeInTheDocument()
     })
   })
+  describe('Add a film', () => {
+    it('shows a "+ Add a film" link beside the title that calls onAddFilm, with a 44px tap target', () => {
+      const onAddFilm = vi.fn()
+      render(<HistoryScreen onAddFilm={onAddFilm} />)
+      const link = screen.getByRole('button', { name: '+ Add a film' })
+      expect(link).toHaveClass('hit')
+      fireEvent.click(link)
+      expect(onAddFilm).toHaveBeenCalledTimes(1)
+    })
+
+    it('is there on an empty History too, where it matters most', () => {
+      render(<HistoryScreen onAddFilm={() => {}} />)
+      expect(screen.getByText(/nothing logged yet/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '+ Add a film' })).toBeInTheDocument()
+    })
+
+    it('is hidden when there is nowhere to go', () => {
+      render(<HistoryScreen />)
+      expect(screen.queryByRole('button', { name: '+ Add a film' })).not.toBeInTheDocument()
+    })
+  })
+
+  it('describes the Seen before row as films you have seen before, not films marked from Rewind', async () => {
+    const { markSeenBefore } = await import('../data/history')
+    stubStoreServer()
+    await markSeenBefore(movie(1585, 'Rushmore'))
+    render(<HistoryScreen onOpenSeenBefore={() => {}} />)
+    expect(screen.getByText('1 film you’ve seen before')).toBeInTheDocument()
+    expect(screen.queryByText(/marked from rewind/i)).not.toBeInTheDocument()
+  })
 })

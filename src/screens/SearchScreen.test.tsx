@@ -315,4 +315,50 @@ describe('recommendations carousel', () => {
     expect(getRecommendationsFor).not.toHaveBeenCalled()
     expect(getRecentlyWatchedBy).not.toHaveBeenCalled()
   })
+  describe('log mode', () => {
+    beforeEach(() => sessionStorage.clear())
+
+    it('shows a "Log a film" title and prompt instead of the logo, and a log-specific placeholder', () => {
+      render(<SearchScreen mode="log" onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+      expect(screen.getByRole('heading', { name: 'Log a film' })).toBeInTheDocument()
+      expect(screen.getByText(/search any film you’ve seen/i)).toBeInTheDocument()
+      expect(screen.getByRole('searchbox')).toHaveAttribute('placeholder', 'Search for a film')
+      expect(screen.getByText(/type a title to find a film/i)).toBeInTheDocument()
+      expect(screen.queryByRole('heading', { name: 'Movie Night' })).not.toBeInTheDocument()
+    })
+
+    it('skips Last watched, Up next and recommendations, and does not fetch them', async () => {
+      vi.mocked(getRecentlyWatchedBy).mockReturnValue({
+        movie: { tmdbId: 7, title: 'Heat', year: 1995, posterPath: null, tomatometer: 84, popcornmeter: 83 },
+      } as ReturnType<typeof getRecentlyWatchedBy>)
+      render(
+        <SearchScreen
+          mode="log" activeProfileId="laura"
+          onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0}
+          watchlist={[{ addedAt: '2026-01-01T00:00:00.000Z', profileId: 'laura', movie: { tmdbId: 9, title: 'Ronin', year: 1998, posterPath: null, tomatometer: null, popcornmeter: null } }]}
+          onMarkWatchlistWatched={vi.fn()} onRemoveFromWatchlist={vi.fn()}
+        />,
+      )
+      expect(screen.queryByRole('region', { name: 'Last watched' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('region', { name: 'Up next' })).not.toBeInTheDocument()
+      expect(getRecommendationsFor).not.toHaveBeenCalled()
+    })
+
+    it('still searches and offers ✓ on each result', async () => {
+      const onToggleWatched = vi.fn()
+      render(<SearchScreen mode="log" debounceMs={0} onOpenMovie={vi.fn()} onToggleWatched={onToggleWatched} watchCountFor={() => 0} />)
+      await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+      await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
+      expect(onToggleWatched).toHaveBeenCalledWith(expect.objectContaining({ tmdbId: 1585 }))
+      expect(screen.queryByText(/type a title to find a film/i)).not.toBeInTheDocument()
+    })
+
+    it('keeps its own query, apart from the Search tab', async () => {
+      const first = render(<SearchScreen debounceMs={0} onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+      await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+      first.unmount()
+      render(<SearchScreen mode="log" onOpenMovie={vi.fn()} onToggleWatched={vi.fn()} watchCountFor={() => 0} />)
+      expect(screen.getByRole('searchbox')).toHaveValue('')
+    })
+  })
 })

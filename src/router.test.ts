@@ -231,3 +231,11 @@ describe('Seen before route', () => {
     expect(await rehydrate({ kind: 'seenBefore' })).toEqual([{ kind: 'search' }, { kind: 'history' }, { kind: 'seenBefore' }])
   })
 })
+
+describe('Log a film route', () => {
+  it('round-trips and rebuilds Search → History → Log a film', async () => {
+    expect(hashFor({ kind: 'logFilm' })).toBe('#/history/log')
+    expect(parseHash('#/history/log')).toEqual({ kind: 'logFilm' })
+    expect(await rehydrate({ kind: 'logFilm' })).toEqual([{ kind: 'search' }, { kind: 'history' }, { kind: 'logFilm' }])
+  })
+})

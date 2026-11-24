@@ -9,12 +9,18 @@ const selected = figma.selectedInstance.getEnum('State', {
   Selected: true,
 })
 
+// "Show description" is off by default, so most rows (Sort by, Genre) omit
+// the prop; with it on, the Description text becomes the `description` prop.
+const showDescription = figma.selectedInstance.getBoolean('Show description')
+const description = figma.selectedInstance.getString('Description')
+const descriptionProp = showDescription ? `\n  description="${description}"` : ''
+
 export default {
   id: 'SheetOption',
   imports: ["import { SheetOption } from './SheetOption'"],
   example: figma.code`<SheetOption
   label={label}
-  selected={${selected}}
+  selected={${selected}}${descriptionProp}
   onSelect={onSelect}
 />`,
   metadata: { nestable: true },

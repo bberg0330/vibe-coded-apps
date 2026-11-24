@@ -76,10 +76,12 @@ type Props = {
   onDeleteWatch?: (entry: DatedWatch) => void
   /** Opens the Seen before screen. The row only shows when there is something in it. */
   onOpenSeenBefore?: () => void
+  /** Opens Log a film: search for a film that is on no list and ✓ it. Omitted, the link is hidden. */
+  onAddFilm?: () => void
 }
 
 export function HistoryScreen({
-  onOpenMovie, onCancelWatching, optimisticallyCancelled, cancellingKeys, hiddenWatches, onDeleteWatch, onOpenSeenBefore,
+  onOpenMovie, onCancelWatching, optimisticallyCancelled, cancellingKeys, hiddenWatches, onDeleteWatch, onOpenSeenBefore, onAddFilm,
 }: Props = {}) {
   useScrollRestoration(HISTORY_ROUTE_KEY, true)
 
@@ -107,16 +109,23 @@ export function HistoryScreen({
     <button className="seen-before-link" onClick={onOpenSeenBefore}>
       <span className="seen-before-text">
         <span className="seen-before-title">Seen before</span>
-        <span className="seen-before-count">{seenCount} {seenCount === 1 ? 'film' : 'films'} marked from Rewind</span>
+        <span className="seen-before-count">{seenCount} {seenCount === 1 ? 'film' : 'films'} you’ve seen before</span>
       </span>
       <span className="seen-before-chevron" aria-hidden="true">›</span>
     </button>
   )
 
+  const titleRow = (
+    <div className="title-row">
+      <h1>History</h1>
+      {onAddFilm && <button className="link hit" onClick={onAddFilm}>+ Add a film</button>}
+    </div>
+  )
+
   if (entries.length === 0 && tonight.length === 0) {
     return (
       <div className="screen">
-        <h1>History</h1>
+        {titleRow}
         <p className="empty">Nothing logged yet. Tap ✓ on a movie to record it.</p>
         {seenBeforeRow}
       </div>
@@ -125,7 +134,7 @@ export function HistoryScreen({
 
   return (
     <div className="screen">
-      <h1>History</h1>
+      {titleRow}
 
       {tonight.length > 0 && (
         <>
