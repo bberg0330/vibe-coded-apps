@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { getHistory, exportJson, deleteWatch, type DatedWatch } from '../data/history'
+import { getHistory, getSeenBefore, exportJson, deleteWatch, type DatedWatch } from '../data/history'
 import { getAllWatchingTonight } from '../data/watching'
 import { HistoryRow } from '../components/HistoryRow'
 import { SectionHeading } from '../components/SectionHeading'
@@ -74,10 +74,12 @@ type Props = {
   hiddenWatches?: Set<string>
   /** Deletes with undo (App owns the toast). Without it, deletes go straight to the store. */
   onDeleteWatch?: (entry: DatedWatch) => void
+  /** Opens the Seen before screen. The row only shows when there is something in it. */
+  onOpenSeenBefore?: () => void
 }
 
 export function HistoryScreen({
-  onOpenMovie, onCancelWatching, optimisticallyCancelled, cancellingKeys, hiddenWatches, onDeleteWatch,
+  onOpenMovie, onCancelWatching, optimisticallyCancelled, cancellingKeys, hiddenWatches, onDeleteWatch, onOpenSeenBefore,
 }: Props = {}) {
   useScrollRestoration(HISTORY_ROUTE_KEY, true)
 
@@ -100,11 +102,23 @@ export function HistoryScreen({
     }
   }
 
+  const seenCount = getSeenBefore().length
+  const seenBeforeRow = seenCount > 0 && onOpenSeenBefore && (
+    <button className="seen-before-link" onClick={onOpenSeenBefore}>
+      <span className="seen-before-text">
+        <span className="seen-before-title">Seen before</span>
+        <span className="seen-before-count">{seenCount} {seenCount === 1 ? 'film' : 'films'} marked from Rewind</span>
+      </span>
+      <span className="seen-before-chevron" aria-hidden="true">›</span>
+    </button>
+  )
+
   if (entries.length === 0 && tonight.length === 0) {
     return (
       <div className="screen">
         <h1>History</h1>
         <p className="empty">Nothing logged yet. Tap ✓ on a movie to record it.</p>
+        {seenBeforeRow}
       </div>
     )
   }
@@ -160,6 +174,7 @@ export function HistoryScreen({
           />
         )
       })}
+      {seenBeforeRow}
     </div>
   )
 }

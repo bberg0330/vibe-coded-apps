@@ -14,7 +14,8 @@ import { TabBar, type Tab } from './components/TabBar'
 import { OptionSheet } from './components/OptionSheet'
 import { Button } from './components/Button'
 import { Toast } from './components/Toast'
-import { logWatch, undoLastWatch, watchCount, deleteWatch, markSeenBefore, unmarkSeenBefore, getSeenBefore, type DatedWatch } from './data/history'
+import { logWatch, undoLastWatch, watchCount, deleteWatch, markSeenBefore, unmarkSeenBefore, getSeenBefore, restoreWatch, setSeenBeforeDate, type DatedWatch } from './data/history'
+import { SeenBeforeScreen } from './screens/SeenBeforeScreen'
 import { getCachedScores } from './data/scores'
 import { RewindScreen } from './screens/RewindScreen'
 import { RewindYearScreen } from './screens/RewindYearScreen'
@@ -39,6 +40,7 @@ const UNDO_MS = 5000
 /** The tab a screen belongs to: Cast and Filmography are reached from Search. */
 function tabFor(screen: Screen): Tab {
   if (screen.kind === 'rewind' || screen.kind === 'rewindYear') return 'rewind'
+  if (screen.kind === 'seenBefore') return 'history'
   return screen.kind === 'history' || screen.kind === 'watchlist' ? screen.kind : 'search'
 }
 
@@ -617,6 +619,7 @@ export default function App() {
           onCancelWatching={cancelWatchingTonight}
           hiddenWatches={hiddenWatches}
           onDeleteWatch={deleteWatchWithUndo}
+          onOpenSeenBefore={() => navigate({ kind: 'seenBefore' })}
           optimisticallyCancelled={optimisticallyCancelled}
           cancellingKeys={pendingCancel}
         />
@@ -636,6 +639,27 @@ export default function App() {
         current={tabFor(current)}
         onSelect={(tab) => navigate({ kind: tab })}
       />
+      {current.kind === 'seenBefore' && (
+        <SeenBeforeScreen
+          version={historyVersion}
+          onUnmark={(entry) => {
+            void unmarkSeenBefore(entry.movie.tmdbId)
+              .then(() => showUndo({
+                message: `Unmarked ${entry.movie.title}`,
+                undo: () => { void restoreWatch(entry).then(() => setHistoryVersion((v) => v + 1)) },
+                commit: async () => {},
+              }))
+              .catch(() => setSaveError("Couldn't save that — is the Movie Night server still running?"))
+              .finally(() => setHistoryVersion((v) => v + 1))
+          }}
+          onAddDate={(entry, date) => {
+            // Noon local time, so the date can't slip a day across time zones.
+            void setSeenBeforeDate(entry.movie.tmdbId, new Date(`${date}T12:00:00`).toISOString())
+              .catch(() => setSaveError("Couldn't save that — is the Movie Night server still running?"))
+              .finally(() => setHistoryVersion((v) => v + 1))
+          }}
+        />
+      )}
       {current.kind === 'rewind' && (
         <RewindScreen onOpenYear={(year) => navigate({ kind: 'rewindYear', year })} />
       )}
