@@ -189,7 +189,7 @@ export default function App() {
     setWatchHidden(key, true)
     showUndo({
       message: `Deleted your ${entry.movie.title} watch`,
-      undo: () => setWatchHidden(key, false),
+      action: () => setWatchHidden(key, false),
       commit: async () => {
         try {
           // keepalive: this commit may be running because the page is closing.
@@ -343,7 +343,7 @@ export default function App() {
         if (listEntry) removedOnWatchRef.current.set(movie.tmdbId, listEntry)
         showUndo({
           message: `Marked ${movie.title} as seen before`,
-          undo: () => { void undoSeenBeforeMark(movie.tmdbId) },
+          action: () => { void undoSeenBeforeMark(movie.tmdbId) },
         })
       } else {
         const logged = await logWatch(movie, via)
@@ -352,7 +352,7 @@ export default function App() {
           showUndo({
             message: `Logged ${movie.title} for tonight`,
             actionLabel: 'Not tonight?',
-            undo: () => setMarkSheet({ movie, via, forceLog, moveFrom: logged.watchedAt ?? undefined }),
+            action: () => setMarkSheet({ movie, via, forceLog, moveFrom: logged.watchedAt ?? undefined }),
           })
         }
       }
@@ -431,7 +431,7 @@ export default function App() {
       setLogged(tmdbId, false)
       showUndo({
         message: latestOfMany ? `Moved your latest ${title} watch to Seen before` : `Moved ${title} to Seen before`,
-        undo: () => { void undoMoveToSeenBefore(tmdbId, watchedAt, wasLogged) },
+        action: () => { void undoMoveToSeenBefore(tmdbId, watchedAt, wasLogged) },
       })
     } catch {
       setSaveError("Couldn't save that — is the Movie Night server still running?")
@@ -527,7 +527,7 @@ export default function App() {
     showUndo({
       message: `Removed ${entry.movie.title}`,
       // Puts it back exactly as it was: same "added by", same addedAt.
-      undo: async () => {
+      action: async () => {
         const { tmdbId } = entry.movie
         // Same in-flight guard as the bookmark, so Undo and a quick re-tap can't race.
         if (!startWatchlistSave(tmdbId)) return
@@ -560,7 +560,7 @@ export default function App() {
         await markSeenBefore(rewindMovie(film, availability))
         showUndo({
           message: `Marked ${title} as watched`,
-          undo: () => {
+          action: () => {
             unmarkSeenBefore(tmdbId)
               .catch(() => setSaveError("Couldn't undo that — is the Movie Night server still running?"))
               .finally(() => setHistoryVersion((v) => v + 1))
@@ -789,7 +789,7 @@ export default function App() {
             void unmarkSeenBefore(entry.movie.tmdbId)
               .then(() => showUndo({
                 message: `Unmarked ${entry.movie.title}`,
-                undo: () => {
+                action: () => {
                   restoreWatch(entry)
                     .catch(() => setSaveError("Couldn't undo that — is the Movie Night server still running?"))
                     .finally(() => setHistoryVersion((v) => v + 1))
@@ -820,14 +820,14 @@ export default function App() {
             const adding = !onWatchlistNow(film.tmdbId)
             const movie = rewindMovie(film, a)
             void setOnWatchlist(movie, adding).then((saved) => {
-              if (saved && adding) showUndo({ message: `Added ${film.title} to the watchlist`, undo: () => { void setOnWatchlist(movie, false) } })
+              if (saved && adding) showUndo({ message: `Added ${film.title} to the watchlist`, action: () => { void setOnWatchlist(movie, false) } })
             })
           }}
           onToggleWatched={(film, a) => { void toggleSeenBefore(film, a) }}
           isPending={(tmdbId) => pendingWatch.has(tmdbId) || pendingWatchlist.has(tmdbId)}
         />
       )}
-      {toast && <Toast message={toast.message} actionLabel={toast.actionLabel} onUndo={() => settleToast('undo')} onHold={holdToast} />}
+      {toast && <Toast message={toast.message} actionLabel={toast.actionLabel} onAction={() => settleToast('action')} onHold={holdToast} />}
       <Analytics />
     </div>
   )

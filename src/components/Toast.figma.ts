@@ -11,6 +11,6 @@ const action = figma.selectedInstance.getString('Action')
 export default {
   id: 'Toast',
   imports: ["import { Toast } from './Toast'"],
-  example: figma.code`<Toast message="${message}" actionLabel="${action}" onUndo={undo} />`,
+  example: figma.code`<Toast message="${message}" actionLabel="${action}" onAction={action} />`,
   metadata: { nestable: true },
 }

@@ -870,6 +870,39 @@ describe('App - one-tap Tonight', () => {
   })
 })
 
+describe('App - alerts', () => {
+  const alert = { id: 7, tmdbId: 1585, title: 'Rushmore', posterPath: null, where: 'Stream · Netflix', createdAt: '2026-11-20T00:00:00.000Z' }
+
+  /** The app's fake server, plus one alert for this profile; clears are recorded. */
+  function stubWithAlert() {
+    const base = globalThis.fetch as unknown as (url: string, init?: RequestInit) => Promise<unknown>
+    const clears: unknown[] = []
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+      if (String(url).startsWith('/api/alerts')) {
+        if (init?.method === 'POST') {
+          clears.push(JSON.parse(String(init.body)))
+          return { ok: true, status: 200, json: async () => ({}) }
+        }
+        return { ok: true, status: 200, json: async () => ({ alerts: [alert] }) }
+      }
+      return base(url, init)
+    }))
+    return clears
+  }
+
+  it('"Watch tonight" logs the film and clears the alert, without the "Not tonight?" toast', async () => {
+    const clears = stubWithAlert()
+    await renderApp()
+    await userEvent.click(await screen.findByRole('button', { name: 'Alerts, new' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Watch tonight' }))
+
+    await waitFor(() => expect(getHistory().map((e) => e.movie.tmdbId)).toEqual([1585]))
+    await waitFor(() => expect(clears).toEqual([{ profile: PROFILES[0].id, ids: [7] }]))
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Not tonight?' })).not.toBeInTheDocument()
+  })
+})
+
 describe('App - Log a film', () => {
   async function openLogFilm() {
     await renderApp()

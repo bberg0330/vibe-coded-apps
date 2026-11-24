@@ -9,9 +9,10 @@
  */
 import { useRef } from 'react'
 
-export function Toast({ message, onUndo, onHold, actionLabel = 'Undo' }: {
+export function Toast({ message, onAction, onHold, actionLabel = 'Undo' }: {
   message: string
-  onUndo: () => void
+  /** What the button does: Undo, or the action `actionLabel` names. */
+  onAction: () => void
   /** The button's label. */
   actionLabel?: string
   onHold?: (held: boolean) => void
@@ -30,7 +31,7 @@ export function Toast({ message, onUndo, onHold, actionLabel = 'Undo' }: {
       onBlur={() => { focus.current = false; update() }}
     >
       <p className="toast-message">{message}</p>
-      <button className="link" onClick={onUndo}>{actionLabel}</button>
+      <button className="link" onClick={onAction}>{actionLabel}</button>
     </div>
   )
 }

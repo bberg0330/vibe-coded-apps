@@ -1,5 +1,5 @@
 import { posterUrl } from '../api/tmdb'
-import { Icon } from './icons'
+import { HistoryMenu } from './HistoryMenu'
 import { IconButton } from './IconButton'
 import { Poster } from './Poster'
 import type { DatedWatch } from '../data/history'
@@ -79,33 +79,7 @@ export function HistoryRow({
       </div>
 
       {isMenuOpen && (
-        <div className="history-menu">
-          {onMoveToSeenBefore && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onMoveToSeenBefore()
-              }}
-            >
-              <Icon name="history" />
-              Move to Seen before
-            </button>
-          )}
-          <button
-            className="danger"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            disabled={isDeleting}
-          >
-            {/* Trash glyph so "destructive" isn't carried by colour alone. */}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
-            </svg>
-            {isDeleting ? 'Deleting…' : 'Delete this watch'}
-          </button>
-        </div>
+        <HistoryMenu onMoveToSeenBefore={onMoveToSeenBefore} onDelete={onDelete} isDeleting={isDeleting} />
       )}
     </div>
   )

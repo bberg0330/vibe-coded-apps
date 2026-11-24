@@ -5,11 +5,11 @@ export const UNDO_MS = 5000
 
 /**
  * `commit` runs when the toast goes without Undo (for actions deferred until
- * then, like History deletes); `undo` reverses one that already happened, or
- * with an `actionLabel` runs that action instead ("Not tonight?" opens the
- * sheet).
+ * then, like History deletes). `action` is what the toast's button does: with
+ * no `actionLabel` it is Undo and reverses what just happened; with one it is
+ * that action instead ("Not tonight?" opens the sheet).
  */
-export type Undoable = { message: string; undo: () => void; commit?: () => void; actionLabel?: string }
+export type Undoable = { message: string; action: () => void; commit?: () => void; actionLabel?: string }
 
 /**
  * The single undo toast. Showing a new one commits the previous action;
@@ -25,12 +25,12 @@ export function useUndoToast() {
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = null
   }
-  const settleToast = (action: 'commit' | 'undo') => {
+  const settleToast = (how: 'commit' | 'action') => {
     const t = toastRef.current
     clearTimer()
     toastRef.current = null
     setToast(null)
-    if (t) (action === 'undo' ? t.undo : t.commit)?.()
+    if (t) (how === 'action' ? t.action : t.commit)?.()
   }
   const showUndo = (t: Undoable) => {
     settleToast('commit')
