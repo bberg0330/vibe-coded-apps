@@ -565,3 +565,97 @@ describe('App - watchlist', () => {
     expect(await screen.findByText(/Nothing saved yet/)).toBeInTheDocument()
   })
 })
+
+describe('App - undo toast', () => {
+  const film = (id: number, title: string) =>
+    ({ tmdbId: id, title, year: 2000, posterPath: null, tomatometer: null, popcornmeter: null })
+
+  it('offers Undo after × on a watchlist row, and Undo puts it back exactly as it was', async () => {
+    resetStoreForTests({
+      ...emptyStore(),
+      watchlist: [{ addedAt: '2026-01-01T00:00:00.000Z', profileId: 'brian', movie: film(7, 'Heat') }],
+    })
+    await renderApp()
+    await userEvent.click(screen.getByRole('button', { name: 'Watchlist' }))
+    await userEvent.click(await screen.findByRole('button', { name: /remove heat from watchlist/i }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Removed Heat')
+    await waitFor(() => expect(getStoreSnapshot().watchlist).toHaveLength(0))
+
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(getStoreSnapshot().watchlist).toHaveLength(1))
+    expect(getStoreSnapshot().watchlist[0])
+      .toMatchObject({ addedAt: '2026-01-01T00:00:00.000Z', profileId: 'brian' })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('hides a deleted watch at once but only deletes it once the toast goes', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      resetStoreForTests({
+        ...emptyStore(),
+        history: [{ watchedAt: '2026-02-01T00:00:00.000Z', movie: film(8, 'Heat'), discoveredVia: null }],
+      })
+      await renderApp()
+      await userEvent.click(screen.getByRole('button', { name: /^history$/i }))
+      await userEvent.click(await screen.findByRole('button', { name: /menu for heat/i }))
+      await userEvent.click(screen.getByRole('button', { name: /delete this watch/i }))
+
+      expect(screen.getByRole('status')).toHaveTextContent('Deleted your Heat watch')
+      expect(screen.queryByTestId('history-title')).not.toBeInTheDocument()
+      expect(getHistory()).toHaveLength(1)
+
+      await vi.advanceTimersByTimeAsync(5000)
+      await waitFor(() => expect(getHistory()).toHaveLength(0))
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('Undo on a deleted watch brings the row back without touching the store', async () => {
+    resetStoreForTests({
+      ...emptyStore(),
+      history: [{ watchedAt: '2026-02-01T00:00:00.000Z', movie: film(8, 'Heat'), discoveredVia: null }],
+    })
+    await renderApp()
+    await userEvent.click(screen.getByRole('button', { name: /^history$/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /menu for heat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /delete this watch/i }))
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+    expect(await screen.findByTestId('history-title')).toHaveTextContent('Heat')
+    const posts = vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === 'POST')
+    expect(posts.map(([, init]) => (JSON.parse(String(init!.body)) as StoreOp).type)).not.toContain('deleteWatch')
+  })
+
+  it('a second undoable action commits the first', async () => {
+    resetStoreForTests({
+      ...emptyStore(),
+      history: [
+        { watchedAt: '2026-02-01T00:00:00.000Z', movie: film(8, 'Heat'), discoveredVia: null },
+        { watchedAt: '2026-02-02T00:00:00.000Z', movie: film(9, 'Ronin'), discoveredVia: null },
+      ],
+    })
+    await renderApp()
+    await userEvent.click(screen.getByRole('button', { name: /^history$/i }))
+    await userEvent.click(await screen.findByRole('button', { name: /menu for heat/i }))
+    await userEvent.click(screen.getByRole('button', { name: /delete this watch/i }))
+    await userEvent.click(screen.getByRole('button', { name: /menu for ronin/i }))
+    await userEvent.click(screen.getByRole('button', { name: /delete this watch/i }))
+
+    await waitFor(() => expect(getHistory().map((e) => e.movie.title)).toEqual(['Ronin']))
+    expect(screen.getByRole('status')).toHaveTextContent('Deleted your Ronin watch')
+  })
+})
+
+describe('App - top bar current screen', () => {
+  it('shows the current screen as text, not a link to itself', async () => {
+    await renderApp()
+    await userEvent.click(screen.getByRole('button', { name: 'Watchlist' }))
+    await screen.findByText(/Nothing saved yet/)
+    expect(screen.queryByRole('button', { name: 'Watchlist' })).not.toBeInTheDocument()
+    expect(screen.getByText('Watchlist', { selector: '[aria-current="page"]' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^history$/i })).toBeInTheDocument()
+  })
+})

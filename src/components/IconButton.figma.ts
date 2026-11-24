@@ -9,11 +9,19 @@ const watched = figma.selectedInstance.getEnum('State', {
   Default: false,
   Watched: true,
   Disabled: false,
+  Primary: false,
 })
 const disabled = figma.selectedInstance.getEnum('State', {
   Default: false,
   Watched: false,
   Disabled: true,
+  Primary: false,
+})
+const primary = figma.selectedInstance.getEnum('State', {
+  Default: false,
+  Watched: false,
+  Disabled: false,
+  Primary: true,
 })
 
 export default {
@@ -22,6 +30,7 @@ export default {
   example: figma.code`<IconButton
   icon="${icon}"
   watched={${watched}}
+  primary={${primary}}
   disabled={${disabled}}
   ariaLabel={ariaLabel}
   onClick={onClick}

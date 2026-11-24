@@ -38,6 +38,9 @@ export function LastWatchedCard({ movie, onOpen }: Props) {
             {movie.tomatometer !== null && (
               <span className="score" title="Critic score">🍅 {movie.tomatometer}%</span>
             )}
+            {typeof movie.popcornmeter === 'number' && (
+              <span className="score" title="IMDb user rating">⭐ {movie.popcornmeter}%</span>
+            )}
             {badgeLabel && <Badge label={badgeLabel} />}
           </div>
         </div>

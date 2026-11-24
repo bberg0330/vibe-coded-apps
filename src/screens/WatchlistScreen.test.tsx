@@ -114,6 +114,6 @@ describe('WatchlistScreen sort & filter', () => {
   it('shows the empty state, without controls, when the list is empty', () => {
     renderScreen([])
     expect(screen.getByText(/Nothing saved yet/)).toBeInTheDocument()
-    expect(screen.queryByRole('group', { name: 'Filters' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Filter' })).not.toBeInTheDocument()
   })
 })

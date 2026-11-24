@@ -114,6 +114,7 @@ describe('CastScreen', () => {
     rerender(<CastScreen movie={movieB} onOpenActor={vi.fn()} onToggleWatched={vi.fn()} watchedCount={0} />)
 
     expect(await screen.findByText('Loading cast…')).toBeInTheDocument()
+    expect(screen.getAllByTestId('skeleton-row')).toHaveLength(3)
     expect(screen.queryByText('Actor 1')).not.toBeInTheDocument()
     expect(screen.queryByText('Actor 20')).not.toBeInTheDocument()
 

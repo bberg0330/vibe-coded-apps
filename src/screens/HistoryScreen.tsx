@@ -66,10 +66,17 @@ type Props = {
    * mirroring `isPending` elsewhere in the app.
    */
   cancellingKeys?: Set<string>
+  /**
+   * Watches (`${tmdbId}:${watchedAt}`) deleted but still inside their undo
+   * window — hidden here, removed from the store once the toast goes.
+   */
+  hiddenWatches?: Set<string>
+  /** Deletes with undo (App owns the toast). Without it, deletes go straight to the store. */
+  onDeleteWatch?: (entry: WatchEntry) => void
 }
 
 export function HistoryScreen({
-  onOpenMovie, onCancelWatching, optimisticallyCancelled, cancellingKeys,
+  onOpenMovie, onCancelWatching, optimisticallyCancelled, cancellingKeys, hiddenWatches, onDeleteWatch,
 }: Props = {}) {
   useScrollRestoration(HISTORY_ROUTE_KEY, true)
 
@@ -77,6 +84,7 @@ export function HistoryScreen({
   const [deleting, setDeleting] = useState<string | null>(null)
 
   const entries = getHistory()
+    .filter((e) => !hiddenWatches?.has(`${e.movie.tmdbId}:${e.watchedAt}`))
   const groups = groupByFilm(entries)
   const tonight = getAllWatchingTonight()
     .filter((entry) => !optimisticallyCancelled?.has(`${entry.profileId}:${entry.movie.tmdbId}`))
@@ -139,7 +147,14 @@ export function HistoryScreen({
             isMenuOpen={isMenuOpen}
             isDeleting={isDeleting}
             onToggleMenu={() => setOpenMenuKey(isMenuOpen ? null : menuKey)}
-            onDelete={() => handleDeleteWatch(entry.movie.tmdbId, entry.watchedAt)}
+            onDelete={() => {
+              if (onDeleteWatch) {
+                setOpenMenuKey(null)
+                onDeleteWatch(entry)
+              } else {
+                handleDeleteWatch(entry.movie.tmdbId, entry.watchedAt)
+              }
+            }}
           />
         )
       })}

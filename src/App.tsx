@@ -11,7 +11,8 @@ import { ProfileGate } from './components/ProfileGate'
 import { PasscodeGate } from './components/PasscodeGate'
 import { TopBar } from './components/TopBar'
 import { Button } from './components/Button'
-import { logWatch, undoLastWatch, watchCount } from './data/history'
+import { Toast } from './components/Toast'
+import { logWatch, undoLastWatch, watchCount, deleteWatch } from './data/history'
 import { getNowWatching, cancelWatching } from './data/watching'
 import {
   getWatchlist, getWatchlistEntry, isOnWatchlist, addToWatchlist, removeFromWatchlist, restoreToWatchlist,
@@ -24,6 +25,9 @@ import { PROFILES, type ProfileId } from './data/profiles'
 import { getActiveProfileId, setActiveProfileId } from './data/activeProfile'
 import { hashFor, parseHash, rehydrate, RehydrationError } from './router'
 import type { Movie, WatchEntry, WatchingEntry, WatchlistEntry, Screen } from './types'
+
+/** How long the undo toast stays up. */
+const UNDO_MS = 5000
 
 /** A stored film snapshot as the full `Movie` the screens and cards take. */
 function asMovie(movie: WatchEntry['movie']): Movie {
@@ -124,6 +128,65 @@ export default function App() {
   const [bootError, setBootError] = useState<string | null>(null)
   const [bootAttempt, setBootAttempt] = useState(0)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  /*
+   * Undo toast. One at a time: showing a new one commits the previous
+   * action. `commit` is for actions deferred until the toast goes (History
+   * deletes); `undo` reverses one that already happened (watchlist removes).
+   */
+  type Undoable = { message: string; undo: () => void; commit?: () => void }
+  const [toast, setToast] = useState<Undoable | null>(null)
+  const toastRef = useRef<Undoable | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const settleToast = (action: 'commit' | 'undo') => {
+    const t = toastRef.current
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = null
+    toastRef.current = null
+    setToast(null)
+    if (t) (action === 'undo' ? t.undo : t.commit)?.()
+  }
+  const showUndo = (t: Undoable) => {
+    settleToast('commit')
+    toastRef.current = t
+    setToast(t)
+    toastTimerRef.current = setTimeout(() => settleToast('commit'), UNDO_MS)
+  }
+  // Leaving the page commits whatever is pending, so a deferred delete is
+  // never silently dropped by closing the tab.
+  useEffect(() => {
+    const flush = () => settleToast('commit')
+    window.addEventListener('pagehide', flush)
+    return () => window.removeEventListener('pagehide', flush)
+  }, [])
+
+  /* History deletes wait for the toast; until then the entry is only hidden. */
+  const [hiddenWatches, setHiddenWatches] = useState<Set<string>>(new Set())
+  const setWatchHidden = (key: string, hidden: boolean) =>
+    setHiddenWatches((prev) => {
+      const next = new Set(prev)
+      if (hidden) next.add(key)
+      else next.delete(key)
+      return next
+    })
+  const deleteWatchWithUndo = (entry: WatchEntry) => {
+    const key = `${entry.movie.tmdbId}:${entry.watchedAt}`
+    setWatchHidden(key, true)
+    showUndo({
+      message: `Deleted your ${entry.movie.title} watch`,
+      undo: () => setWatchHidden(key, false),
+      commit: async () => {
+        try {
+          await deleteWatch(entry.movie.tmdbId, entry.watchedAt)
+        } catch {
+          setSaveError("Couldn't delete that watch — is the Movie Night server still running?")
+        } finally {
+          setWatchHidden(key, false)
+          setHistoryVersion((v) => v + 1)
+        }
+      },
+    })
+  }
 
   useEffect(() => {
     if (session !== 'unlocked') return
@@ -294,9 +357,10 @@ export default function App() {
   const onWatchlistNow = (tmdbId: number): boolean =>
     watchlistOverride.get(tmdbId) ?? isOnWatchlist(tmdbId)
 
-  const setOnWatchlist = async (movie: Movie | WatchEntry['movie'], target: boolean) => {
+  /** Resolves true once the store has the change, false if it was skipped or failed. */
+  const setOnWatchlist = async (movie: Movie | WatchEntry['movie'], target: boolean): Promise<boolean> => {
     const { tmdbId } = movie
-    if (pendingWatchlistRef.current.has(tmdbId)) return
+    if (pendingWatchlistRef.current.has(tmdbId)) return false
     pendingWatchlistRef.current.add(tmdbId)
     setPendingWatchlist(new Set(pendingWatchlistRef.current))
     setSaveError(null)
@@ -307,8 +371,10 @@ export default function App() {
       else await removeFromWatchlist(tmdbId)
       // A manual change supersedes any pending "undo ✓ restores it".
       removedOnWatchRef.current.delete(tmdbId)
+      return true
     } catch {
       setSaveError("Couldn't save that — is the Movie Night server still running?")
+      return false
     } finally {
       // Drop the overlay either way: on success the store now agrees with
       // it, on failure the store's unchanged answer is the truth.
@@ -324,7 +390,22 @@ export default function App() {
   }
 
   const toggleWatchlist = (movie: Movie) => setOnWatchlist(movie, !onWatchlistNow(movie.tmdbId))
-  const removeWatchlistEntry = (entry: WatchlistEntry) => setOnWatchlist(entry.movie, false)
+  const removeWatchlistEntry = async (entry: WatchlistEntry) => {
+    if (!(await setOnWatchlist(entry.movie, false))) return
+    showUndo({
+      message: `Removed ${entry.movie.title}`,
+      // Puts it back exactly as it was: same "added by", same addedAt.
+      undo: async () => {
+        try {
+          await restoreToWatchlist(entry)
+        } catch {
+          setSaveError("Couldn't put that back on the watchlist.")
+        } finally {
+          setHistoryVersion((v) => v + 1)
+        }
+      },
+    })
+  }
   const markWatchlistWatched = (entry: WatchlistEntry) =>
     toggleWatched(asMovie(entry.movie), null, { forceLog: true })
   const isWatchlistPending = (tmdbId: number) => pendingWatchlist.has(tmdbId)
@@ -406,6 +487,7 @@ export default function App() {
   return (
     <div className="app">
       <TopBar
+        current={current.kind === 'history' || current.kind === 'watchlist' ? current.kind : null}
         showBack={pointer > 0}
         onBack={goBack}
         profiles={PROFILES}
@@ -477,6 +559,8 @@ export default function App() {
             navigate({ kind: 'cast', movie: { ...movie, popularity: 0, availability: { streaming: [], rent: [] }, overview: null } })
           }
           onCancelWatching={cancelWatchingTonight}
+          hiddenWatches={hiddenWatches}
+          onDeleteWatch={deleteWatchWithUndo}
           optimisticallyCancelled={optimisticallyCancelled}
           cancellingKeys={pendingCancel}
         />
@@ -492,6 +576,7 @@ export default function App() {
           isPending={(tmdbId) => pendingWatch.has(tmdbId) || pendingWatchlist.has(tmdbId)}
         />
       )}
+      {toast && <Toast message={toast.message} onUndo={() => settleToast('undo')} />}
       <Analytics />
     </div>
   )

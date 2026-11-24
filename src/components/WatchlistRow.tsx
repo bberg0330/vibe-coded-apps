@@ -53,6 +53,7 @@ export function WatchlistRow({
       <div className="card-actions">
         <IconButton
           icon="✓"
+          primary
           ariaLabel={`Mark ${movie.title} as watched`}
           disabled={pending}
           onClick={(e) => {
