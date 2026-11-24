@@ -734,6 +734,50 @@ describe('App - one-tap Tonight', () => {
     expect(getSeenBefore()).toHaveLength(0)
   })
 
+  it('after a move, a later ✓ logs another watch instead of undoing the Seen before entry', async () => {
+    await renderApp()
+    await tapRushmore()
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+    await userEvent.click(screen.getByRole('button', { name: 'Not tonight?' }))
+    await chooseWhen('Some time ago')
+    await waitFor(() => expect(getSeenBefore()).toHaveLength(1))
+
+    await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
+
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+    expect(getSeenBefore()).toHaveLength(1)
+  })
+
+  it('Undo of a move puts the "logged tonight" state back, so ✓ undoes tonight\'s log again', async () => {
+    await renderApp()
+    await tapRushmore()
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+    await userEvent.click(screen.getByRole('button', { name: 'Not tonight?' }))
+    await chooseWhen('Some time ago')
+    await waitFor(() => expect(getSeenBefore()).toHaveLength(1))
+    await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+
+    await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
+    await waitFor(() => expect(getHistory()).toHaveLength(0))
+    expect(getSeenBefore()).toHaveLength(0)
+  })
+
+  it('a stale "Not tonight?" (the watch was undone meanwhile) moves nothing and says so', async () => {
+    await renderApp()
+    await tapRushmore()
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+    // ✓ again undoes the log; that undo shows no toast, so the old one is still up.
+    await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
+    await waitFor(() => expect(getHistory()).toHaveLength(0))
+    await userEvent.click(screen.getByRole('button', { name: 'Not tonight?' }))
+    await chooseWhen('Some time ago')
+
+    expect(await screen.findByText(/isn't in history any more/i)).toBeInTheDocument()
+    expect(getSeenBefore()).toHaveLength(0)
+    expect(screen.queryByText(/moved rushmore to seen before/i)).not.toBeInTheDocument()
+  })
+
   it('says so, and moves nothing, if the film is already in Seen before', async () => {
     await renderApp()
     await tapRushmore()

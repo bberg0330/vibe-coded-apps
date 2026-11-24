@@ -20,7 +20,7 @@ import type { Alert } from './api/alerts'
 import { useAlerts } from './hooks/useAlerts'
 import { Button } from './components/Button'
 import { Toast } from './components/Toast'
-import { logWatch, undoLastWatch, watchCount, deleteWatch, markSeenBefore, unmarkSeenBefore, getSeenBefore, restoreWatch, setSeenBeforeDate, moveToSeenBefore, type DatedWatch } from './data/history'
+import { logWatch, undoLastWatch, getHistory, watchCount, deleteWatch, markSeenBefore, unmarkSeenBefore, getSeenBefore, restoreWatch, setSeenBeforeDate, moveToSeenBefore, type DatedWatch } from './data/history'
 import { SeenBeforeScreen } from './screens/SeenBeforeScreen'
 import { getCachedScores } from './data/scores'
 import { RewindScreen } from './screens/RewindScreen'
@@ -392,7 +392,7 @@ export default function App() {
   const chooseWhen = ({ movie, via, forceLog, moveFrom }: NonNullable<typeof markSheet>, seenBefore: boolean) => {
     setMarkSheet(null)
     if (moveFrom) {
-      if (seenBefore) void moveWatchToSeenBefore(movie.tmdbId, movie.title, moveFrom)
+      if (seenBefore) void moveWatchToSeenBefore(movie, moveFrom)
       return
     }
     void toggleWatched(movie, via, { forceLog, seenBefore, announce: false })
@@ -401,20 +401,37 @@ export default function App() {
   /**
    * Moves a movie night to Seen before in one write, with Undo (which puts the
    * date back). `latestOfMany`: the film has other movie nights, so say it is
-   * the latest watch that moved.
+   * the latest watch that moved. The "logged this session" flag is cleared (a
+   * later ✓ must not undo the Seen before entry) and Undo puts it back.
    */
-  const moveWatchToSeenBefore = async (tmdbId: number, title: string, watchedAt: string, latestOfMany = false) => {
+  const moveWatchToSeenBefore = async (
+    movie: Pick<Movie, 'tmdbId' | 'title'>, watchedAt: string, latestOfMany = false,
+  ) => {
+    const { tmdbId, title } = movie
     if (!startWatchSave(tmdbId)) return
     setSaveError(null)
+    const wasLogged = loggedThisSession.has(tmdbId)
+    const inSeenBefore = () => getSeenBefore().some((e) => e.movie.tmdbId === tmdbId)
     try {
-      if (getSeenBefore().some((e) => e.movie.tmdbId === tmdbId)) {
+      // The toast that offered this can outlive the watch (undone, or deleted elsewhere).
+      if (!getHistory().some((e) => e.movie.tmdbId === tmdbId && e.watchedAt === watchedAt)) {
+        setSaveError("That watch isn't in History any more.")
+        return
+      }
+      if (inSeenBefore()) {
         setSaveError('That film is already in Seen before.')
         return
       }
       await moveToSeenBefore(tmdbId, watchedAt)
+      // Only say it moved if the store agrees (another device may have got there first).
+      if (!inSeenBefore()) {
+        setSaveError("Couldn't move that — it changed on another device.")
+        return
+      }
+      setLogged(tmdbId, false)
       showUndo({
         message: latestOfMany ? `Moved your latest ${title} watch to Seen before` : `Moved ${title} to Seen before`,
-        undo: () => { void undoMoveToSeenBefore(tmdbId, watchedAt) },
+        undo: () => { void undoMoveToSeenBefore(tmdbId, watchedAt, wasLogged) },
       })
     } catch {
       setSaveError("Couldn't save that — is the Movie Night server still running?")
@@ -424,11 +441,13 @@ export default function App() {
     }
   }
 
-  /** Undo for a move: the undated entry gets its original date back. */
-  const undoMoveToSeenBefore = async (tmdbId: number, watchedAt: string) => {
+  /** Undo for a move: the undated entry gets its original date back, and the session flag as it was. */
+  const undoMoveToSeenBefore = async (tmdbId: number, watchedAt: string, wasLogged: boolean) => {
     if (!startWatchSave(tmdbId)) return
+    setSaveError(null)
     try {
       await setSeenBeforeDate(tmdbId, watchedAt)
+      setLogged(tmdbId, wasLogged)
     } catch {
       setSaveError("Couldn't undo that — is the Movie Night server still running?")
     } finally {
@@ -672,7 +691,7 @@ export default function App() {
           onWatchTonight={(a) => {
             // Already logged this session: just clear the alert. Otherwise clear it only once the watch is saved.
             if (loggedThisSession.has(a.tmdbId)) { dropAlerts([a.id]); return }
-            void toggleWatched(alertMovie(a), null, { forceLog: true }).then((saved) => { if (saved) dropAlerts([a.id]) })
+            void toggleWatched(alertMovie(a), null, { forceLog: true, announce: false }).then((saved) => { if (saved) dropAlerts([a.id]) })
           }}
           onDismiss={(a) => dropAlerts([a.id])}
           onClearAll={() => dropAlerts()}
@@ -742,7 +761,7 @@ export default function App() {
           onDeleteWatch={deleteWatchWithUndo}
           onOpenSeenBefore={() => navigate({ kind: 'seenBefore' })}
           onAddFilm={() => navigate({ kind: 'logFilm' })}
-          onMoveToSeenBefore={(entry, count) => { void moveWatchToSeenBefore(entry.movie.tmdbId, entry.movie.title, entry.watchedAt, count > 1) }}
+          onMoveToSeenBefore={(entry, count) => { void moveWatchToSeenBefore(entry.movie, entry.watchedAt, count > 1) }}
           optimisticallyCancelled={optimisticallyCancelled}
           cancellingKeys={pendingCancel}
         />
