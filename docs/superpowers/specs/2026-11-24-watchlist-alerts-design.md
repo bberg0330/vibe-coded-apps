@@ -1,8 +1,7 @@
 # Watchlist Alerts — Design
 
 **Date:** 2026-11-24
-**Status:** Agreed in a grilling session; where alerts appear is pending the
-header/navigation critique and a Figma proposal
+**Status:** Approved, design in Figma (03 Screens → section 08)
 
 ## Problem
 
@@ -57,11 +56,17 @@ Tell the household when a watchlist film becomes watchable, inside the app.
 - **Web push** is a later step (needs a service worker, permission prompts,
   and Home Screen install on iPhone).
 
-## Open
+## Where alerts appear
 
-- **Where alerts appear** (badge, bell, inbox, section on the watchlist) is
-  decided by the header/navigation critique, then drafted in Figma before any
-  UI code, per `CLAUDE.md`.
+Decided in the header/navigation critique and approved in Figma (option B1):
+
+- A **bell** in the top bar, with a dot while the active profile has unseen
+  alerts. The bar is now 🔔 ⚙ and a profile avatar (see the Rewind spec's
+  *Navigation* section).
+- The bell opens a **"Now watchable" panel**: one `AlertRow` per film (poster,
+  title, Stream/Rent pill, **Watch tonight**, **Dismiss**) and **Clear all**.
+- Figma: `AlertRow` on 02 Components (section 09); "Alerts — bell panel open"
+  on 03 Screens (section 08).
 
 ## Related
 
