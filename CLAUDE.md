@@ -22,7 +22,7 @@ Figma changes never update the React code automatically. When the user shares Fi
 4. Implement differences that are clearly design updates. Ask before changes that alter behaviour or remove content, and don't invent changes when nothing differs.
 5. **Compare it rendered, not just on paper.** Before opening a PR, render the affected components in headless Chromium (`/opt/pw-browsers/chromium-1194/chrome-linux/chrome`; install `playwright-core` outside the repo, e.g. in the scratchpad, never as a repo dependency): add a temporary, untracked `harness.html` + `src/harness.tsx` that renders each Figma variant with sample data at 375px in dark mode, run the Vite dev server on a spare port, and use `getBoundingClientRect()` to measure the boxes (card, poster, text rows, action column, buttons) plus computed colours/opacity/font-size. Compare them with Figma's `get_metadata` coordinates and `get_screenshot`. Treat differences of about 2px in text-row heights as font-metric noise (Figma uses SF Pro); anything larger, or any alignment, size or colour difference, is a finding to fix or report. Delete the harness files before committing.
 6. If code changed, update the matching `*.figma.ts` if props changed, run `npm test` and `npm run build`, then commit, push and open the PR ready for review (not as a draft).
-7. Enable auto-merge on the PR (squash) so it merges once checks pass. Don't merge by hand or bypass failing checks; if a check fails, fix it and push.
+7. Run the code review (see *Code review* below) and fix its findings, then enable auto-merge on the PR (squash) so it merges once checks pass. Don't merge by hand or bypass failing checks; if a check fails, fix it and push.
 
 ### Features added, edited or removed in Figma
 
@@ -50,3 +50,7 @@ Manage Vercel environment variables directly via the connector, without asking f
 For debugging (something broken, throwing, failing or slow), use `mattpocock-skills:diagnosing-bugs` rather than `engineering:debug`.
 
 For code review, use `mattpocock-skills:code-review` rather than the built-in `/code-review`.
+
+## Code review
+
+After opening any PR that changes code, review it before it merges: run `mattpocock-skills:code-review` against the PR's base branch, fix what it finds (or say on the PR why a finding doesn't apply), push, and only then enable auto-merge or merge. Docs-only PRs (specs, `CLAUDE.md`, `docs/`) don't need it. Summarise the findings and what was done about each in the PR description.
