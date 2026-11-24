@@ -18,7 +18,8 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-function applyOp(store: Store, op: StoreOp): Store {
+// Exported so api/store.test.ts can check it stays in step with src/data/storeReducer.ts.
+export function applyOp(store: Store, op: StoreOp): Store {
   switch (op.type) {
     case 'logWatch': {
       // A second undated "seen before" mark for the same film is a no-op (two devices at once).
