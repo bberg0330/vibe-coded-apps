@@ -8,7 +8,7 @@ import figma from 'figma'
 // per instance ("Laura"/"Brian"), not a component property Code Connect can
 // read generically. `label` is left as a pseudocode variable, same as
 // MovieCard.figma.ts's `movie`/`onOpenMovie`.
-const active = figma.selectedInstance.getPropertyValue('State') === 'Active'
+const active = figma.selectedInstance.getPropertyValue('State') === 'Selected'
 
 export default {
   id: 'Chip',

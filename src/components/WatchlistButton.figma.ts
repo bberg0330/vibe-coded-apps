@@ -8,6 +8,11 @@ const saved = figma.selectedInstance.getEnum('State', {
   Default: false,
   Saved: true,
 })
+// Size=Compact is the 36x36 form pinned to a RecommendationCard poster.
+const compact = figma.selectedInstance.getEnum('Size', {
+  Default: false,
+  Compact: true,
+})
 
 export default {
   id: 'WatchlistButton',
@@ -15,6 +20,7 @@ export default {
   example: figma.code`<WatchlistButton
   title={movie.title}
   saved={${saved}}
+  compact={${compact}}
   onClick={() => onToggleWatchlist(movie)}
 />`,
   metadata: { nestable: true },
