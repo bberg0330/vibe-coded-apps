@@ -564,7 +564,7 @@ describe('App - watchlist', () => {
     expect(screen.getAllByTestId('watchlist-title').map((n) => n.textContent)).toEqual(['Film 2'])
   })
 
-  it('reaches the Watchlist screen from the top bar, showing the empty state', async () => {
+  it('reaches the Watchlist screen from the tab bar, showing the empty state', async () => {
     await renderApp()
     await userEvent.click(screen.getByRole('button', { name: 'Watchlist' }))
     expect(await screen.findByText(/Nothing saved yet/)).toBeInTheDocument()
@@ -655,15 +655,12 @@ describe('App - undo toast', () => {
 })
 
 describe('App - tab bar', () => {
-  it('switches screens and marks the current tab, which does nothing when tapped again', async () => {
+  // Which tab is marked current, and ignoring taps on it, is TabBar.test.tsx's job; this checks the app navigates.
+  it('switches screens from the tab bar', async () => {
     await renderApp()
     const tabs = screen.getByRole('navigation', { name: 'Main' })
-    expect(within(tabs).getByRole('button', { name: 'Search' })).toHaveAttribute('aria-current', 'page')
-
     await userEvent.click(within(tabs).getByRole('button', { name: 'Watchlist' }))
     await screen.findByText(/Nothing saved yet/)
-    expect(within(tabs).getByRole('button', { name: 'Watchlist' })).toHaveAttribute('aria-current', 'page')
-    expect(within(tabs).getByRole('button', { name: 'Search' })).not.toHaveAttribute('aria-current')
 
     await userEvent.click(within(tabs).getByRole('button', { name: 'Search' }))
     expect(await screen.findByRole('searchbox')).toBeInTheDocument()

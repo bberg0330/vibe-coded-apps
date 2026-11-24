@@ -19,7 +19,7 @@ export function YearTile({ year, watched, total, onOpen }: {
 
 /** 6px bar, --accent on --control-bg. Decorative: the text beside it says the same. */
 export function Progress({ watched, total }: { watched: number; total: number }) {
-  const pct = total > 0 ? Math.min(100, (watched / total) * 100) : 0
+  const pct = total > 0 ? Math.min(100, Math.round((watched / total) * 1000) / 10) : 0
   return (
     <span className="progress" aria-hidden="true">
       <span className="progress-fill" style={{ width: `${pct}%` }} />

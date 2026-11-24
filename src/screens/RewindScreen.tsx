@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getRewindYears, type RewindYearSummary } from '../api/rewind'
-import { watchCount } from '../data/history'
+import { rewindProgress } from '../data/rewindProgress'
 import { ErrorRetry } from '../components/ErrorRetry'
 import { SkeletonRows } from '../components/SkeletonRows'
 import { YearTile } from '../components/YearTile'
@@ -28,11 +28,11 @@ export function RewindScreen({ onOpenYear }: { onOpenYear: (year: number) => voi
       {years && years.length > 0 && (
         <>
           <div className="year-grid">
-            {years.map(({ year, ids }) => (
+            {years.map(({ year, ids, formerIds }) => (
               <YearTile
                 key={year}
                 year={year}
-                watched={ids.filter((id) => watchCount(id) > 0).length}
+                watched={rewindProgress(ids, formerIds)}
                 total={ids.length}
                 onOpen={() => onOpenYear(year)}
               />

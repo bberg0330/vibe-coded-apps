@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getSeenBefore } from '../data/history'
 import type { WatchEntry } from '../types'
 
@@ -34,7 +34,19 @@ export function SeenBeforeScreen({ version, onUnmark, onAddDate }: {
   const [menuFor, setMenuFor] = useState<number | null>(null)
   const [datingFor, setDatingFor] = useState<number | null>(null)
   const [date, setDate] = useState('')
-  const today = new Date().toISOString().slice(0, 10)
+  // Local date (not UTC), to match the noon-local time the date is saved at.
+  const now = new Date()
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+
+  // The ⋯ menu closes on Escape or a tap anywhere outside it.
+  useEffect(() => {
+    if (menuFor === null) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuFor(null) }
+    const onDown = (e: PointerEvent) => { if (!(e.target as Element).closest?.('.seen-film-menu')) setMenuFor(null) }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onDown)
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', onDown) }
+  }, [menuFor])
 
   return (
     <div className="screen">

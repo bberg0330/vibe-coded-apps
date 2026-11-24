@@ -1,6 +1,12 @@
 import { useEffect, useRef } from 'react'
 
-const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/** Open dialogs, innermost last: only the top one answers Escape and traps Tab. */
+const stack: HTMLElement[] = []
+
+/** Skips elements that can't take focus because they (or a parent) aren't rendered. */
+const isShown = (el: HTMLElement) => el.getClientRects().length > 0 || el === document.activeElement
 
 /**
  * Makes a bottom sheet behave as a modal dialog for keyboard and
@@ -17,10 +23,17 @@ export function useDialogFocus<T extends HTMLElement>(onClose: () => void) {
     const dialog = ref.current
     if (!dialog) return
     const opener = document.activeElement as HTMLElement | null
-    const focusables = () => [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)]
+    stack.push(dialog)
+    // jsdom has no layout, so fall back to every match when nothing reports a box.
+    const focusables = () => {
+      const all = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)]
+      const shown = all.filter(isShown)
+      return shown.length ? shown : all
+    }
     ;(focusables()[0] ?? dialog).focus()
 
     const onKeyDown = (e: KeyboardEvent) => {
+      if (stack[stack.length - 1] !== dialog) return // a dialog opened on top of this one handles it
       if (e.key === 'Escape') {
         e.preventDefault()
         onCloseRef.current()
@@ -40,6 +53,8 @@ export function useDialogFocus<T extends HTMLElement>(onClose: () => void) {
     document.addEventListener('keydown', onKeyDown)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
+      const at = stack.indexOf(dialog)
+      if (at >= 0) stack.splice(at, 1)
       if (opener && document.contains(opener)) opener.focus()
     }
   }, [])

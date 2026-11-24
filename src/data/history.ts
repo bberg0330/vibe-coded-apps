@@ -84,8 +84,8 @@ export async function undoLastWatch(tmdbId: number): Promise<void> {
 }
 
 /** Removes a specific movie night by timestamp. For deleting individual duplicate watches. */
-export async function deleteWatch(tmdbId: number, watchedAt: string): Promise<void> {
-  await applyRemoteOp({ type: 'deleteWatch', tmdbId, watchedAt })
+export async function deleteWatch(tmdbId: number, watchedAt: string, opts: { keepalive?: boolean } = {}): Promise<void> {
+  await applyRemoteOp({ type: 'deleteWatch', tmdbId, watchedAt }, opts)
 }
 
 export function exportJson(): string {

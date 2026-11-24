@@ -120,8 +120,17 @@ export function supabaseRewindStore(): RewindStore | undefined {
       return new Map((data ?? []).map((row) => [Number(row.year), row.refresh_after ? new Date(row.refresh_after) : null]))
     },
     async save(year, films, computedAt, refreshAfter) {
+      // Carry forward every film that was ever in this year's list but isn't now,
+      // so progress keeps counting a watched film that drops out on a rebuild.
+      // Only the nightly job writes here, so read-then-write is safe.
+      const { data: prev, error: readError } = await supabase
+        .from('movie_night_rewind_years').select('films, former_ids').eq('year', year).maybeSingle()
+      if (readError) throw readError
+      const now = new Set(films.map((f) => f.tmdbId))
+      const before = [...(Array.isArray(prev?.films) ? prev.films.map((f: { tmdbId: number }) => f.tmdbId) : []), ...(prev?.former_ids ?? [])]
+      const former = [...new Set(before)].filter((id) => !now.has(id))
       const { error } = await supabase.from('movie_night_rewind_years').upsert({
-        year, films, computed_at: computedAt.toISOString(), refresh_after: refreshAfter?.toISOString() ?? null,
+        year, films, former_ids: former, computed_at: computedAt.toISOString(), refresh_after: refreshAfter?.toISOString() ?? null,
       })
       if (error) throw error
     },
@@ -147,16 +156,21 @@ export function supabaseRewindReader(): RewindReader | undefined {
   const supabase = createClient(url, key)
   return {
     async years() {
-      const { data, error } = await supabase.from('movie_night_rewind_years').select('year, films').order('year', { ascending: false })
+      const { data, error } = await supabase.from('movie_night_rewind_years').select('year, films, former_ids').order('year', { ascending: false })
       if (error) throw error
       return (data ?? [])
-        .map((row) => ({ year: Number(row.year), ids: Array.isArray(row.films) ? row.films.map((f: { tmdbId: number }) => f.tmdbId) : [] }))
+        .map((row) => ({
+          year: Number(row.year),
+          ids: Array.isArray(row.films) ? row.films.map((f: { tmdbId: number }) => f.tmdbId) : [],
+          formerIds: (row.former_ids ?? []).map(Number),
+        }))
         .filter((y) => y.ids.length > 0)
     },
     async year(year) {
-      const { data, error } = await supabase.from('movie_night_rewind_years').select('films').eq('year', year).maybeSingle()
+      const { data, error } = await supabase.from('movie_night_rewind_years').select('films, former_ids').eq('year', year).maybeSingle()
       if (error) throw error
-      return data && Array.isArray(data.films) && data.films.length > 0 ? data.films : null
+      // A saved year with no rankable films is an empty list, not "locked".
+      return data && Array.isArray(data.films) ? { films: data.films, formerIds: (data.former_ids ?? []).map(Number) } : null
     },
   }
 }

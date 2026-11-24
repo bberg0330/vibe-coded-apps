@@ -273,6 +273,16 @@ describe('POST: seen before', () => {
     expect(history).toEqual([night, { ...seen, watchedAt: '2020-02-14T20:00:00.000Z' }])
   })
 
+  it('ignores a second undated mark, but accepts one beside a movie night (Undo)', async () => {
+    expect((await post({ type: 'logWatch', entry: seen }, [seen])).history).toEqual([seen])
+    expect((await post({ type: 'logWatch', entry: seen }, [night, { ...night, movie }])).history).toHaveLength(3)
+  })
+
+  it('dates only one undated entry', async () => {
+    const { history } = await post({ type: 'setWatchDate', tmdbId: 496243, watchedAt: '2020-02-14T20:00:00.000Z' }, [seen, seen])
+    expect(history).toEqual([{ ...seen, watchedAt: '2020-02-14T20:00:00.000Z' }, seen])
+  })
+
   it('removes only the undated entry when deleteWatch targets watchedAt null', async () => {
     const { history } = await post({ type: 'deleteWatch', tmdbId: 496243, watchedAt: null }, [night, seen])
     expect(history).toEqual([night])
