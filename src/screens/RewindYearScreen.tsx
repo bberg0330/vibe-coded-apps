@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { getRewindYear, type RewindFilm } from '../api/rewind'
 import { getWatchProviders } from '../api/tmdb'
 import { getCachedScores } from '../data/scores'
-import { getEnabledServices, RENT_SERVICES, SERVICES } from '../data/providers'
+import { getEnabledServices } from '../data/providers'
+import { whereToWatch as sharedWhere } from '../data/providerIds'
 import { getSeenBefore, watchCount } from '../data/history'
 import { Button } from '../components/Button'
 import { Chip } from '../components/Chip'
@@ -21,12 +22,9 @@ const SORTS: { value: Sort; label: string }[] = [
   { value: 'popularity', label: 'Popularity' },
 ]
 
-/** "Stream · Netflix" for a service you have, else "Rent · Apple TV", else null. */
+/** Where to watch with this household's services. */
 export function whereToWatch(a: Availability | undefined, enabled = getEnabledServices()): string | null {
-  const stream = a?.streaming.find((k) => enabled.includes(k))
-  if (stream) return `Stream · ${SERVICES[stream].label}`
-  const rent = a?.rent[0]
-  return rent ? `Rent · ${RENT_SERVICES[rent].label}` : null
+  return sharedWhere(a, enabled)
 }
 
 /**

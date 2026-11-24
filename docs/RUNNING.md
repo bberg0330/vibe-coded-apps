@@ -125,8 +125,16 @@ IMDb id and stored in Supabase's `movie_night_scores`:
 - **`/api/rewind`** serves those lists to the app (`?year=2019` for one
   year; 404 `{ locked: true }` until a year is saved). In local dev, with no
   Supabase, it ranks this year and the five before it live from TMDB.
+- **Watchlist alerts**, last in the same run: every watchlist film's US
+  availability is checked against the household's services and the rental
+  stores (one TMDB call each, no OMDb). A film never checked before is just
+  recorded; one that was not watchable last time and is now gets a row in
+  `movie_night_alerts`. `/api/alerts?profile=…` serves a profile's alerts from
+  the last 30 days for films still listed and unwatched; POST clears them for
+  that profile. Local dev has no alerts.
 
 Vercel env vars: `OMDB_SYNC_BUDGET` (optional, default 800). The function
 has no public URL, so it needs no `CRON_SECRET`. Apply
 `supabase/migrations/20261123000000_score_sync.sql` and
-`supabase/migrations/20261124000000_rewind_years.sql` before deploying.
+`supabase/migrations/20261124000000_rewind_years.sql` and
+`supabase/migrations/20261124010000_watchlist_alerts.sql` before deploying.

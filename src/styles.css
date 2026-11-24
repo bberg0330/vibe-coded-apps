@@ -641,3 +641,33 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 .seen-more { color: var(--muted); font-size: 16px; font-weight: 600; }
 .seen-date { display: flex; align-items: center; gap: 4px; flex: none; }
 .seen-date input { font: inherit; font-size: 14px; background: var(--control-bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+
+/* Watchlist alerts (Figma: "Alerts — bell panel open", component AlertRow). */
+.alerts-panel { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+.alerts-head { display: flex; align-items: center; justify-content: space-between; }
+.alerts-head h2 { margin: 0; font-size: 16px; line-height: 22.4px; font-weight: 400; letter-spacing: .64px; text-transform: uppercase; }
+.alerts-clear, .alert-dismiss {
+  min-height: 44px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit;
+  font-size: 11px; line-height: 15.4px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase;
+}
+.alerts-clear { min-width: 80px; text-align: right; color: var(--accent-text); }
+.alert-dismiss { color: var(--muted); }
+.alert-row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  background: var(--surface); border-radius: 12px;
+}
+.alert-open { flex: none; padding: 0; border: 0; background: none; cursor: pointer; }
+.alert-body { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.alert-title {
+  padding: 0; border: 0; background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  font-size: 16px; line-height: 22.4px; font-weight: 600;
+}
+.alert-actions { display: flex; align-items: center; gap: 12px; }
+.alert-watch {
+  height: 36px; padding: 0 14px; border: 0; border-radius: 999px; cursor: pointer; font: inherit;
+  background: var(--accent); color: var(--accent-fg);
+  font-size: 11px; line-height: 15.4px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase;
+}
+.alerts-note { margin: 0; font-size: 14px; }
+/* Dismiss keeps a 44px tap target without making its row taller than Figma's 36px. */
+.alert-actions .alert-dismiss { margin: -4px 0; }

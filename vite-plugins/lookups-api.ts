@@ -7,6 +7,7 @@ import {
 } from '../api/_lib/lookups.ts'
 import { handleSession, type SessionConfig } from '../api/_lib/session.ts'
 import { handleRewind } from '../api/_lib/rewind.ts'
+import { handleAlerts } from '../api/_lib/alerts.ts'
 
 /** `path` is whatever follows the route (connect strips the mount point), e.g. '/movie/123'. */
 type Handler = (path: string, query: Record<string, string>, keys: LookupKeys) => Promise<LookupResult>
@@ -26,6 +27,8 @@ export function lookupsApi(): Plugin {
     '/api/recommendations': (_path, q, k) => handleRecommendations(q, k),
     // No Supabase in dev: ranks recent years live from TMDB.
     '/api/rewind': (_path, q, k) => handleRewind(q, k.tmdbToken, undefined),
+    // No Supabase in dev: never any alerts.
+    '/api/alerts': (_path, q) => handleAlerts('GET', q, null, undefined),
   }
 
   return {

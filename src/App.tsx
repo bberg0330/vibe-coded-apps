@@ -12,6 +12,8 @@ import { PasscodeGate } from './components/PasscodeGate'
 import { TopBar } from './components/TopBar'
 import { TabBar, type Tab } from './components/TabBar'
 import { OptionSheet } from './components/OptionSheet'
+import { AlertsPanel } from './components/AlertsPanel'
+import { getAlerts, clearAlerts, type Alert } from './api/alerts'
 import { Button } from './components/Button'
 import { Toast } from './components/Toast'
 import { logWatch, undoLastWatch, watchCount, deleteWatch, markSeenBefore, unmarkSeenBefore, getSeenBefore, restoreWatch, setSeenBeforeDate, type DatedWatch } from './data/history'
@@ -52,6 +54,15 @@ function rewindMovie(film: RewindFilm, availability: Movie['availability'] = { s
     year: film.releaseDate ? Number(film.releaseDate.slice(0, 4)) : null,
     tomatometer: scores?.critic ?? null, popcornmeter: scores?.audience ?? null,
     availability, overview: null,
+  }
+}
+
+/** An alert's film as a Movie, for the Cast screen and logging a watch. */
+function alertMovie(a: Alert): Movie {
+  return {
+    tmdbId: a.tmdbId, title: a.title, posterPath: a.posterPath, year: null, popularity: 0,
+    tomatometer: getCachedScores(a.tmdbId)?.critic ?? null, popcornmeter: getCachedScores(a.tmdbId)?.audience ?? null,
+    availability: { streaming: [], rent: [] }, overview: null,
   }
 }
 
@@ -98,6 +109,23 @@ export default function App() {
   const [historyVersion, setHistoryVersion] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
+  const [alertsOpen, setAlertsOpen] = useState(false)
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  // This profile's alerts: on load, on switching profile, and whenever the app comes back to the foreground.
+  useEffect(() => {
+    if (!activeProfileId) return
+    let live = true
+    const load = () => { getAlerts(activeProfileId).then((a) => { if (live) setAlerts(a) }, () => {}) }
+    load()
+    const onVisible = () => { if (document.visibilityState === 'visible') load() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => { live = false; document.removeEventListener('visibilitychange', onVisible) }
+  }, [activeProfileId])
+  const dropAlerts = (ids?: number[]) => {
+    if (!activeProfileId) return
+    setAlerts((a) => (ids ? a.filter((x) => !ids.includes(x.id)) : []))
+    clearAlerts(activeProfileId, ids).catch(() => setSaveError("Couldn't clear that alert — is the Movie Night server still running?"))
+  }
 
   // Films logged during THIS session. Undo is scoped to a misfired tap in
   // the current session, not to lifetime history: a film watched in a
@@ -545,6 +573,8 @@ export default function App() {
         profile={PROFILES.find((p) => p.id === activeProfileId) ?? PROFILES[0]}
         onSwitchProfile={() => setProfileSheetOpen(true)}
         onSettings={() => setSettingsOpen(true)}
+        onAlerts={() => setAlertsOpen((o) => !o)}
+        hasAlerts={alerts.length > 0}
       />
 
       {saveError && <div className="error" role="alert">{saveError}</div>}
@@ -562,6 +592,18 @@ export default function App() {
         />
       )}
 
+      {alertsOpen && (
+        <AlertsPanel
+          alerts={alerts}
+          onClose={() => setAlertsOpen(false)}
+          onOpen={(a) => { setAlertsOpen(false); navigate({ kind: 'cast', movie: alertMovie(a) }) }}
+          onWatchTonight={(a) => { void toggleWatched(alertMovie(a), null, { forceLog: true }); dropAlerts([a.id]) }}
+          onDismiss={(a) => dropAlerts([a.id])}
+          onClearAll={() => dropAlerts()}
+          isPending={(tmdbId) => pendingWatch.has(tmdbId)}
+        />
+      )}
+      <div hidden={alertsOpen}>
       {current.kind === 'search' && (
         <SearchScreen
           onOpenMovie={(movie) => navigate({ kind: 'cast', movie })}
@@ -635,9 +677,10 @@ export default function App() {
           isPending={(tmdbId) => pendingWatch.has(tmdbId) || pendingWatchlist.has(tmdbId)}
         />
       )}
+      </div>
       <TabBar
         current={tabFor(current)}
-        onSelect={(tab) => navigate({ kind: tab })}
+        onSelect={(tab) => { setAlertsOpen(false); navigate({ kind: tab }) }}
       />
       {current.kind === 'seenBefore' && (
         <SeenBeforeScreen

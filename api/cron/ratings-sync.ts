@@ -2,12 +2,14 @@ import { handleSchedule } from '@vercel/schedules'
 import { syncRatings, DEFAULT_SYNC_BUDGET } from '../_lib/ratings.js'
 import { serverKeys } from '../_lib/respond.js'
 import { refreshRewind } from '../_lib/rewind.js'
-import { supabaseBackfillStore, supabaseRewindStore, supabaseScoreCache } from '../_lib/scoreCache.js'
+import { checkWatchlist } from '../_lib/alerts.js'
+import { supabaseAlertStore, supabaseBackfillStore, supabaseRewindStore, supabaseScoreCache } from '../_lib/scoreCache.js'
 
 /** Leave headroom under the function's maxDuration (vercel.json) to write results. */
 const RUN_FOR_MS = 240_000
-/** Time kept back from rating for saving Rewind lists. */
+/** Time kept back from rating for saving Rewind lists and checking the watchlist. */
 const REWIND_MS = 30_000
+const ALERTS_MS = 30_000
 
 /**
  * Nightly rating sync, run by the `ratings-sync` Vercel Schedule (see
@@ -26,12 +28,18 @@ export const POST = handleSchedule(async (metadata) => {
   const backfill = supabaseBackfillStore()
   const deadline = Date.now() + RUN_FOR_MS
   // Rating gets most of the run; Rewind needs only a few TMDB calls per year.
-  const summary = await syncRatings(keys, cache, { budget, deadline: deadline - REWIND_MS, backfill })
+  const summary = await syncRatings(keys, cache, { budget, deadline: deadline - REWIND_MS - ALERTS_MS, backfill })
   console.log('ratings-sync', metadata.executionId, JSON.stringify(summary))
 
   const rewind = supabaseRewindStore()
   if (rewind && backfill && keys.tmdbToken) {
-    const result = await refreshRewind(keys.tmdbToken, rewind, { cursor: await backfill.cursor(), deadline })
+    const result = await refreshRewind(keys.tmdbToken, rewind, { cursor: await backfill.cursor(), deadline: deadline - ALERTS_MS })
     console.log('rewind', metadata.executionId, JSON.stringify(result))
+  }
+
+  const alerts = supabaseAlertStore()
+  if (alerts && keys.tmdbToken) {
+    const result = await checkWatchlist(keys.tmdbToken, alerts, { deadline })
+    console.log('alerts', metadata.executionId, JSON.stringify(result))
   }
 })

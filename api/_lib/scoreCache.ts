@@ -4,6 +4,7 @@
 import { createClient } from '@supabase/supabase-js'
 import type { BackfillStore, ScoreCache } from './ratings'
 import type { RewindReader, RewindStore } from './rewind'
+import type { AlertStore } from './alerts'
 import type { ScoreData } from '../../src/data/scores'
 
 const TABLE = 'movie_night_scores'
@@ -156,6 +157,62 @@ export function supabaseRewindReader(): RewindReader | undefined {
       const { data, error } = await supabase.from('movie_night_rewind_years').select('films').eq('year', year).maybeSingle()
       if (error) throw error
       return data && Array.isArray(data.films) && data.films.length > 0 ? data.films : null
+    },
+  }
+}
+
+/** Watchlist alerts: `movie_night_watch_availability`, `movie_night_alerts`, and the household store row. */
+export function supabaseAlertStore(): AlertStore | undefined {
+  const url = process.env.SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) return undefined
+  const supabase = createClient(url, key)
+  type Row = { id: number; tmdb_id: number; title: string; poster_path: string | null; where: string; created_at: string; cleared_by: string[] }
+  const toAlert = (r: Row) => ({ id: Number(r.id), tmdbId: Number(r.tmdb_id), title: r.title, posterPath: r.poster_path, where: r.where, createdAt: r.created_at })
+
+  return {
+    async household() {
+      const { data, error } = await supabase
+        .from('movie_night_store').select('watchlist, enabled_services, history').order('id', { ascending: true }).limit(1).maybeSingle()
+      if (error) throw error
+      return { watchlist: data?.watchlist ?? [], enabledServices: data?.enabled_services ?? [], history: data?.history ?? [] }
+    },
+    async availability(tmdbIds) {
+      const found = new Map<number, boolean>()
+      for (let i = 0; i < tmdbIds.length; i += 200) {
+        const { data, error } = await supabase.from('movie_night_watch_availability').select('tmdb_id, watchable').in('tmdb_id', tmdbIds.slice(i, i + 200))
+        if (error) throw error
+        for (const r of data ?? []) found.set(Number(r.tmdb_id), Boolean(r.watchable))
+      }
+      return found
+    },
+    async saveAvailability(rows, at) {
+      const { error } = await supabase.from('movie_night_watch_availability').upsert(
+        rows.map((r) => ({ tmdb_id: r.tmdbId, watchable: r.watchable, where: r.where, checked_at: at.toISOString() })))
+      if (error) throw error
+    },
+    async addAlerts(rows) {
+      const { error } = await supabase.from('movie_night_alerts').insert(
+        rows.map((r) => ({ tmdb_id: r.tmdbId, title: r.title, poster_path: r.posterPath, where: r.where })))
+      if (error) throw error
+    },
+    async alertsFor(profileId, since) {
+      const { data, error } = await supabase
+        .from('movie_night_alerts').select('*').gte('created_at', since.toISOString())
+        .not('cleared_by', 'cs', `{${profileId}}`).order('created_at', { ascending: false })
+      if (error) throw error
+      return ((data ?? []) as Row[]).map(toAlert)
+    },
+    async clear(profileId, ids) {
+      // A household has a handful of alerts, so read-modify-write is fine.
+      let q = supabase.from('movie_night_alerts').select('id, cleared_by').not('cleared_by', 'cs', `{${profileId}}`)
+      if (ids) q = q.in('id', ids)
+      const { data, error } = await q
+      if (error) throw error
+      for (const r of data ?? []) {
+        const { error: e } = await supabase.from('movie_night_alerts').update({ cleared_by: [...r.cleared_by, profileId] }).eq('id', r.id)
+        if (e) throw e
+      }
     },
   }
 }
