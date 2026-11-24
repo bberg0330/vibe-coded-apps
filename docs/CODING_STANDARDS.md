@@ -47,8 +47,9 @@ don't flag it as a smell.
 - **Must** give icon-only buttons an `aria-label`; decorative glyphs and SVGs
   are `aria-hidden`.
 - **Must** give each React component that maps to a Figma **component** a
-  sibling `*.figma.ts` (Code Connect). Composed screens and panels that are
-  Figma **frames** don't get one.
+  sibling `*.figma.ts` (Code Connect), and update it in the same PR whenever
+  the component's props, variants or states change. Composed screens and
+  panels that are Figma **frames** don't get one.
 - **Prefer** reusing existing components (`Chip`, `Pill`, `Poster`,
   `IconButton`, `OptionSheet`, `Toast`, `SkeletonRows`) over new markup.
 - **Prefer** a short doc comment on each component saying what it shows and
