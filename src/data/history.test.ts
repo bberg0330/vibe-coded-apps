@@ -255,3 +255,14 @@ describe('export and import', () => {
     expect(getHistory()).toEqual(before)
   })
 })
+
+describe('seen before, on two devices at once', () => {
+  it('the store ignores a second undated mark for the same film, and dates only one entry', async () => {
+    const entry = { watchedAt: null, movie: { tmdbId: 2, title: 'Parasite', year: 2019, posterPath: null, tomatometer: null, popcornmeter: null }, discoveredVia: null }
+    let s = applyOp(getStoreSnapshot(), { type: 'logWatch', entry })
+    s = applyOp(s, { type: 'logWatch', entry })
+    expect(s.history).toHaveLength(1)
+    s = applyOp({ ...s, history: [...s.history, entry] }, { type: 'setWatchDate', tmdbId: 2, watchedAt: '2020-01-01T12:00:00.000Z' })
+    expect(s.history.map((e) => e.watchedAt)).toEqual(['2020-01-01T12:00:00.000Z', null])
+  })
+})

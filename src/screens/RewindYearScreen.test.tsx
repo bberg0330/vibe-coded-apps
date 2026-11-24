@@ -41,7 +41,7 @@ describe('whereToWatch', () => {
 
 describe('RewindYearScreen', () => {
   it('shows watchable films by default, counting progress against the whole list', async () => {
-    vi.mocked(getRewindYear).mockResolvedValue([film(1), film(2), film(3)])
+    vi.mocked(getRewindYear).mockResolvedValue({ films: [film(1), film(2), film(3)], formerIds: [] })
     render(<RewindYearScreen {...props} />)
 
     expect(await screen.findByText('Stream · Netflix')).toBeInTheDocument()
@@ -55,7 +55,7 @@ describe('RewindYearScreen', () => {
   })
 
   it('keeps watched films in the list, and only lets Rewind undo its own marks', async () => {
-    vi.mocked(getRewindYear).mockResolvedValue([film(1), film(2)])
+    vi.mocked(getRewindYear).mockResolvedValue({ films: [film(1), film(2)], formerIds: [] })
     render(<RewindYearScreen {...props} />)
 
     const watched = await screen.findByRole('button', { name: 'Film 2 watched' })
@@ -65,7 +65,7 @@ describe('RewindYearScreen', () => {
   })
 
   it('sorts by critic score and popularity, keeping each film\'s rank', async () => {
-    vi.mocked(getRewindYear).mockResolvedValue([film(1, 5), film(2, 9)])
+    vi.mocked(getRewindYear).mockResolvedValue({ films: [film(1, 5), film(2, 9)], formerIds: [] })
     render(<RewindYearScreen {...props} />)
     await screen.findByText('Film 2')
 

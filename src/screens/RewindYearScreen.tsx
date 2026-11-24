@@ -5,6 +5,7 @@ import { getCachedScores } from '../data/scores'
 import { getEnabledServices } from '../data/providers'
 import { whereToWatch } from '../data/providerIds'
 import { getSeenBefore, watchCount } from '../data/history'
+import { rewindProgress } from '../data/rewindProgress'
 import { Button } from '../components/Button'
 import { Chip } from '../components/Chip'
 import { ErrorRetry } from '../components/ErrorRetry'
@@ -42,6 +43,7 @@ export function RewindYearScreen({
   version?: number
 }) {
   const [films, setFilms] = useState<RewindFilm[] | null | 'locked'>(null)
+  const [formerIds, setFormerIds] = useState<number[]>([])
   const [error, setError] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const [where, setWhere] = useState<Map<number, Availability>>(new Map())
@@ -52,7 +54,11 @@ export function RewindYearScreen({
   useEffect(() => {
     let live = true
     setError(false); setFilms(null)
-    getRewindYear(year).then((f) => { if (live) setFilms(f ?? 'locked') }, () => { if (live) setError(true) })
+    getRewindYear(year).then((y) => {
+      if (!live) return
+      setFilms(y ? y.films : 'locked')
+      setFormerIds(y ? y.formerIds : [])
+    }, () => { if (live) setError(true) })
     return () => { live = false }
   }, [year, attempt])
 
@@ -87,7 +93,7 @@ export function RewindYearScreen({
 
   const enabled = getEnabledServices()
   const list = films ?? []
-  const watchedCount = list.filter((f) => watchCount(f.tmdbId) > 0).length
+  const watchedCount = rewindProgress(list.map((f) => f.tmdbId), formerIds)
   const loadingWhere = list.some((f) => !where.has(f.tmdbId))
   const ranked = list.map((f, i) => ({ film: f, rank: i + 1 }))
   const sorted = sort === 'rating' ? ranked : [...ranked].sort((a, b) =>
@@ -111,8 +117,9 @@ export function RewindYearScreen({
       </div>
       <ScoreLegend />
       {films === null && <SkeletonRows label={`Loading Rewind ${year}`} />}
+      {films !== null && list.length === 0 && <p className="empty">No films from {year} have enough votes to rank.</p>}
       {films && watchableOnly && loadingWhere && shown.length === 0 && <SkeletonRows label="Checking where to watch" />}
-      {films && !loadingWhere && shown.length === 0 && (
+      {films && list.length > 0 && !loadingWhere && shown.length === 0 && (
         <p className="empty">None of these are on your services or for rent right now. Turn off Watchable now to see them all.</p>
       )}
       {shown.map(({ film, rank }) => {

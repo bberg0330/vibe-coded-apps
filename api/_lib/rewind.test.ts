@@ -112,13 +112,15 @@ describe('refreshRewind', () => {
 describe('handleRewind', () => {
   const films = range(1, 3).map((id) => ({ tmdbId: id, title: `Film ${id}`, posterPath: null, releaseDate: null, voteAverage: 8, voteCount: 900, popularity: 1 }))
   const reader = {
-    years: vi.fn(async () => [{ year: 2025, ids: [1, 2, 3] }]),
-    year: vi.fn(async (y: number) => (y === 2025 ? films : null)),
+    years: vi.fn(async () => [{ year: 2025, ids: [1, 2, 3], formerIds: [9] }]),
+    year: vi.fn(async (y: number) => (y === 2025 ? { films, formerIds: [9] } : y === 1951 ? { films: [], formerIds: [] } : null)),
   }
 
   it('lists saved years and serves a saved year', async () => {
-    expect(await handleRewind({}, 'tmdb', reader, NOW)).toMatchObject({ status: 200, body: { years: [{ year: 2025, ids: [1, 2, 3] }] } })
-    expect(await handleRewind({ year: '2025' }, 'tmdb', reader, NOW)).toMatchObject({ status: 200, body: { year: 2025, films } })
+    expect(await handleRewind({}, 'tmdb', reader, NOW)).toMatchObject({ status: 200, body: { years: [{ year: 2025, ids: [1, 2, 3], formerIds: [9] }] } })
+    expect(await handleRewind({ year: '2025' }, 'tmdb', reader, NOW)).toMatchObject({ status: 200, body: { year: 2025, films, formerIds: [9] } })
+    // A saved year with nothing rankable is an empty list, not locked.
+    expect(await handleRewind({ year: '1951' }, 'tmdb', reader, NOW)).toMatchObject({ status: 200, body: { films: [] } })
   })
 
   it('answers 404 locked for a year that is not ready, and 400 for nonsense', async () => {

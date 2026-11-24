@@ -12,7 +12,7 @@
 // silently no-oping a dedupe check with no test coverage catching it. A
 // single shared implementation means that class of drift can't happen again.
 import { ALL_SERVICE_KEYS } from '../types.ts'
-import type { Store, StoreOp, ServiceKey, WatchlistEntry } from '../types.ts'
+import type { Store, StoreOp, ServiceKey, WatchEntry, WatchlistEntry } from '../types.ts'
 
 export class SeedRejectedError extends Error {
   constructor() {
@@ -43,9 +43,18 @@ function withoutFilm(watchlist: WatchlistEntry[], tmdbId: number): WatchlistEntr
  * clobber: the server applies the change to whatever is currently on disk
  * (or in Supabase).
  */
+/** Gives the first undated entry for a film this date; leaves any others (and movie nights) alone. */
+export function dateFirstUndated(history: WatchEntry[], tmdbId: number, watchedAt: string): WatchEntry[] {
+  const i = history.findIndex((e) => e.movie.tmdbId === tmdbId && e.watchedAt === null)
+  return i < 0 ? history : history.map((e, j) => (j === i ? { ...e, watchedAt } : e))
+}
+
 export function applyOp(store: Store, op: StoreOp): Store {
   switch (op.type) {
     case 'logWatch':
+      // A "seen before" mark (no date) for a film already in history is a
+      // no-op, so two devices marking at once can't add it twice.
+      if (op.entry.watchedAt === null && store.history.some((e) => e.movie.tmdbId === op.entry.movie.tmdbId)) return store
       // Append: rewatches are meaningful signal and must not overwrite.
       // Watching a film also takes it off the watchlist — in the same op, so
       // the two can never disagree if one of two separate writes failed.
@@ -74,9 +83,7 @@ export function applyOp(store: Store, op: StoreOp): Store {
     }
 
     case 'setWatchDate': {
-      const history = store.history.map((e) =>
-        e.movie.tmdbId === op.tmdbId && e.watchedAt === null ? { ...e, watchedAt: op.watchedAt } : e)
-      return { ...store, history }
+      return { ...store, history: dateFirstUndated(store.history, op.tmdbId, op.watchedAt) }
     }
 
     case 'setService': {

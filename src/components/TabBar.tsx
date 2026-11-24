@@ -13,18 +13,16 @@ const TABS: { tab: Tab; label: string; icon: IconName }[] = [
  * The bottom tab bar: Search · Rewind · Watchlist · History. Each item is a
  * 24px icon over a label, 52px tall (TabItem in Figma). The current tab is
  * in --accent-text with aria-current="page"; tapping it does nothing.
- * `tabs` limits which appear (Rewind ships in a later step). `alert` puts
- * the dot on one tab's icon. .tabbar
+ * `alert` puts the dot on one tab's icon. .tabbar
  */
-export function TabBar({ current, tabs, alert, onSelect }: {
+export function TabBar({ current, alert, onSelect }: {
   current: Tab | null
-  tabs?: Tab[]
   alert?: Tab
   onSelect: (tab: Tab) => void
 }) {
   return (
     <nav className="tabbar" aria-label="Main">
-      {TABS.filter((t) => !tabs || tabs.includes(t.tab)).map(({ tab, label, icon }) => {
+      {TABS.map(({ tab, label, icon }) => {
         const isCurrent = tab === current
         return (
           <button

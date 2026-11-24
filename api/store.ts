@@ -1,7 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 import { requireSession, sessionConfig } from './_lib/session.js';
-import type { Store, StoreOp } from '../src/types';
+import type { Store, StoreOp, WatchEntry } from '../src/types';
+
+/** Same rule as src/data/storeReducer.ts: date only the first undated entry for a film. */
+function dateFirstUndated(history: WatchEntry[], tmdbId: number, watchedAt: string): WatchEntry[] {
+  const i = history.findIndex((e) => e.movie.tmdbId === tmdbId && e.watchedAt === null);
+  return i < 0 ? history : history.map((e, j) => (j === i ? { ...e, watchedAt } : e));
+}
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -15,6 +21,8 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 function applyOp(store: Store, op: StoreOp): Store {
   switch (op.type) {
     case 'logWatch': {
+      // A "seen before" mark for a film already in history is a no-op (two devices at once).
+      if (op.entry.watchedAt === null && store.history.some((e) => e.movie.tmdbId === op.entry.movie.tmdbId)) return store;
       // Watching a film also takes it off the watchlist, in the same write.
       return {
         ...store,
@@ -43,8 +51,7 @@ function applyOp(store: Store, op: StoreOp): Store {
     case 'setWatchDate': {
       return {
         ...store,
-        history: store.history.map((e) =>
-          e.movie.tmdbId === op.tmdbId && e.watchedAt === null ? { ...e, watchedAt: op.watchedAt } : e),
+        history: dateFirstUndated(store.history, op.tmdbId, op.watchedAt),
       };
     }
     case 'setService': {

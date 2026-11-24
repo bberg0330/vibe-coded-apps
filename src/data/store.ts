@@ -97,13 +97,18 @@ export async function loadStore(): Promise<Store> {
  * the change to whatever was actually on disk, which may include another
  * device's concurrent write.
  */
-export async function applyRemoteOp(op: StoreOp): Promise<Store> {
+/**
+ * `keepalive` lets the request finish if the page is closing (pagehide).
+ * Browsers cap keepalive bodies at 64 KB, so only use it for small ops.
+ */
+export async function applyRemoteOp(op: StoreOp, { keepalive = false } = {}): Promise<Store> {
   let res: Response
   try {
     res = await apiFetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(op),
+      keepalive,
     })
   } catch {
     throw new StoreUnavailableError()

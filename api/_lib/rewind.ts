@@ -1,10 +1,11 @@
 // Rewind: each year's top 50 films, saved once the year's ratings are in.
 // See docs/superpowers/specs/2026-11-24-rewind-design.md.
 import { tmdbFetch } from './upstream.js'
-import { BACKFILL_END_YEAR, BACKFILL_START_YEAR, type BackfillCursor } from './ratings.js'
+import { BACKFILL_END_YEAR, BACKFILL_START_YEAR, CURRENT_YEAR_MIN_VOTES, type BackfillCursor } from './ratings.js'
+import type { RewindFilm } from '../../src/types'
 
-/** Films need this many TMDB votes to be ranked (the backfill rates from 50). */
-export const REWIND_MIN_VOTES = 300
+/** Films need this many TMDB votes to be ranked (the backfill rates from 50). Same floor the sync rates this year's films at. */
+export const REWIND_MIN_VOTES = CURRENT_YEAR_MIN_VOTES
 /** Films per year. */
 export const REWIND_SIZE = 50
 /** The current year's list is rebuilt this often, since new films keep arriving. */
@@ -15,15 +16,7 @@ export const YEARS_PER_RUN = 5
 const TMDB_MAX_PAGE = 500
 const DAY = 24 * 60 * 60 * 1000
 
-export type RewindFilm = {
-  tmdbId: number
-  title: string
-  posterPath: string | null
-  releaseDate: string | null
-  voteAverage: number
-  voteCount: number
-  popularity: number
-}
+export type { RewindFilm }
 
 /** Saved lists (Supabase on Vercel) and the "has this film been rated" check. */
 export type RewindStore = {
@@ -122,10 +115,14 @@ export async function refreshRewind(
 
 /** Read side of the saved lists, for /api/rewind. */
 export type RewindReader = {
-  /** Every saved year with at least one film, newest first, with its films' ids (for progress). */
-  years(): Promise<{ year: number; ids: number[] }[]>
-  /** A year's saved list, or null if it isn't ready yet. */
-  year(year: number): Promise<RewindFilm[] | null>
+  /**
+   * Every saved year with at least one film, newest first, with its films'
+   * ids and the ids of films that were in its list before a rebuild (so a
+   * watched film that drops out still counts towards progress).
+   */
+  years(): Promise<{ year: number; ids: number[]; formerIds: number[] }[]>
+  /** A year's saved list (possibly empty), or null if it isn't ready yet. */
+  year(year: number): Promise<{ films: RewindFilm[]; formerIds: number[] } | null>
 }
 
 type Result = { status: number; body: unknown; cacheControl?: string }
@@ -150,20 +147,21 @@ export async function handleRewind(
   try {
     if (reader) {
       if (year === null) return { status: 200, body: { years: await reader.years() }, cacheControl: cache }
-      const films = await reader.year(year)
-      return films ? { status: 200, body: { year, films }, cacheControl: cache } : { status: 404, body: { locked: true } }
+      const saved = await reader.year(year)
+      return saved ? { status: 200, body: { year, ...saved }, cacheControl: cache } : { status: 404, body: { locked: true } }
     }
     if (!token) return { status: 503, body: { error: 'TMDB not configured' } }
     const current = now.getUTCFullYear()
     if (year === null) {
       const years = await Promise.all(Array.from({ length: 6 }, async (_, i) => ({
-        year: current - i, ids: (await rankedFilms(token, current - i)).slice(0, REWIND_SIZE).map((f) => f.tmdbId),
+        year: current - i, ids: (await rankedFilms(token, current - i)).slice(0, REWIND_SIZE).map((f) => f.tmdbId), formerIds: [],
       })))
       return { status: 200, body: { years: years.filter((y) => y.ids.length > 0) } }
     }
     if (year < current - 5) return { status: 404, body: { locked: true } }
-    return { status: 200, body: { year, films: (await rankedFilms(token, year)).slice(0, REWIND_SIZE) } }
-  } catch {
+    return { status: 200, body: { year, films: (await rankedFilms(token, year)).slice(0, REWIND_SIZE), formerIds: [] } }
+  } catch (err) {
+    console.error('rewind: request failed', year, err)
     return { status: 502, body: { error: 'Rewind lookup failed' } }
   }
 }
