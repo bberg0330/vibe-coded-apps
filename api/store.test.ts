@@ -246,3 +246,35 @@ describe('POST: logWatch regression (pre-existing rating/flat-tmdbId bug)', () =
     expect(updateArg?.history).toEqual([entry, entry])
   })
 })
+
+describe('POST: seen before', () => {
+  const movie = { tmdbId: 496243, title: 'Parasite', year: 2019, posterPath: null, tomatometer: 99, popcornmeter: 90 }
+  const night = { watchedAt: '2026-01-01T00:00:00.000Z', movie: { ...movie, tmdbId: 1 }, discoveredVia: null }
+  const seen = { watchedAt: null, movie, discoveredVia: null }
+
+  async function post(op: StoreOp, history: unknown[]) {
+    let updateArg: Record<string, unknown> | undefined
+    mockFrom
+      .mockImplementationOnce(() => makeBuilder({ data: { ...baseRow, history }, error: null }))
+      .mockImplementationOnce(() =>
+        makeBuilder(
+          () => ({ data: { ...baseRow, ...updateArg }, error: null }),
+          (arg) => { updateArg = arg },
+        ),
+      )
+    const res = makeRes()
+    await handler(postReq(op) as never, res as never)
+    return { res, history: updateArg?.history }
+  }
+
+  it('gives the undated entry a date with setWatchDate, leaving movie nights alone', async () => {
+    const { res, history } = await post({ type: 'setWatchDate', tmdbId: 496243, watchedAt: '2020-02-14T20:00:00.000Z' }, [night, seen])
+    expect(res.statusCode).toBe(200)
+    expect(history).toEqual([night, { ...seen, watchedAt: '2020-02-14T20:00:00.000Z' }])
+  })
+
+  it('removes only the undated entry when deleteWatch targets watchedAt null', async () => {
+    const { history } = await post({ type: 'deleteWatch', tmdbId: 496243, watchedAt: null }, [night, seen])
+    expect(history).toEqual([night])
+  })
+})

@@ -51,8 +51,12 @@ export type Person = {
 }
 
 export type WatchEntry = {
-  /** ISO 8601 */
-  watchedAt: string
+  /**
+   * ISO 8601, or null for a film marked "seen before" (from Rewind): watched
+   * at some point, date unknown. Undated entries count as watched but are
+   * not movie nights, so they stay out of History's list and "last watched".
+   */
+  watchedAt: string | null
   movie: {
     tmdbId: number
     title: string
@@ -123,7 +127,9 @@ export function emptyStore(): Store {
 export type StoreOp =
   | { type: 'logWatch'; entry: WatchEntry }
   | { type: 'undoLastWatch'; tmdbId: number }
-  | { type: 'deleteWatch'; tmdbId: number; watchedAt: string }
+  | { type: 'deleteWatch'; tmdbId: number; watchedAt: string | null }
+  /** Gives a film's undated "seen before" entry a real date, turning it into a movie night. */
+  | { type: 'setWatchDate'; tmdbId: number; watchedAt: string }
   | { type: 'setService'; key: ServiceKey; enabled: boolean }
   | { type: 'replaceHistory'; entries: WatchEntry[] }
   | { type: 'seed'; history: WatchEntry[]; enabledServices: ServiceKey[] }

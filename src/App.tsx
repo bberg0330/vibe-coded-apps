@@ -12,7 +12,7 @@ import { PasscodeGate } from './components/PasscodeGate'
 import { TopBar } from './components/TopBar'
 import { Button } from './components/Button'
 import { Toast } from './components/Toast'
-import { logWatch, undoLastWatch, watchCount, deleteWatch } from './data/history'
+import { logWatch, undoLastWatch, watchCount, deleteWatch, type DatedWatch } from './data/history'
 import { getNowWatching, cancelWatching } from './data/watching'
 import {
   getWatchlist, getWatchlistEntry, isOnWatchlist, addToWatchlist, removeFromWatchlist, restoreToWatchlist,
@@ -169,7 +169,7 @@ export default function App() {
       else next.delete(key)
       return next
     })
-  const deleteWatchWithUndo = (entry: WatchEntry) => {
+  const deleteWatchWithUndo = (entry: DatedWatch) => {
     const key = `${entry.movie.tmdbId}:${entry.watchedAt}`
     setWatchHidden(key, true)
     showUndo({

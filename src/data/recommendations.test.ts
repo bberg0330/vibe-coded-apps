@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getRecommendationsFor } from './recommendations'
 import { getRecentlyWatchedBy, getAllWatchingTonight } from './watching'
-import { getHistory } from './history'
-import type { Movie, WatchEntry, WatchingEntry } from '../types'
+import { getHistory, getSeenBefore, type DatedWatch } from './history'
+import type { Movie, WatchingEntry } from '../types'
 
 vi.mock('./watching', () => ({
   getRecentlyWatchedBy: vi.fn(),
@@ -10,12 +10,13 @@ vi.mock('./watching', () => ({
 }))
 vi.mock('./history', () => ({
   getHistory: vi.fn(),
+  getSeenBefore: vi.fn(),
 }))
 
 const entryMovie = (tmdbId: number) =>
   ({ tmdbId, title: `Movie ${tmdbId}`, year: 2000, posterPath: null, tomatometer: null, popcornmeter: null })
 
-const watchEntry = (tmdbId: number): WatchEntry =>
+const watchEntry = (tmdbId: number): DatedWatch =>
   ({ watchedAt: '2026-01-01T00:00:00.000Z', movie: entryMovie(tmdbId), discoveredVia: null })
 
 const watchingEntry = (tmdbId: number): WatchingEntry =>
@@ -36,6 +37,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(getRecentlyWatchedBy).mockReturnValue(null)
   vi.mocked(getHistory).mockReturnValue([])
+  vi.mocked(getSeenBefore).mockReturnValue([])
   vi.mocked(getAllWatchingTonight).mockReturnValue([])
 })
 
@@ -63,6 +65,14 @@ describe('getRecommendationsFor', () => {
     serve([])
 
     expect((await getRecommendationsFor('laura'))?.source.tmdbId).toBe(150)
+  })
+
+  it('drops films marked "seen before" from Rewind too', async () => {
+    vi.mocked(getRecentlyWatchedBy).mockReturnValue(watchingEntry(100))
+    vi.mocked(getSeenBefore).mockReturnValue([{ ...watchEntry(300), watchedAt: null }])
+    serve([300, 301])
+
+    expect((await getRecommendationsFor('laura'))?.items.map((m) => m.tmdbId)).toEqual([301])
   })
 
   it('drops films the household has already watched, in history or tonight', async () => {

@@ -40,6 +40,13 @@ function applyOp(store: Store, op: StoreOp): Store {
         history: store.history.toSpliced(idx, 1),
       };
     }
+    case 'setWatchDate': {
+      return {
+        ...store,
+        history: store.history.map((e) =>
+          e.movie.tmdbId === op.tmdbId && e.watchedAt === null ? { ...e, watchedAt: op.watchedAt } : e),
+      };
+    }
     case 'setService': {
       const services = [...store.enabledServices];
       const idx = services.indexOf(op.key);
