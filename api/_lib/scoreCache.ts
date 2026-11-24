@@ -191,6 +191,12 @@ export function supabaseAlertStore(): AlertStore | undefined {
         rows.map((r) => ({ tmdb_id: r.tmdbId, watchable: r.watchable, where: r.where, checked_at: at.toISOString() })))
       if (error) throw error
     },
+    async forgetAvailability(keep) {
+      let q = supabase.from('movie_night_watch_availability').delete()
+      q = keep.length ? q.not('tmdb_id', 'in', `(${keep.join(',')})`) : q.gte('tmdb_id', 0)
+      const { error } = await q
+      if (error) throw error
+    },
     async addAlerts(rows) {
       const { error } = await supabase.from('movie_night_alerts').insert(
         rows.map((r) => ({ tmdb_id: r.tmdbId, title: r.title, poster_path: r.posterPath, where: r.where })))

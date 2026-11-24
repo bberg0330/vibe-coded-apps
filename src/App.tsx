@@ -59,9 +59,10 @@ function rewindMovie(film: RewindFilm, availability: Movie['availability'] = { s
 
 /** An alert's film as a Movie, for the Cast screen and logging a watch. */
 function alertMovie(a: Alert): Movie {
+  const scores = getCachedScores(a.tmdbId)
   return {
     tmdbId: a.tmdbId, title: a.title, posterPath: a.posterPath, year: null, popularity: 0,
-    tomatometer: getCachedScores(a.tmdbId)?.critic ?? null, popcornmeter: getCachedScores(a.tmdbId)?.audience ?? null,
+    tomatometer: scores?.critic ?? null, popcornmeter: scores?.audience ?? null,
     availability: { streaming: [], rent: [] }, overview: null,
   }
 }
@@ -343,13 +344,14 @@ export default function App() {
    * an undo, even if the film was also logged earlier this session and then
    * re-added to the list.
    */
+  /** Returns true once the write is saved, false if it was dropped or failed. */
   const toggleWatched = async (
     movie: Movie, via: WatchEntry['discoveredVia'], { forceLog = false } = {},
-  ) => {
+  ): Promise<boolean> => {
     // A second tap while this movie's save is still in flight is dropped
     // entirely, before it can read any state — this is what actually stops
     // the double-log/double-undo race, not anything below.
-    if (pendingWatchRef.current.has(movie.tmdbId)) return
+    if (pendingWatchRef.current.has(movie.tmdbId)) return false
     pendingWatchRef.current.add(movie.tmdbId)
     setPendingWatch(new Set(pendingWatchRef.current))
 
@@ -375,6 +377,7 @@ export default function App() {
         if (listEntry) removedOnWatchRef.current.set(movie.tmdbId, listEntry)
       }
       setHistoryVersion((v) => v + 1)
+      return true
     } catch {
       // Revert: never let the UI claim a save that did not happen.
       setLoggedThisSession((prev) => {
@@ -385,6 +388,7 @@ export default function App() {
       })
       setSaveError("Couldn't save that — is the Movie Night server still running?")
       setHistoryVersion((v) => v + 1)
+      return false
     } finally {
       pendingWatchRef.current.delete(movie.tmdbId)
       setPendingWatch(new Set(pendingWatchRef.current))
@@ -597,7 +601,11 @@ export default function App() {
           alerts={alerts}
           onClose={() => setAlertsOpen(false)}
           onOpen={(a) => { setAlertsOpen(false); navigate({ kind: 'cast', movie: alertMovie(a) }) }}
-          onWatchTonight={(a) => { void toggleWatched(alertMovie(a), null, { forceLog: true }); dropAlerts([a.id]) }}
+          onWatchTonight={(a) => {
+            // Already logged this session: just clear the alert. Otherwise clear it only once the watch is saved.
+            if (loggedThisSession.has(a.tmdbId)) { dropAlerts([a.id]); return }
+            void toggleWatched(alertMovie(a), null, { forceLog: true }).then((saved) => { if (saved) dropAlerts([a.id]) })
+          }}
           onDismiss={(a) => dropAlerts([a.id])}
           onClearAll={() => dropAlerts()}
           isPending={(tmdbId) => pendingWatch.has(tmdbId)}

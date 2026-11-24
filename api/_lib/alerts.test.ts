@@ -23,6 +23,7 @@ function memoryStore(before: Record<number, boolean>, ids: number[], extra: Part
     })),
     availability: vi.fn(async () => new Map(Object.entries(before).map(([k, v]) => [Number(k), v]))),
     saveAvailability: vi.fn(async () => undefined),
+    forgetAvailability: vi.fn(async () => undefined),
     addAlerts: vi.fn(async () => undefined),
     alertsFor: vi.fn(async () => []),
     clear: vi.fn(async () => undefined),
@@ -57,6 +58,13 @@ describe('checkWatchlist', () => {
     expect(store.saveAvailability).toHaveBeenCalledWith([{ tmdbId: 5, watchable: true, where: 'Stream · Netflix' }], NOW)
   })
 
+  it('forgets films no longer listed, so a film re-added later starts fresh', async () => {
+    stubProviders({})
+    const store = memoryStore({}, [7, 8])
+    await checkWatchlist('tmdb', store, { now: NOW })
+    expect(store.forgetAvailability).toHaveBeenCalledWith([7, 8])
+  })
+
   it('never alerts on a film leaving a service', async () => {
     stubProviders({})
     const store = memoryStore({ 6: true }, [6])
@@ -77,6 +85,14 @@ describe('handleAlerts', () => {
     const res = await handleAlerts('GET', { profile: 'laura' }, null, store, NOW)
 
     expect(store.alertsFor).toHaveBeenCalledWith('laura', new Date('2026-10-25T09:17:00Z'))
+    expect((res.body as { alerts: { id: number }[] }).alerts.map((a) => a.id)).toEqual([10])
+  })
+
+  it('keeps an alert for a film watched only before the alert (a rewatch)', async () => {
+    const base = memoryStore({}, [1])
+    const household = { ...(await base.household()), history: [{ watchedAt: '2020-01-01T00:00:00Z', movie: film(1), discoveredVia: null }] }
+    const store = memoryStore({}, [1], { alertsFor: vi.fn(async () => [alert(10, 1)]), household: vi.fn(async () => household) })
+    const res = await handleAlerts('GET', { profile: 'laura' }, null, store, NOW)
     expect((res.body as { alerts: { id: number }[] }).alerts.map((a) => a.id)).toEqual([10])
   })
 

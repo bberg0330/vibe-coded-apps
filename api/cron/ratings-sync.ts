@@ -7,8 +7,9 @@ import { supabaseAlertStore, supabaseBackfillStore, supabaseRewindStore, supabas
 
 /** Leave headroom under the function's maxDuration (vercel.json) to write results. */
 const RUN_FOR_MS = 240_000
-/** Time kept back from rating for saving Rewind lists and checking the watchlist. */
+/** Time kept back from rating for saving Rewind lists. */
 const REWIND_MS = 30_000
+/** Time kept back, after Rewind, for the watchlist alert check. */
 const ALERTS_MS = 30_000
 
 /**

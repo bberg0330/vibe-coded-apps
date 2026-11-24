@@ -3,7 +3,7 @@ import { getRewindYear, type RewindFilm } from '../api/rewind'
 import { getWatchProviders } from '../api/tmdb'
 import { getCachedScores } from '../data/scores'
 import { getEnabledServices } from '../data/providers'
-import { whereToWatch as sharedWhere } from '../data/providerIds'
+import { whereToWatch } from '../data/providerIds'
 import { getSeenBefore, watchCount } from '../data/history'
 import { Button } from '../components/Button'
 import { Chip } from '../components/Chip'
@@ -21,11 +21,6 @@ const SORTS: { value: Sort; label: string }[] = [
   { value: 'critic', label: 'Critic score' },
   { value: 'popularity', label: 'Popularity' },
 ]
-
-/** Where to watch with this household's services. */
-export function whereToWatch(a: Availability | undefined, enabled = getEnabledServices()): string | null {
-  return sharedWhere(a, enabled)
-}
 
 /**
  * One Rewind year: the top films in rank order, household progress, sort,
@@ -90,6 +85,7 @@ export function RewindYearScreen({
     )
   }
 
+  const enabled = getEnabledServices()
   const list = films ?? []
   const watchedCount = list.filter((f) => watchCount(f.tmdbId) > 0).length
   const loadingWhere = list.some((f) => !where.has(f.tmdbId))
@@ -98,7 +94,7 @@ export function RewindYearScreen({
     sort === 'popularity'
       ? b.film.popularity - a.film.popularity
       : (getCachedScores(b.film.tmdbId)?.critic ?? -1) - (getCachedScores(a.film.tmdbId)?.critic ?? -1))
-  const shown = watchableOnly ? sorted.filter(({ film }) => whereToWatch(where.get(film.tmdbId)) !== null) : sorted
+  const shown = watchableOnly ? sorted.filter(({ film }) => whereToWatch(where.get(film.tmdbId), enabled) !== null) : sorted
 
   return (
     <div className="screen">
@@ -128,7 +124,7 @@ export function RewindYearScreen({
             title={film.title}
             posterPath={film.posterPath}
             scores={getCachedScores(film.tmdbId)}
-            where={whereToWatch(where.get(film.tmdbId))}
+            where={whereToWatch(where.get(film.tmdbId), enabled)}
             watched={watched}
             canUnmark={!watched || seenBefore.has(film.tmdbId)}
             onWatchlist={isOnWatchlist(film.tmdbId)}

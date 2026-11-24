@@ -2,28 +2,28 @@
 // watchable. See docs/superpowers/specs/2026-11-24-watchlist-alerts-design.md.
 import { tmdbFetch } from './upstream.js'
 import { RENT_SERVICES, SERVICES, whereToWatch } from '../../src/data/providerIds.js'
-import type { Availability, RentKey, ServiceKey, Store } from '../../src/types'
+import type { Alert, Availability, RentKey, ServiceKey, Store } from '../../src/types'
 
 /** Alerts disappear after this long. */
 export const ALERT_DAYS = 30
 const DAY = 24 * 60 * 60 * 1000
 
-export type Alert = {
-  id: number
-  tmdbId: number
-  title: string
-  posterPath: string | null
-  where: string
-  createdAt: string
-}
+export type { Alert }
+
+/** A watchlist film's availability at one check. */
+export type FilmAvailability = { tmdbId: number; watchable: boolean; where: string | null }
+/** An alert before it's stored (the store assigns id and createdAt). */
+export type NewAlert = Omit<Alert, 'id' | 'createdAt'>
 
 export type AlertStore = {
   /** The household's watchlist, services and history (the shared store row). */
   household(): Promise<Pick<Store, 'watchlist' | 'enabledServices' | 'history'>>
   /** Last recorded availability per film; films never checked are absent. */
   availability(tmdbIds: number[]): Promise<Map<number, boolean>>
-  saveAvailability(rows: { tmdbId: number; watchable: boolean; where: string | null }[], at: Date): Promise<void>
-  addAlerts(rows: Omit<Alert, 'id' | 'createdAt'>[]): Promise<void>
+  saveAvailability(rows: FilmAvailability[], at: Date): Promise<void>
+  /** Drops availability for films no longer on the watchlist, so a film re-added later starts fresh. */
+  forgetAvailability(keepTmdbIds: number[]): Promise<void>
+  addAlerts(rows: NewAlert[]): Promise<void>
   /** Alerts since `since` that `profileId` hasn't cleared, newest first. */
   alertsFor(profileId: string, since: Date): Promise<Alert[]>
   /** Marks alerts cleared for one profile; no ids = every alert. */
@@ -58,23 +58,24 @@ export async function checkWatchlist(token: string, store: AlertStore, opts: { n
   const { watchlist, enabledServices } = await store.household()
   const films = watchlist.map((e) => e.movie)
   const before = await store.availability(films.map((f) => f.tmdbId))
-  const checked: { tmdbId: number; watchable: boolean; where: string | null }[] = []
-  const alerts: Omit<Alert, 'id' | 'createdAt'>[] = []
+  const checked: FilmAvailability[] = []
+  const alerts: NewAlert[] = []
 
   for (const film of films) {
     if (opts.deadline !== undefined && Date.now() > opts.deadline) break
     let where: string | null
     try {
       where = whereToWatch(await availabilityOf(token, film.tmdbId), enabledServices)
-    } catch {
-      continue // TMDB hiccup: try this film again tomorrow
+    } catch (err) {
+      console.error('alerts: availability lookup failed', film.tmdbId, err) // try this film again tomorrow
+      continue
     }
-    const watchable = where !== null
-    checked.push({ tmdbId: film.tmdbId, watchable, where })
-    if (watchable && before.get(film.tmdbId) === false) {
-      alerts.push({ tmdbId: film.tmdbId, title: film.title, posterPath: film.posterPath, where: where! })
+    checked.push({ tmdbId: film.tmdbId, watchable: where !== null, where })
+    if (where !== null && before.get(film.tmdbId) === false) {
+      alerts.push({ tmdbId: film.tmdbId, title: film.title, posterPath: film.posterPath, where })
     }
   }
+  await store.forgetAvailability(films.map((f) => f.tmdbId))
   if (checked.length) await store.saveAvailability(checked, now)
   if (alerts.length) await store.addAlerts(alerts)
   return { checked: checked.length, alerts: alerts.map((a) => a.title) }
@@ -102,8 +103,10 @@ export async function handleAlerts(
         store.household(),
       ])
       const listed = new Set(household.watchlist.map((e) => e.movie.tmdbId))
-      const watched = new Set(household.history.map((e) => e.movie.tmdbId))
-      return { status: 200, body: { alerts: alerts.filter((a) => listed.has(a.tmdbId) && !watched.has(a.tmdbId)) } }
+      // Watched since the alert (not ever): a rewatch put back on the list can still alert.
+      const watchedAfter = (a: Alert) => household.history.some((e) =>
+        e.movie.tmdbId === a.tmdbId && e.watchedAt !== null && e.watchedAt >= a.createdAt)
+      return { status: 200, body: { alerts: alerts.filter((a) => listed.has(a.tmdbId) && !watchedAfter(a)) } }
     }
     if (method === 'POST') {
       const b = (body ?? {}) as { profile?: unknown; ids?: unknown }
@@ -113,7 +116,8 @@ export async function handleAlerts(
       return { status: 200, body: { ok: true } }
     }
     return { status: 405, body: { error: 'Method not allowed' } }
-  } catch {
+  } catch (err) {
+    console.error('alerts: request failed', err)
     return { status: 502, body: { error: 'Alerts lookup failed' } }
   }
 }

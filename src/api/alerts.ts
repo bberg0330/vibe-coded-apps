@@ -1,15 +1,7 @@
 import { apiFetch } from '../data/session'
+import type { Alert } from '../types'
 
-/** A watchlist film that has become watchable (see api/_lib/alerts.ts). */
-export type Alert = {
-  id: number
-  tmdbId: number
-  title: string
-  posterPath: string | null
-  /** "Stream · Netflix" / "Rent · Apple TV" */
-  where: string
-  createdAt: string
-}
+export type { Alert }
 
 /** Alerts this profile hasn't cleared, newest first. */
 export async function getAlerts(profileId: string): Promise<Alert[]> {

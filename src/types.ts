@@ -137,6 +137,17 @@ export type StoreOp =
   | { type: 'addToWatchlist'; entry: WatchlistEntry }
   | { type: 'removeFromWatchlist'; tmdbId: number }
 
+/** A watchlist film that has become watchable (api/_lib/alerts.ts, src/api/alerts.ts). */
+export type Alert = {
+  id: number
+  tmdbId: number
+  title: string
+  posterPath: string | null
+  /** "Stream · Netflix" / "Rent · Apple TV" */
+  where: string
+  createdAt: string
+}
+
 export type Screen =
   | { kind: 'search' }
   | { kind: 'cast'; movie: Movie }
