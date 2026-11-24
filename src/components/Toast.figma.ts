@@ -5,12 +5,12 @@
 import figma from 'figma'
 
 const message = figma.selectedInstance.getString('Message')
-const action = figma.selectedInstance.getString('Action')
+const actionLabel = figma.selectedInstance.getString('Action')
 
 // App.tsx renders the one toast; timing and one-at-a-time live there.
 export default {
   id: 'Toast',
   imports: ["import { Toast } from './Toast'"],
-  example: figma.code`<Toast message="${message}" actionLabel="${action}" onAction={action} />`,
+  example: figma.code`<Toast message="${message}" actionLabel="${actionLabel}" onAction={onAction} />`,
   metadata: { nestable: true },
 }

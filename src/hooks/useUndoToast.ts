@@ -25,12 +25,12 @@ export function useUndoToast() {
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = null
   }
-  const settleToast = (how: 'commit' | 'action') => {
+  const settleToast = (outcome: 'commit' | 'action') => {
     const t = toastRef.current
     clearTimer()
     toastRef.current = null
     setToast(null)
-    if (t) (how === 'action' ? t.action : t.commit)?.()
+    if (t) (outcome === 'action' ? t.action : t.commit)?.()
   }
   const showUndo = (t: Undoable) => {
     settleToast('commit')
