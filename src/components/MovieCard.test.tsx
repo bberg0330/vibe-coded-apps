@@ -4,6 +4,11 @@ import userEvent from '@testing-library/user-event'
 import { MovieCard } from './MovieCard'
 import type { Movie } from '../types'
 
+/** Matches a score element by its visible text (the emoji is aria-hidden and a screen-reader label follows). */
+const scoreText = (text: string) => (_: string, el: Element | null) =>
+  !!el?.classList.contains('score') && (el.textContent ?? '').startsWith(text)
+
+
 const movie: Movie = {
   tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: '/p.jpg',
   popularity: 18, tomatometer: 90, popcornmeter: null,
@@ -16,7 +21,7 @@ describe('MovieCard', () => {
     render(<MovieCard movie={movie} onOpen={vi.fn()} onToggleWatched={vi.fn()} watched={false} />)
     expect(screen.getByText('Rushmore')).toBeInTheDocument()
     expect(screen.getByText('1998')).toBeInTheDocument()
-    expect(screen.getByText('🍅 90%')).toBeInTheDocument()
+    expect(screen.getByText(scoreText('🍅 90%'))).toBeInTheDocument()
   })
 
   it('badges every service the film streams on', () => {
@@ -40,7 +45,7 @@ describe('MovieCard', () => {
     )
     // ⭐, not 🍿: the number is IMDb's user rating scaled to a percentage,
     // not Rotten Tomatoes' Popcornmeter, which has no public API.
-    expect(screen.getByText('⭐ 82%')).toBeInTheDocument()
+    expect(screen.getByText(scoreText('⭐ 82%'))).toBeInTheDocument()
   })
 
   it('opens the film when the card is tapped', async () => {

@@ -465,6 +465,8 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   position: absolute; top: 14px; right: 14px;
   width: 36px; height: 36px; opacity: .92;
 }
+/* Looks 36x36, taps as 44x44: the invisible ring meets Apple's 44pt minimum. */
+.watchlist-btn.compact::before { content: ""; position: absolute; inset: -4px; }
 .added-by { font-size: 14px; }
 
 /* SectionHeading with a trailing link ("Up next … See all 6"). */

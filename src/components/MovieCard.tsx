@@ -58,7 +58,9 @@ export function MovieCard({
         <div className="card-meta">
           {movie.year !== null && <span>{movie.year}</span>}
           <span className={movie.tomatometer === null ? 'score-none' : 'score'} title="Critic score">
-            {movie.tomatometer === null ? 'No critic score' : `🍅 ${movie.tomatometer}%`}
+            {movie.tomatometer === null
+              ? 'No critic score'
+              : <><span aria-hidden="true">🍅</span> {movie.tomatometer}%<span className="sr-only"> critic score</span></>}
           </span>
           {/*
             * ⭐, not 🍿. This value is IMDb's user rating scaled to a
@@ -69,7 +71,7 @@ export function MovieCard({
             * migrating every stored history and watching entry.
             */}
           {typeof movie.popcornmeter === 'number' && (
-            <span className="score" title="IMDb user rating">⭐ {movie.popcornmeter}%</span>
+            <span className="score" title="IMDb user rating"><span aria-hidden="true">⭐</span> {movie.popcornmeter}%<span className="sr-only"> audience score</span></span>
           )}
           {watchingLabel && <Pill>{watchingLabel}</Pill>}
         </div>
