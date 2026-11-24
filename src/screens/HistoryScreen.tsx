@@ -7,6 +7,7 @@ import { TonightRow } from '../components/TonightRow'
 import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { HISTORY_ROUTE_KEY } from '../router'
 import type { WatchEntry, WatchingEntry } from '../types'
+import { ScoreLegend } from '../components/ScoreLegend'
 
 function download(): void {
   const blob = new Blob([exportJson()], { type: 'application/json' })
@@ -132,6 +133,7 @@ export function HistoryScreen({
       )}
 
       {entries.length > 0 && <button className="link" onClick={download}>Download JSON</button>}
+      {groups.length > 0 && <ScoreLegend />}
 
       {groups.map(({ entry, count }) => {
         const menuKey = `${entry.movie.tmdbId}:${entry.watchedAt}`

@@ -15,6 +15,7 @@ import { SEARCH_ROUTE_KEY } from '../router'
 import { getRecommendationsFor, pickSourceMovie, type RecommendationWithAttribution } from '../data/recommendations'
 import type { ProfileId } from '../data/profiles'
 import type { Movie, WatchEntry, WatchlistEntry, Availability } from '../types'
+import { ScoreLegend } from '../components/ScoreLegend'
 
 const QUERY_STORAGE_KEY = 'mn.searchQuery'
 
@@ -192,6 +193,7 @@ export function SearchScreen({
       {query === '' && lastWatched && (
         <section className="last-watched" aria-label="Last watched">
           <SectionHeading>Last watched</SectionHeading>
+          <ScoreLegend />
           <LastWatchedCard
             movie={lastWatched}
             onOpen={(movie) => onOpenMovie({ ...movie, popularity: 0, overview: null })}
@@ -207,6 +209,7 @@ export function SearchScreen({
               <button className="link" onClick={onOpenWatchlist}>See all {watchlist.length}</button>
             )}
           </div>
+          <ScoreLegend />
           {watchlist.slice(0, UP_NEXT_COUNT).map((entry) => (
             <WatchlistRow
               key={entry.movie.tmdbId}
@@ -249,6 +252,7 @@ export function SearchScreen({
         <p className="empty">No movies found for "{query.trim()}".</p>
       )}
 
+      {results.length > 0 && <ScoreLegend />}
       {results.map((movie) => (
         <MovieCard
           key={movie.tmdbId}

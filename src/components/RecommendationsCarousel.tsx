@@ -2,6 +2,7 @@ import { RecommendationCard } from './RecommendationCard'
 import { SectionHeading } from './SectionHeading'
 import type { Movie, CastMember } from '../types'
 import type { RecommendationWithAttribution } from '../data/recommendations'
+import { ScoreLegend } from './ScoreLegend'
 
 type Props = {
   movies: RecommendationWithAttribution[]
@@ -25,6 +26,7 @@ export function RecommendationsCarousel({
   return (
     <section className="recommendations" aria-label={title}>
       <SectionHeading>{title}</SectionHeading>
+      <ScoreLegend />
       <div className="recommendations-row">
         {movies.map((movie) => {
           return (

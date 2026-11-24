@@ -12,6 +12,7 @@ import { useScrollRestoration } from '../hooks/useScrollRestoration'
 import { WATCHLIST_ROUTE_KEY } from '../router'
 import type { Profile } from '../data/profiles'
 import type { WatchEntry, WatchlistEntry } from '../types'
+import { ScoreLegend } from '../components/ScoreLegend'
 
 type Props = {
   /** Most recently added first. */
@@ -96,6 +97,7 @@ export function WatchlistScreen({
       />
 
       {shown.length === 0 && <p className="empty">No films match these filters.</p>}
+      {shown.length > 0 && <ScoreLegend />}
       {shown.map((entry) => (
         <WatchlistRow
           key={entry.movie.tmdbId}

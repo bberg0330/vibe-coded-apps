@@ -116,4 +116,16 @@ describe('WatchlistScreen sort & filter', () => {
     expect(screen.getByText(/Nothing saved yet/)).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Filter' })).not.toBeInTheDocument()
   })
+
+  it('explains the score emoji once, above the list, and only when there are rows', () => {
+    renderScreen()
+    expect(screen.getAllByTestId('score-legend')).toHaveLength(1)
+    expect(screen.getByTestId('score-legend')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByTestId('score-legend')).toHaveTextContent('🍅 Critics · ⭐ Audience')
+  })
+
+  it('shows no legend on the empty list', () => {
+    renderScreen([])
+    expect(screen.queryByTestId('score-legend')).not.toBeInTheDocument()
+  })
 })
