@@ -8,19 +8,19 @@ const icon = figma.selectedInstance.getString('icon')
 const watched = figma.selectedInstance.getEnum('State', {
   Default: false,
   Watched: true,
-  Disabled: false,
+  Pending: false,
   Primary: false,
 })
 const disabled = figma.selectedInstance.getEnum('State', {
   Default: false,
   Watched: false,
-  Disabled: true,
+  Pending: true,
   Primary: false,
 })
 const primary = figma.selectedInstance.getEnum('State', {
   Default: false,
   Watched: false,
-  Disabled: false,
+  Pending: false,
   Primary: true,
 })
 
