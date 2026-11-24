@@ -16,10 +16,11 @@ function setup(m: Movie = movie()) {
 }
 
 describe('MarkWatchedSheet', () => {
-  it('is a modal dialog naming the film and offering Tonight and Some time ago', () => {
+  it('is a modal dialog that asks the question, names the film and offers Tonight and Some time ago', () => {
     setup()
-    const dialog = screen.getByRole('dialog', { name: 'Mark as watched' })
+    const dialog = screen.getByRole('dialog', { name: 'When did you watch it?' })
     expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(within(dialog).getByRole('heading', { name: 'When did you watch it?' })).toBeInTheDocument()
     expect(within(dialog).getByText('Heat')).toBeInTheDocument()
     expect(within(dialog).getByText('1995')).toBeInTheDocument()
     expect(within(dialog).getByRole('radio', { name: 'Tonight' })).toHaveAccessibleDescription("Goes in History with today's date")
@@ -46,7 +47,7 @@ describe('MarkWatchedSheet', () => {
   it('closes on Cancel, the scrim and Escape', async () => {
     const { onClose } = setup()
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Close Mark as watched' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Close When did you watch it?' }))
     await userEvent.keyboard('{Escape}')
     expect(onClose).toHaveBeenCalledTimes(3)
   })

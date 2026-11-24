@@ -526,10 +526,14 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 
 /* One single-select row in a picker sheet (Figma: SheetOption). */
 .sheet-option {
-  display: flex; justify-content: space-between; align-items: center; width: 100%;
-  min-height: 43px; padding: 10px 0; background: none; border: 0;
+  display: flex; justify-content: space-between; align-items: center;
+  /* 12px of padding offset by a -12px margin: the text stays put, and the pressed fill gets room around it. */
+  width: calc(100% + 24px); margin: 0 -12px; padding: 10px 12px; border-radius: 8px;
+  min-height: 43px; background: none; border: 0;
   color: var(--text); font: inherit; text-align: left; cursor: pointer;
 }
+/* Pressed (Figma: SheetOption states): a --control-bg fill; the text keeps its full contrast. */
+.sheet-option:active { background-color: var(--control-bg); }
 .sheet-option.selected { color: var(--accent-text); }
 /* With a description (Mark as watched): a muted second line, 63px tall. */
 .sheet-option.has-description { min-height: 63px; }
@@ -545,6 +549,11 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 .mark-sheet .topbar { margin-bottom: 0; }
 .mark-sheet .topbar h2 { margin: 0; }
 .mark-sheet [role="radiogroup"] { display: flex; flex-direction: column; gap: 4px; }
+/* The hairline between Tonight and Some time ago, inset to the text edges (not the 12px pressed bleed). */
+.mark-sheet .sheet-option + .sheet-option {
+  background-image: linear-gradient(var(--border), var(--border));
+  background-size: calc(100% - 24px) 1px; background-position: center top; background-repeat: no-repeat;
+}
 
 /* The film a Mark as watched sheet is about. */
 .mark-sheet-film { display: flex; gap: 12px; align-items: center; }

@@ -361,12 +361,13 @@ export default function App() {
   /**
    * A ✓ on a film card. A film with no history asks when it was watched
    * (the Mark as watched sheet); one already logged this session undoes,
-   * and one already in history logs another watch tonight — as before.
+   * one already in history logs another watch tonight, and one labelled
+   * "Watching tonight" is tonight's by definition, so it logs straight away.
    */
   const requestWatched = (
     movie: Movie, via: WatchEntry['discoveredVia'], opts: { forceLog?: boolean } = {},
   ) => {
-    if (watchCount(movie.tmdbId) > 0 || loggedThisSession.has(movie.tmdbId)) {
+    if (watchCount(movie.tmdbId) > 0 || loggedThisSession.has(movie.tmdbId) || watchingLabelFor(movie.tmdbId)) {
       void toggleWatched(movie, via, opts)
       return
     }
