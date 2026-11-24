@@ -1,6 +1,6 @@
 import { SectionHeading } from './SectionHeading'
 import { SheetOption } from './SheetOption'
-import { useDialogFocus } from './useDialogFocus'
+import { useDialogFocus } from '../hooks/useDialogFocus'
 
 /**
  * A bottom sheet with one single-select list — the Settings sheet's shell
