@@ -253,7 +253,7 @@ describe('HistoryScreen', () => {
       const onAddFilm = vi.fn()
       render(<HistoryScreen onAddFilm={onAddFilm} />)
       const link = screen.getByRole('button', { name: '+ Add a film' })
-      expect(link).toHaveClass('hit')
+      expect(link).toHaveClass('tap-target')
       fireEvent.click(link)
       expect(onAddFilm).toHaveBeenCalledTimes(1)
     })

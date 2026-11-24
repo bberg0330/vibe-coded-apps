@@ -123,6 +123,12 @@ export default function App() {
   // previous session must append a new entry on tap, never delete an old
   // one. See the spec's "Logging trigger" and "Rewatches" sections.
   const [loggedThisSession, setLoggedThisSession] = useState<Set<number>>(new Set())
+  const setLogged = (tmdbId: number, logged: boolean) => setLoggedThisSession((prev) => {
+    const next = new Set(prev)
+    if (logged) next.add(tmdbId)
+    else next.delete(tmdbId)
+    return next
+  })
 
   // Guard against a second ✓ tap (or Rewind's Mark as watched) landing while a
   // save for the same film is in flight; see usePendingSet for why it's a ref.
@@ -240,15 +246,15 @@ export default function App() {
 
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
-      if (settingsOpen) {
+      if (settingsOpen || markSheet) {
         // flushSync: a real back-swipe's popstate must be answered by a
         // synchronous re-push, or the browser briefly shows the screen
         // underneath before React's next paint reverts it — a visible flash
         // on exactly the gesture this is meant to make seamless.
-        flushSync(() => setSettingsOpen(false))
-        // Settings is a modal, not a route: closing it must not actually
-        // move through history, so re-assert the current entry to cancel
-        // the browser's own back navigation.
+        flushSync(() => { setSettingsOpen(false); setMarkSheet(null) })
+        // Settings and the Mark as watched sheet are modals, not routes:
+        // closing one must not actually move through history, so re-assert
+        // the current entry to cancel the browser's own back navigation.
         history.pushState({ pointer }, '', hashFor(entries[pointer]))
         return
       }
@@ -291,7 +297,7 @@ export default function App() {
 
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
-  }, [entries, pointer, settingsOpen])
+  }, [entries, pointer, settingsOpen, markSheet])
 
   /**
    * `forceLog`: a ✓ on a watchlist row always means "we watched it" — never
@@ -315,19 +321,9 @@ export default function App() {
     setSaveError(null)
 
     // Optimistic: update the session set immediately so the ✓ responds.
-    setLoggedThisSession((prev) => {
-      const next = new Set(prev)
-      if (wasLoggedThisSession) next.delete(movie.tmdbId)
-      else next.add(movie.tmdbId)
-      return next
-    })
+    setLogged(movie.tmdbId, !wasLoggedThisSession)
     // Never let the UI claim a save that did not happen.
-    const revert = () => setLoggedThisSession((prev) => {
-      const next = new Set(prev)
-      if (wasLoggedThisSession) next.add(movie.tmdbId)
-      else next.delete(movie.tmdbId)
-      return next
-    })
+    const revert = () => setLogged(movie.tmdbId, wasLoggedThisSession)
 
     try {
       if (wasLoggedThisSession) {
@@ -337,6 +333,7 @@ export default function App() {
         // null: the film is already in history (two devices at once) — nothing was saved.
         if (!(await markSeenBefore(movie))) {
           revert()
+          setSaveError("That film is already in your history.")
           setHistoryVersion((v) => v + 1)
           return false
         }
@@ -376,19 +373,21 @@ export default function App() {
     setMarkSheet({ movie, via, forceLog: opts.forceLog ?? false })
   }
 
+  /** The sheet's two rows: close it, then log tonight or save an undated "Seen before". */
+  const chooseWhen = ({ movie, via, forceLog }: NonNullable<typeof markSheet>, seenBefore: boolean) => {
+    setMarkSheet(null)
+    void toggleWatched(movie, via, { forceLog, seenBefore })
+  }
+
   /** Undo for "Some time ago": removes that undated entry and puts back the watchlist entry the mark took off. */
   const undoSeenBeforeMark = async (tmdbId: number) => {
     if (!startWatchSave(tmdbId)) return
-    setLoggedThisSession((prev) => {
-      const next = new Set(prev)
-      next.delete(tmdbId)
-      return next
-    })
+    setLogged(tmdbId, false)
     try {
       await unmarkSeenBefore(tmdbId)
       await restoreRemovedOnWatch(tmdbId)
     } catch {
-      setLoggedThisSession((prev) => new Set(prev).add(tmdbId))
+      setLogged(tmdbId, true)
       setSaveError("Couldn't undo that — is the Movie Night server still running?")
     } finally {
       finishWatchSave(tmdbId)
@@ -600,16 +599,8 @@ export default function App() {
       {markSheet && (
         <MarkWatchedSheet
           movie={markSheet.movie}
-          onTonight={() => {
-            const { movie, via, forceLog } = markSheet
-            setMarkSheet(null)
-            void toggleWatched(movie, via, { forceLog })
-          }}
-          onEarlier={() => {
-            const { movie, via, forceLog } = markSheet
-            setMarkSheet(null)
-            void toggleWatched(movie, via, { forceLog, seenBefore: true })
-          }}
+          onTonight={() => chooseWhen(markSheet, false)}
+          onEarlier={() => chooseWhen(markSheet, true)}
           onClose={() => setMarkSheet(null)}
         />
       )}

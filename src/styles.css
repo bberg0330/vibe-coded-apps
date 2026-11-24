@@ -554,7 +554,7 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
 .mark-sheet-year { color: var(--muted); font-size: 14px; }
 
 /* A text link with a 44px tap target; the text stays flush with the right edge. */
-.link.hit { display: inline-flex; align-items: center; min-height: 44px; padding: 0 0 0 12px; }
+.link.tap-target { display: inline-flex; align-items: center; min-height: 44px; padding: 0 0 0 12px; }
 
 /* History title row: "History" left, "+ Add a film" right. */
 .title-row { display: flex; justify-content: space-between; align-items: center; min-height: 44px; margin: 4px 0 12px; }

@@ -730,6 +730,32 @@ describe('App - Mark as watched sheet', () => {
     expect(getSeenBefore()).toHaveLength(0)
   })
 
+  it('closes on browser Back instead of leaving the sheet over another screen', async () => {
+    await renderApp()
+    await openSheetForRushmore()
+    window.dispatchEvent(new PopStateEvent('popstate', { state: { pointer: 0 } }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(window.location.hash).toBe('#/')
+    expect(getHistory()).toHaveLength(0)
+    expect(getSeenBefore()).toHaveLength(0)
+  })
+
+  it('says so, and changes nothing, if the film landed in history before "Some time ago" was picked', async () => {
+    await renderApp()
+    await openSheetForRushmore()
+    // Another device logs it while the sheet is open.
+    resetStoreForTests({
+      ...emptyStore(),
+      history: [{ watchedAt: '2026-02-01T00:00:00.000Z', movie: film(1585, 'Rushmore'), discoveredVia: null }],
+    })
+    await chooseWhen('Some time ago')
+
+    expect(await screen.findByText(/already in your history/i)).toBeInTheDocument()
+    expect(getSeenBefore()).toHaveLength(0)
+    expect(getHistory()).toHaveLength(1)
+  })
+
   it('Tonight logs a dated movie night and closes the sheet', async () => {
     await renderApp()
     await openSheetForRushmore()

@@ -118,7 +118,7 @@ export function HistoryScreen({
   const titleRow = (
     <div className="title-row">
       <h1>History</h1>
-      {onAddFilm && <button className="link hit" onClick={onAddFilm}>+ Add a film</button>}
+      {onAddFilm && <button className="link tap-target" onClick={onAddFilm}>+ Add a film</button>}
     </div>
   )
 

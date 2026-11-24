@@ -27,7 +27,7 @@ export function MarkWatchedSheet({
       <div className="sheet mark-sheet" role="dialog" tabIndex={-1} ref={dialogRef} aria-modal="true" aria-label="Mark as watched">
         <div className="topbar">
           <SectionHeading>Mark as watched</SectionHeading>
-          <button className="link hit" onClick={onClose}>Cancel</button>
+          <button className="link tap-target" onClick={onClose}>Cancel</button>
         </div>
         <div className="mark-sheet-film">
           <Poster src={posterUrl(movie.posterPath)} />

@@ -53,6 +53,6 @@ describe('MarkWatchedSheet', () => {
 
   it('gives Cancel the 44px tap-target class', () => {
     setup()
-    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('hit')
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('tap-target')
   })
 })
