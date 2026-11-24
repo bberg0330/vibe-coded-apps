@@ -16,9 +16,11 @@ const TITLE = 'When did you watch it?'
  * the two rows. Figma: Mark as watched sheet. .sheet.mark-sheet
  */
 export function MarkWatchedSheet({
-  movie, onTonight, onEarlier, onClose,
+  movie, onTonight, onEarlier, onClose, tonightTicked = false,
 }: {
   movie: Movie
+  /** Opened from "Not tonight?": Tonight is what's logged now, so it shows ticked. */
+  tonightTicked?: boolean
   onTonight: () => void
   onEarlier: () => void
   onClose: () => void
@@ -43,7 +45,7 @@ export function MarkWatchedSheet({
           <SheetOption
             label="Tonight"
             description="Goes in History with today's date"
-            selected={false}
+            selected={tonightTicked}
             onSelect={onTonight}
           />
           <SheetOption

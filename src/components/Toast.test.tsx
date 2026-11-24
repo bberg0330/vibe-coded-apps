@@ -14,4 +14,20 @@ describe('Toast', () => {
     fireEvent.blur(screen.getByRole('button', { name: 'Undo' }))
     expect(onHold).toHaveBeenLastCalledWith(false)
   })
+
+  it('shows the Undo label by default and the caller\'s label when it gives one', () => {
+    const { rerender } = render(<Toast message="Removed Heat" onUndo={() => {}} />)
+    expect(screen.getByRole('button', { name: 'Undo' })).toBeInTheDocument()
+
+    rerender(<Toast message="Logged Heat for tonight" actionLabel="Not tonight?" onUndo={() => {}} />)
+    expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Not tonight?' })).toBeInTheDocument()
+  })
+
+  it('calls onUndo from whatever the button says', () => {
+    const onUndo = vi.fn()
+    render(<Toast message="Logged Heat for tonight" actionLabel="Not tonight?" onUndo={onUndo} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Not tonight?' }))
+    expect(onUndo).toHaveBeenCalledTimes(1)
+  })
 })

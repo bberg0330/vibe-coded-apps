@@ -84,13 +84,9 @@ async function tapWatchButton() {
     { name: /^(mark rushmore as watched|undo watched for rushmore)$/i },
   )
   await userEvent.click(button)
-  // A film with no history asks when first (Mark as watched sheet); one already
-  // in history logs straight away, so only pick Tonight if the sheet opened.
-  const tonight = screen.queryByRole('radio', { name: 'Tonight' })
-  if (tonight) await userEvent.click(tonight)
 }
 
-/** The ✓ on a film with no history opens the sheet; this picks one of its rows. */
+/** On Log a film, the ✓ on a film with no history opens the sheet; this picks one of its rows. */
 async function chooseWhen(when: 'Tonight' | 'Some time ago') {
   await userEvent.click(await screen.findByRole('radio', { name: when }))
 }
@@ -118,10 +114,7 @@ describe('App - toggleWatched session scoping', () => {
       // synchronously, before either's async work resolves, is what
       // actually happened when the button was tapped twice quickly.
       fireEvent.click(button)
-      // The ✓ opens the sheet; the race is now two quick taps on its Tonight row.
-      const tonight = await screen.findByRole('radio', { name: 'Tonight' })
-      fireEvent.click(tonight)
-      fireEvent.click(tonight)
+      fireEvent.click(button)
 
       await waitFor(() => expect(getHistory()).toHaveLength(1))
     },
@@ -397,7 +390,6 @@ describe('write failure', () => {
     await renderApp()
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
-    await chooseWhen('Tonight')
 
     expect(await screen.findByText(/couldn't save/i)).toBeInTheDocument()
     // The button must NOT look logged.
@@ -535,7 +527,6 @@ describe('App - watchlist', () => {
     const addedAt = getStoreSnapshot().watchlist[0].addedAt
 
     await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
-    await chooseWhen('Tonight')
     await waitFor(() => expect(getHistory()).toHaveLength(1))
     expect(onList()).toEqual([])
 
@@ -574,7 +565,6 @@ describe('App - watchlist', () => {
     expect(getHistory()).toHaveLength(0)
 
     await userEvent.click(screen.getByRole('button', { name: /mark film 3 as watched/i }))
-    await chooseWhen('Tonight')
     await waitFor(() => expect(getHistory()).toHaveLength(1))
     expect(screen.getAllByTestId('watchlist-title').map((n) => n.textContent)).toEqual(['Film 2'])
   })
@@ -691,180 +681,85 @@ describe('App - tab bar', () => {
   })
 })
 
-describe('App - Mark as watched sheet', () => {
+describe('App - one-tap Tonight', () => {
   const film = (id: number, title: string) =>
     ({ tmdbId: id, title, year: 1998, posterPath: null, tomatometer: null, popcornmeter: null })
 
-  async function openSheetForRushmore() {
+  async function tapRushmore() {
     await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
     await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
-    return screen.findByRole('dialog', { name: 'When did you watch it?' })
   }
 
-  it('asks when for a film with no history, and logs nothing until a row is picked', async () => {
+  it('logs tonight at once, with no sheet, and says so in a toast', async () => {
     await renderApp()
-    const sheet = await openSheetForRushmore()
+    await tapRushmore()
 
-    expect(within(sheet).getByText('Rushmore')).toBeInTheDocument()
-    expect(within(sheet).getByRole('radio', { name: 'Tonight' })).toHaveAccessibleDescription(/today's date/i)
-    expect(within(sheet).getByRole('radio', { name: 'Some time ago' })).toHaveAccessibleDescription(/no date/i)
-    expect(getHistory()).toHaveLength(0)
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
     expect(getSeenBefore()).toHaveLength(0)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Logged Rushmore for tonight')
+    expect(screen.getByRole('button', { name: 'Not tonight?' })).toBeInTheDocument()
   })
 
-  it('closes with no change on Cancel, the scrim and Escape', async () => {
+  it('"Not tonight?" opens the sheet with Tonight ticked; Tonight keeps the watch', async () => {
     await renderApp()
-    await openSheetForRushmore()
-    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    await tapRushmore()
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+    await userEvent.click(screen.getByRole('button', { name: 'Not tonight?' }))
+
+    const sheet = await screen.findByRole('dialog', { name: 'When did you watch it?' })
+    expect(within(sheet).getByRole('radio', { name: 'Tonight' })).toHaveAttribute('aria-checked', 'true')
+    expect(within(sheet).getByRole('radio', { name: 'Some time ago' })).toHaveAttribute('aria-checked', 'false')
+    await userEvent.click(within(sheet).getByRole('radio', { name: 'Tonight' }))
+
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
-    await userEvent.click(screen.getByRole('button', { name: 'Close When did you watch it?' }))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-
-    await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
-    await userEvent.keyboard('{Escape}')
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-
-    expect(getHistory()).toHaveLength(0)
-    expect(getSeenBefore()).toHaveLength(0)
-  })
-
-  it('closes on browser Back instead of leaving the sheet over another screen', async () => {
-    await renderApp()
-    await openSheetForRushmore()
-    window.dispatchEvent(new PopStateEvent('popstate', { state: { pointer: 0 } }))
-
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(window.location.hash).toBe('#/')
-    expect(getHistory()).toHaveLength(0)
-    expect(getSeenBefore()).toHaveLength(0)
-  })
-
-  it('says so, and changes nothing, if the film landed in history before "Some time ago" was picked', async () => {
-    await renderApp()
-    await openSheetForRushmore()
-    // Another device logs it while the sheet is open.
-    resetStoreForTests({
-      ...emptyStore(),
-      history: [{ watchedAt: '2026-02-01T00:00:00.000Z', movie: film(1585, 'Rushmore'), discoveredVia: null }],
-    })
-    await chooseWhen('Some time ago')
-
-    expect(await screen.findByText(/already in your history/i)).toBeInTheDocument()
-    expect(getSeenBefore()).toHaveLength(0)
     expect(getHistory()).toHaveLength(1)
-  })
-
-  it('Tonight logs a dated movie night and closes the sheet', async () => {
-    await renderApp()
-    await openSheetForRushmore()
-    await chooseWhen('Tonight')
-
-    await waitFor(() => expect(getHistory()).toHaveLength(1))
     expect(getSeenBefore()).toHaveLength(0)
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('Some time ago saves an undated "Seen before" entry and offers Undo', async () => {
+  it('"Some time ago" moves the watch to Seen before, and Undo puts its date back', async () => {
     await renderApp()
-    await openSheetForRushmore()
+    await tapRushmore()
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+    const watchedAt = getHistory()[0].watchedAt
+    await userEvent.click(screen.getByRole('button', { name: 'Not tonight?' }))
     await chooseWhen('Some time ago')
 
     await waitFor(() => expect(getSeenBefore()).toHaveLength(1))
     expect(getHistory()).toHaveLength(0)
-    expect(screen.getByRole('status')).toHaveTextContent('Marked Rushmore as seen before')
+    expect(screen.getByRole('status')).toHaveTextContent('Moved Rushmore to Seen before')
 
     await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
-    await waitFor(() => expect(getSeenBefore()).toHaveLength(0))
-    // Back to a film with no history: ✓ asks again.
-    await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
-    expect(await screen.findByRole('dialog', { name: 'When did you watch it?' })).toBeInTheDocument()
-  })
-
-  it('a ✓ after "Some time ago" in the same session undoes it, with no sheet', async () => {
-    await renderApp()
-    await openSheetForRushmore()
-    await chooseWhen('Some time ago')
-    await waitFor(() => expect(getSeenBefore()).toHaveLength(1))
-
-    await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
-    await waitFor(() => expect(getSeenBefore()).toHaveLength(0))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('skips the sheet for a film already in history and logs another watch tonight, as before', async () => {
-    resetStoreForTests({
-      ...emptyStore(),
-      history: [{ watchedAt: '2026-02-01T00:00:00.000Z', movie: film(1585, 'Rushmore'), discoveredVia: null }],
-    })
-    await renderApp()
-    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
-    await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
-
-    await waitFor(() => expect(getHistory()).toHaveLength(2))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('skips the sheet for a film labelled "Watching tonight" and logs it straight away', async () => {
-    seedWatching({ tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null, popularity: 18, tomatometer: null, popcornmeter: null, availability: { streaming: [], rent: [] }, overview: null }, PROFILES[0].id, null)
-    await renderApp()
-    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
-    expect(await screen.findByText('Watching tonight')).toBeInTheDocument()
-    await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
-
-    await waitFor(() => expect(getHistory()).toHaveLength(1))
-    expect(getSeenBefore()).toHaveLength(0)
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('also skips the sheet for a film that is only in Seen before', async () => {
-    resetStoreForTests({
-      ...emptyStore(),
-      history: [{ watchedAt: null, movie: film(1585, 'Rushmore'), discoveredVia: null }],
-    })
-    await renderApp()
-    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
-    await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
-
-    await waitFor(() => expect(getHistory()).toHaveLength(1))
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-  })
-
-  it('Some time ago takes a listed film off the watchlist, and Undo puts it back as it was', async () => {
-    resetStoreForTests({
-      ...emptyStore(),
-      watchlist: [{ addedAt: '2026-01-01T00:00:00.000Z', profileId: 'laura', movie: film(1585, 'Rushmore') }],
-    })
-    await renderApp('laura')
-    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
-    await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
-    await chooseWhen('Some time ago')
-    await waitFor(() => expect(getSeenBefore()).toHaveLength(1))
-    expect(getStoreSnapshot().watchlist).toHaveLength(0)
-
-    await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
-    await waitFor(() => expect(getSeenBefore()).toHaveLength(0))
-    await waitFor(() => expect(getStoreSnapshot().watchlist).toHaveLength(1))
-    expect(getStoreSnapshot().watchlist[0]).toMatchObject({ addedAt: '2026-01-01T00:00:00.000Z', profileId: 'laura' })
-  })
-
-  it('reverts and says so when saving "Some time ago" fails', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
-      if (String(url).startsWith('/api/store') && init?.method === 'POST') throw new Error('offline')
-      if (String(url).startsWith('/api/store')) return { ok: true, status: 200, json: async () => emptyStore() }
-      return { ok: true, status: 200, json: async () => rushmoreSearchResults }
-    }))
-    await renderApp()
-    await openSheetForRushmore()
-    await chooseWhen('Some time ago')
-
-    expect(await screen.findByText(/couldn't save/i)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /mark rushmore as watched/i })).toHaveAttribute('aria-pressed', 'false')
+    await waitFor(() => expect(getHistory().map((e) => e.watchedAt)).toEqual([watchedAt]))
     expect(getSeenBefore()).toHaveLength(0)
   })
 
-  it('Up next on the homescreen asks when too, and a ✓ on a listed film uses the same sheet', async () => {
+  it('says so, and moves nothing, if the film is already in Seen before', async () => {
+    await renderApp()
+    await tapRushmore()
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+    await userEvent.click(screen.getByRole('button', { name: 'Not tonight?' }))
+    // Another device marks it seen before while the sheet is open.
+    resetStoreForTests({
+      ...getStoreSnapshot(),
+      history: [...getStoreSnapshot().history, { watchedAt: null, movie: film(1585, 'Rushmore'), discoveredVia: null }],
+    })
+    await chooseWhen('Some time ago')
+
+    expect(await screen.findByText(/already in seen before/i)).toBeInTheDocument()
+    expect(getHistory()).toHaveLength(1)
+    expect(getSeenBefore()).toHaveLength(1)
+  })
+
+  it('a second ✓ in the same session still undoes the log', async () => {
+    await renderApp()
+    await tapRushmore()
+    await waitFor(() => expect(getHistory()).toHaveLength(1))
+    await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
+    await waitFor(() => expect(getHistory()).toHaveLength(0))
+  })
+
+  it('a ✓ on an Up next film logs tonight at once and takes it off the list', async () => {
     sessionStorage.clear()
     resetStoreForTests({
       ...emptyStore(),
@@ -872,10 +767,62 @@ describe('App - Mark as watched sheet', () => {
     })
     await renderApp()
     await userEvent.click(within(screen.getByRole('region', { name: 'Up next' })).getByRole('button', { name: /mark heat as watched/i }))
-    await chooseWhen('Some time ago')
 
-    await waitFor(() => expect(getSeenBefore().map((e) => e.movie.title)).toEqual(['Heat']))
+    await waitFor(() => expect(getHistory().map((e) => e.movie.title)).toEqual(['Heat']))
     expect(getStoreSnapshot().watchlist).toHaveLength(0)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Logged Heat for tonight')
+  })
+
+  describe('History ⋯ › Move to Seen before', () => {
+    const night = (id: number, title: string, at: string) => ({ watchedAt: at, movie: film(id, title), discoveredVia: null })
+
+    async function openMenuFor(title: RegExp) {
+      await userEvent.click(screen.getByRole('button', { name: /^history$/i }))
+      await userEvent.click(await screen.findByRole('button', { name: title }))
+    }
+
+    it('moves a movie night to Seen before, and Undo restores its date', async () => {
+      resetStoreForTests({ ...emptyStore(), history: [night(8, 'Heat', '2026-02-01T20:00:00.000Z')] })
+      await renderApp()
+      await openMenuFor(/menu for heat/i)
+      await userEvent.click(screen.getByRole('button', { name: /move to seen before/i }))
+
+      await waitFor(() => expect(getSeenBefore().map((e) => e.movie.title)).toEqual(['Heat']))
+      expect(getHistory()).toHaveLength(0)
+      expect(screen.getByRole('status')).toHaveTextContent('Moved Heat to Seen before')
+
+      await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+      await waitFor(() => expect(getHistory().map((e) => e.watchedAt)).toEqual(['2026-02-01T20:00:00.000Z']))
+      expect(getSeenBefore()).toHaveLength(0)
+    })
+
+    it('moves only the latest of several watches, and says so', async () => {
+      resetStoreForTests({
+        ...emptyStore(),
+        history: [night(8, 'Heat', '2026-01-01T20:00:00.000Z'), night(8, 'Heat', '2026-02-01T20:00:00.000Z')],
+      })
+      await renderApp()
+      await openMenuFor(/menu for heat/i)
+      await userEvent.click(screen.getByRole('button', { name: /move to seen before/i }))
+
+      await waitFor(() => expect(getSeenBefore()).toHaveLength(1))
+      expect(getHistory().map((e) => e.watchedAt)).toEqual(['2026-01-01T20:00:00.000Z'])
+      expect(screen.getByRole('status')).toHaveTextContent('Moved your latest Heat watch to Seen before')
+    })
+
+    it('says so if the film is already in Seen before', async () => {
+      resetStoreForTests({
+        ...emptyStore(),
+        history: [night(8, 'Heat', '2026-02-01T20:00:00.000Z'), { watchedAt: null, movie: film(8, 'Heat'), discoveredVia: null }],
+      })
+      await renderApp()
+      await openMenuFor(/menu for heat/i)
+      await userEvent.click(screen.getByRole('button', { name: /move to seen before/i }))
+
+      expect(await screen.findByText(/already in seen before/i)).toBeInTheDocument()
+      expect(getHistory()).toHaveLength(1)
+    })
   })
 })
 
@@ -907,6 +854,156 @@ describe('App - Log a film', () => {
 
     await waitFor(() => expect(getSeenBefore().map((e) => e.movie.title)).toEqual(['Rushmore']))
     expect(screen.getByRole('status')).toHaveTextContent('Marked Rushmore as seen before')
+  })
+
+  describe('the Mark as watched sheet', () => {
+    const film = (id: number, title: string) =>
+      ({ tmdbId: id, title, year: 1998, posterPath: null, tomatometer: null, popcornmeter: null })
+
+    async function openSheetForRushmore() {
+      sessionStorage.clear()
+      await openLogFilm()
+      await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+      await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
+      return screen.findByRole('dialog', { name: 'When did you watch it?' })
+    }
+
+    it('asks when for a film with no history, and logs nothing until a row is picked', async () => {
+      const sheet = await openSheetForRushmore()
+
+      expect(within(sheet).getByText('Rushmore')).toBeInTheDocument()
+      expect(within(sheet).getByRole('radio', { name: 'Tonight' })).toHaveAccessibleDescription(/today's date/i)
+      expect(within(sheet).getByRole('radio', { name: 'Tonight' })).toHaveAttribute('aria-checked', 'false')
+      expect(within(sheet).getByRole('radio', { name: 'Some time ago' })).toHaveAccessibleDescription(/no date/i)
+      expect(getHistory()).toHaveLength(0)
+      expect(getSeenBefore()).toHaveLength(0)
+    })
+
+    it('closes with no change on Cancel, the scrim and Escape', async () => {
+      await openSheetForRushmore()
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
+      await userEvent.click(screen.getByRole('button', { name: 'Close When did you watch it?' }))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+      await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
+      await userEvent.keyboard('{Escape}')
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+
+      expect(getHistory()).toHaveLength(0)
+      expect(getSeenBefore()).toHaveLength(0)
+    })
+
+    it('closes on browser Back instead of leaving the sheet over another screen', async () => {
+      await openSheetForRushmore()
+      window.dispatchEvent(new PopStateEvent('popstate', { state: { pointer: 1 } }))
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+      expect(window.location.hash).toBe('#/history/log')
+      expect(getHistory()).toHaveLength(0)
+    })
+
+    it('Tonight logs a dated movie night and closes the sheet, with no toast to second-guess it', async () => {
+      await openSheetForRushmore()
+      await chooseWhen('Tonight')
+
+      await waitFor(() => expect(getHistory()).toHaveLength(1))
+      expect(getSeenBefore()).toHaveLength(0)
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+
+    it('Some time ago saves an undated "Seen before" entry and offers Undo', async () => {
+      await openSheetForRushmore()
+      await chooseWhen('Some time ago')
+
+      await waitFor(() => expect(getSeenBefore()).toHaveLength(1))
+      expect(getHistory()).toHaveLength(0)
+      expect(screen.getByRole('status')).toHaveTextContent('Marked Rushmore as seen before')
+
+      await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+      await waitFor(() => expect(getSeenBefore()).toHaveLength(0))
+      // Back to a film with no history: ✓ asks again.
+      await userEvent.click(screen.getByRole('button', { name: /mark rushmore as watched/i }))
+      expect(await screen.findByRole('dialog', { name: 'When did you watch it?' })).toBeInTheDocument()
+    })
+
+    it('a ✓ after "Some time ago" in the same session undoes it, with no sheet', async () => {
+      await openSheetForRushmore()
+      await chooseWhen('Some time ago')
+      await waitFor(() => expect(getSeenBefore()).toHaveLength(1))
+
+      await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
+      await waitFor(() => expect(getSeenBefore()).toHaveLength(0))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('skips the sheet for a film already in history and logs another watch tonight', async () => {
+      resetStoreForTests({
+        ...emptyStore(),
+        history: [{ watchedAt: '2026-02-01T00:00:00.000Z', movie: film(1585, 'Rushmore'), discoveredVia: null }],
+      })
+      sessionStorage.clear()
+      await openLogFilm()
+      await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+      await userEvent.click(await screen.findByRole('button', { name: /undo watched for rushmore/i }))
+
+      await waitFor(() => expect(getHistory()).toHaveLength(2))
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+
+    it('Some time ago takes a listed film off the watchlist, and Undo puts it back as it was', async () => {
+      resetStoreForTests({
+        ...emptyStore(),
+        watchlist: [{ addedAt: '2026-01-01T00:00:00.000Z', profileId: 'laura', movie: film(1585, 'Rushmore') }],
+      })
+      await renderApp('laura')
+      await userEvent.click(screen.getByRole('button', { name: /^history$/i }))
+      await userEvent.click(await screen.findByRole('button', { name: '+ Add a film' }))
+      await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+      await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
+      await chooseWhen('Some time ago')
+      await waitFor(() => expect(getSeenBefore()).toHaveLength(1))
+      expect(getStoreSnapshot().watchlist).toHaveLength(0)
+
+      await userEvent.click(screen.getByRole('button', { name: 'Undo' }))
+      await waitFor(() => expect(getSeenBefore()).toHaveLength(0))
+      await waitFor(() => expect(getStoreSnapshot().watchlist).toHaveLength(1))
+      expect(getStoreSnapshot().watchlist[0]).toMatchObject({ addedAt: '2026-01-01T00:00:00.000Z', profileId: 'laura' })
+    })
+
+    it('says so, and changes nothing, if the film landed in history before "Some time ago" was picked', async () => {
+      await openSheetForRushmore()
+      // Another device logs it while the sheet is open.
+      resetStoreForTests({
+        ...emptyStore(),
+        history: [{ watchedAt: '2026-02-01T00:00:00.000Z', movie: film(1585, 'Rushmore'), discoveredVia: null }],
+      })
+      await chooseWhen('Some time ago')
+
+      expect(await screen.findByText(/already in your history/i)).toBeInTheDocument()
+      expect(getSeenBefore()).toHaveLength(0)
+      expect(getHistory()).toHaveLength(1)
+    })
+
+    it('reverts and says so when saving "Some time ago" fails', async () => {
+      sessionStorage.clear()
+      await openLogFilm()
+      vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string, init?: RequestInit) => {
+        if (String(url).startsWith('/api/store') && init?.method === 'POST') throw new Error('offline')
+        if (String(url).startsWith('/api/store')) return { ok: true, status: 200, json: async () => emptyStore() }
+        return { ok: true, status: 200, json: async () => rushmoreSearchResults }
+      }))
+      await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+      await userEvent.click(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
+      await chooseWhen('Some time ago')
+
+      expect(await screen.findByText(/couldn't save/i)).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /mark rushmore as watched/i })).toHaveAttribute('aria-pressed', 'false')
+      expect(getSeenBefore()).toHaveLength(0)
+    })
   })
 
   it('does not share a query with the Search tab', async () => {

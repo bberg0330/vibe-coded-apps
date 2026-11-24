@@ -56,4 +56,15 @@ describe('MarkWatchedSheet', () => {
     setup()
     expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass('tap-target')
   })
+
+  it('ticks Tonight when it is opened from "Not tonight?" (the watch is already logged as tonight)', () => {
+    render(<MarkWatchedSheet movie={movie()} tonightTicked onTonight={() => {}} onEarlier={() => {}} onClose={() => {}} />)
+    expect(screen.getByRole('radio', { name: 'Tonight' })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: 'Some time ago' })).toHaveAttribute('aria-checked', 'false')
+  })
+
+  it('has nothing ticked when it asks about a film with no history', () => {
+    setup()
+    expect(screen.getByRole('radio', { name: 'Tonight' })).toHaveAttribute('aria-checked', 'false')
+  })
 })

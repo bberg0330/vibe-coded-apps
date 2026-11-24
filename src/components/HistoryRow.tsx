@@ -1,4 +1,5 @@
 import { posterUrl } from '../api/tmdb'
+import { Icon } from './icons'
 import { IconButton } from './IconButton'
 import { Poster } from './Poster'
 import type { DatedWatch } from '../data/history'
@@ -13,7 +14,7 @@ import type { DatedWatch } from '../data/history'
  * can be open at a time, so the screen owns that, not each row.
  */
 export function HistoryRow({
-  entry, count, onOpenMovie, isMenuOpen, isDeleting, onToggleMenu, onDelete,
+  entry, count, onOpenMovie, isMenuOpen, isDeleting, onToggleMenu, onDelete, onMoveToSeenBefore,
 }: {
   entry: DatedWatch
   count: number
@@ -22,6 +23,8 @@ export function HistoryRow({
   isDeleting: boolean
   onToggleMenu: () => void
   onDelete: () => void
+  /** Omit to hide "Move to Seen before" from the menu. */
+  onMoveToSeenBefore?: () => void
 }) {
   const poster = posterUrl(entry.movie.posterPath)
 
@@ -77,6 +80,17 @@ export function HistoryRow({
 
       {isMenuOpen && (
         <div className="history-menu">
+          {onMoveToSeenBefore && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onMoveToSeenBefore()
+              }}
+            >
+              <Icon name="history" />
+              Move to Seen before
+            </button>
+          )}
           <button
             className="danger"
             onClick={(e) => {

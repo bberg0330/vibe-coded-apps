@@ -287,4 +287,22 @@ describe('POST: seen before', () => {
     const { history } = await post({ type: 'deleteWatch', tmdbId: 496243, watchedAt: null }, [night, seen])
     expect(history).toEqual([night])
   })
+
+  it('moves a movie night to Seen before in place, with moveToSeenBefore', async () => {
+    const { res, history } = await post({ type: 'moveToSeenBefore', tmdbId: 1, watchedAt: night.watchedAt }, [night])
+    expect(res.statusCode).toBe(200)
+    expect(history).toEqual([{ ...night, watchedAt: null }])
+  })
+
+  it('moves only the named watch', async () => {
+    const other = { ...night, watchedAt: '2026-02-01T00:00:00.000Z' }
+    const { history } = await post({ type: 'moveToSeenBefore', tmdbId: 1, watchedAt: other.watchedAt }, [night, other])
+    expect(history).toEqual([night, { ...other, watchedAt: null }])
+  })
+
+  it('leaves the history alone if the film is already in Seen before, or the date matches nothing', async () => {
+    const both = [night, { ...seen, movie: night.movie }]
+    expect((await post({ type: 'moveToSeenBefore', tmdbId: 1, watchedAt: night.watchedAt }, both)).history).toEqual(both)
+    expect((await post({ type: 'moveToSeenBefore', tmdbId: 1, watchedAt: '1999-01-01T00:00:00.000Z' }, [night])).history).toEqual([night])
+  })
 })

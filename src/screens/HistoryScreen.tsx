@@ -76,12 +76,14 @@ type Props = {
   onDeleteWatch?: (entry: DatedWatch) => void
   /** Opens the Seen before screen. The row only shows when there is something in it. */
   onOpenSeenBefore?: () => void
+  /** Moves a movie night to Seen before (the row's ⋯ menu). `count` is how many movie nights the film has. */
+  onMoveToSeenBefore?: (entry: DatedWatch, count: number) => void
   /** Opens Log a film: search for a film that is on no list and ✓ it. Omitted, the link is hidden. */
   onAddFilm?: () => void
 }
 
 export function HistoryScreen({
-  onOpenMovie, onCancelWatching, optimisticallyCancelled, cancellingKeys, hiddenWatches, onDeleteWatch, onOpenSeenBefore, onAddFilm,
+  onOpenMovie, onCancelWatching, optimisticallyCancelled, cancellingKeys, hiddenWatches, onDeleteWatch, onOpenSeenBefore, onAddFilm, onMoveToSeenBefore,
 }: Props = {}) {
   useScrollRestoration(HISTORY_ROUTE_KEY, true)
 
@@ -172,6 +174,10 @@ export function HistoryScreen({
             isMenuOpen={isMenuOpen}
             isDeleting={isDeleting}
             onToggleMenu={() => setOpenMenuKey(isMenuOpen ? null : menuKey)}
+            onMoveToSeenBefore={onMoveToSeenBefore && (() => {
+              setOpenMenuKey(null)
+              onMoveToSeenBefore(entry, count)
+            })}
             onDelete={() => {
               if (onDeleteWatch) {
                 setOpenMenuKey(null)
