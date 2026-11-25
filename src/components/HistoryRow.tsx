@@ -1,4 +1,5 @@
 import { posterUrl } from '../api/tmdb'
+import { HistoryMenu } from './HistoryMenu'
 import { IconButton } from './IconButton'
 import { Poster } from './Poster'
 import type { DatedWatch } from '../data/history'
@@ -13,7 +14,7 @@ import type { DatedWatch } from '../data/history'
  * can be open at a time, so the screen owns that, not each row.
  */
 export function HistoryRow({
-  entry, count, onOpenMovie, isMenuOpen, isDeleting, onToggleMenu, onDelete,
+  entry, count, onOpenMovie, isMenuOpen, isDeleting, onToggleMenu, onDelete, onMoveToSeenBefore,
 }: {
   entry: DatedWatch
   count: number
@@ -22,6 +23,8 @@ export function HistoryRow({
   isDeleting: boolean
   onToggleMenu: () => void
   onDelete: () => void
+  /** Omit to hide "Move to Seen before" from the menu. */
+  onMoveToSeenBefore?: () => void
 }) {
   const poster = posterUrl(entry.movie.posterPath)
 
@@ -76,22 +79,7 @@ export function HistoryRow({
       </div>
 
       {isMenuOpen && (
-        <div className="history-menu">
-          <button
-            className="danger"
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete()
-            }}
-            disabled={isDeleting}
-          >
-            {/* Trash glyph so "destructive" isn't carried by colour alone. */}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6M10 11v6M14 11v6" />
-            </svg>
-            {isDeleting ? 'Deleting…' : 'Delete this watch'}
-          </button>
-        </div>
+        <HistoryMenu onMoveToSeenBefore={onMoveToSeenBefore} onDelete={onDelete} isDeleting={isDeleting} />
       )}
     </div>
   )

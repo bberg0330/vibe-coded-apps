@@ -174,6 +174,8 @@ export function commitMessageFor(op: StoreOp): string {
       return `watch: date seen-before film (tmdb ${op.tmdbId}, ${op.watchedAt.slice(0, 10)})`
     case 'undoLastWatch':
       return `watch: undo (tmdb ${op.tmdbId})`
+    case 'moveToSeenBefore':
+      return `watch: move to seen before (tmdb ${op.tmdbId}, ${op.watchedAt.slice(0, 10)})`
     case 'setService':
       return `settings: ${op.enabled ? 'enable' : 'disable'} ${op.key}`
     case 'replaceHistory':

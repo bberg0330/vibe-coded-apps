@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   logWatch, getHistory, undoLastWatch, watchCount, exportJson, importJson,
-  markSeenBefore, unmarkSeenBefore, setSeenBeforeDate, getSeenBefore,
+  markSeenBefore, unmarkSeenBefore, setSeenBeforeDate, getSeenBefore, moveToSeenBefore,
 } from './history'
 import { resetStoreForTests, getStoreSnapshot } from './store'
 import { applyOp } from '../../vite-plugins/store-ops'
@@ -271,5 +271,56 @@ describe('seen before, on two devices at once', () => {
     const mark = { ...night, watchedAt: null }
     const s = applyOp({ ...getStoreSnapshot(), history: [night] }, { type: 'logWatch', entry: mark })
     expect(s.history).toEqual([night, mark])
+  })
+})
+
+describe('moveToSeenBefore', () => {
+  beforeEach(() => { resetStoreForTests(); stubStoreServer() })
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('turns a movie night into the same film\'s undated entry, in one write', async () => {
+    const entry = await logWatch(movie(1, 'Heat'), null)
+    await moveToSeenBefore(1, entry.watchedAt as string)
+
+    expect(getHistory()).toEqual([])
+    expect(getSeenBefore().map((e) => e.movie.tmdbId)).toEqual([1])
+    expect(getStoreSnapshot().history).toHaveLength(1)
+    expect(vi.mocked(fetch)).toHaveBeenCalledTimes(2) // the log, then the move: no second write for the move
+  })
+
+  it('moves only the named watch, leaving the others', async () => {
+    const first = await logWatch(movie(1, 'Heat'), null)
+    vi.setSystemTime(new Date('2026-09-01T20:00:00Z'))
+    const second = await logWatch(movie(1, 'Heat'), null)
+    await moveToSeenBefore(1, second.watchedAt as string)
+
+    expect(getHistory().map((e) => e.watchedAt)).toEqual([first.watchedAt])
+    expect(getSeenBefore()).toHaveLength(1)
+  })
+
+  it('is undone by giving the undated entry its original date back', async () => {
+    const entry = await logWatch(movie(1, 'Heat'), null)
+    await moveToSeenBefore(1, entry.watchedAt as string)
+    await setSeenBeforeDate(1, entry.watchedAt as string)
+
+    expect(getHistory().map((e) => e.watchedAt)).toEqual([entry.watchedAt])
+    expect(getSeenBefore()).toEqual([])
+  })
+
+  it('leaves a film that is already in Seen before alone', async () => {
+    await markSeenBefore(movie(1, 'Heat'))
+    const entry = await logWatch(movie(1, 'Heat'), null)
+    await moveToSeenBefore(1, entry.watchedAt as string)
+
+    expect(getHistory()).toHaveLength(1)
+    expect(getSeenBefore()).toHaveLength(1)
+  })
+
+  it('does nothing for a date the film was not watched on', async () => {
+    await logWatch(movie(1, 'Heat'), null)
+    await moveToSeenBefore(1, '1999-01-01T00:00:00.000Z')
+
+    expect(getHistory()).toHaveLength(1)
+    expect(getSeenBefore()).toEqual([])
   })
 })

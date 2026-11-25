@@ -1,5 +1,7 @@
 /**
- * The undo toast: one line of what just happened plus an Undo link.
+ * The undo toast: what just happened plus one action link (Undo, or the
+ * `actionLabel` the caller names, e.g. "Not tonight?"). It grows to a second
+ * line for a long film title.
  * role="status" so screen readers hear it without stealing focus. Timing and
  * the one-at-a-time rule live with the caller (App), not here; `onHold`
  * tells it to stop the clock while the pointer or keyboard focus is on the
@@ -7,9 +9,12 @@
  */
 import { useRef } from 'react'
 
-export function Toast({ message, onUndo, onHold }: {
+export function Toast({ message, onAction, onHold, actionLabel = 'Undo' }: {
   message: string
-  onUndo: () => void
+  /** What the button does: Undo, or the action `actionLabel` names. */
+  onAction: () => void
+  /** The button's label. */
+  actionLabel?: string
   onHold?: (held: boolean) => void
 }) {
   // Held while either the pointer is over it or focus is in it; released only when both have left.
@@ -26,7 +31,7 @@ export function Toast({ message, onUndo, onHold }: {
       onBlur={() => { focus.current = false; update() }}
     >
       <p className="toast-message">{message}</p>
-      <button className="link" onClick={onUndo}>Undo</button>
+      <button className="link" onClick={onAction}>{actionLabel}</button>
     </div>
   )
 }

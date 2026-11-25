@@ -15,6 +15,7 @@ export default {
   isDeleting={isDeleting}
   onToggleMenu={onToggleMenu}
   onDelete={onDelete}
+  onMoveToSeenBefore={onMoveToSeenBefore}
 />`,
   metadata: { nestable: true },
 }

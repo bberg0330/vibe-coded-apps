@@ -26,6 +26,15 @@ Figma changes never update the React code automatically. When the user shares Fi
 6. If code changed, update the matching `*.figma.ts` if props changed, run `npm test` and `npm run build`, then commit, push and open the PR ready for review (not as a draft).
 7. Run the code review (see *Code review* below) and fix its findings, then enable auto-merge on the PR (squash) so it merges once checks pass. Don't merge by hand or bypass failing checks; if a check fails, fix it and push.
 
+### Code Connect
+
+Connect code whenever it's possible, for new components and for edits to existing ones. A Figma component that has a React counterpart gets a sibling `*.figma.ts` mapping its props, variants and states.
+
+- **New component:** once its proposal is merged into 02 Components (that is when its `node-id` exists), add the mapping in the same PR as the code.
+- **Edited component:** when its props, variants or states change, in Figma or in code, update the mapping in the same PR. A new prop with no mapping is a gap, not a detail.
+- **Check it landed:** the *Figma Code Connect* workflow republishes on merge to `main`. Afterwards call `get_code_connect_map` on a node (an instance with the new prop turned on, for a prop change) and confirm the snippet shows it.
+- **Not possible:** Figma frames (screens, sheets, panels) aren't components, so they get no mapping. A Figma component built inline in code has no React counterpart; say so in the PR and ask before extracting one just to connect it.
+
 ### Features added, edited or removed in Figma
 
 Visual props aren't the only thing that changes. A button, field, state or whole interaction can be added or dropped in Figma, and a size/colour comparison misses it. So in step 2, also diff the *structure*:
