@@ -39,11 +39,27 @@ import { getActiveProfileId, setActiveProfileId } from './data/activeProfile'
 import { hashFor, parseHash, rehydrate, RehydrationError } from './router'
 import type { Movie, WatchEntry, WatchingEntry, WatchlistEntry, Screen } from './types'
 
-/** The tab a screen belongs to: Cast and Filmography are reached from Search. */
-function tabFor(screen: Screen): Tab {
+/** The tab a screen belongs to. Cast and Filmography are drill-downs reached from any tab, so none is highlighted. */
+function tabFor(screen: Screen): Tab | null {
+  if (screen.kind === 'cast' || screen.kind === 'filmography') return null
   if (screen.kind === 'rewind' || screen.kind === 'rewindYear') return 'rewind'
   if (screen.kind === 'seenBefore' || screen.kind === 'logFilm') return 'history'
   return screen.kind === 'history' || screen.kind === 'watchlist' ? screen.kind : 'search'
+}
+
+/** What the Back button calls the screen it returns to. */
+function backLabelFor(screen: Screen): string {
+  switch (screen.kind) {
+    case 'search': return 'Search'
+    case 'watchlist': return 'Watchlist'
+    case 'history': return 'History'
+    case 'rewind': return 'Rewind'
+    case 'rewindYear': return String(screen.year)
+    case 'seenBefore': return 'Seen before'
+    case 'logFilm': return 'Log a film'
+    case 'cast': return screen.movie.title
+    case 'filmography': return screen.actor.name
+  }
 }
 
 /** A Rewind film as the Movie the rest of the app stores (watchlist, history, Cast screen). */
@@ -106,6 +122,30 @@ export default function App() {
   }
 
   const goBack = () => history.back()
+
+  // A tab tap resets the stack to [Search, that tab] so Back never replays
+  // earlier tabs and home is always one Back away. The browser can't drop
+  // entries, so from deeper than the first screen we step back to entry 0
+  // (`pendingTab` is picked up by the popstate that lands there) and push the
+  // tab on top of it, which also discards the entries ahead.
+  const pendingTab = useRef<Tab | null>(null)
+  const goToTabRoot = (tab: Tab) => {
+    const stack: Screen[] = tab === 'search' ? [{ kind: 'search' }] : [{ kind: 'search' }, { kind: tab }]
+    setEntries(stack)
+    setPointer(stack.length - 1)
+    setLocationError(null)
+    history.replaceState({ pointer: 0 }, '', hashFor(stack[0]))
+    if (stack.length > 1) history.pushState({ pointer: 1 }, '', hashFor(stack[1]))
+  }
+  const selectTab = (tab: Tab) => {
+    setAlertsOpen(false)
+    if (entries[pointer].kind === tab) return // already on that tab's first screen
+    if (pointer === 0) goToTabRoot(tab)
+    else {
+      pendingTab.current = tab
+      history.go(-pointer)
+    }
+  }
 
   // A counter forces re-render after a history write, since history lives outside React state.
   const [historyVersion, setHistoryVersion] = useState(0)
@@ -257,6 +297,13 @@ export default function App() {
         // closing one must not actually move through history, so re-assert
         // the current entry to cancel the browser's own back navigation.
         history.pushState({ pointer }, '', hashFor(entries[pointer]))
+        return
+      }
+
+      if (pendingTab.current) {
+        const tab = pendingTab.current
+        pendingTab.current = null
+        goToTabRoot(tab)
         return
       }
 
@@ -650,6 +697,7 @@ export default function App() {
     <div className="app">
       <TopBar
         showBack={pointer > 0}
+        backLabel={pointer > 0 ? backLabelFor(entries[pointer - 1]) : undefined}
         onBack={goBack}
         profile={PROFILES.find((p) => p.id === activeProfileId) ?? PROFILES[0]}
         onSwitchProfile={() => setProfileSheetOpen(true)}
@@ -780,7 +828,7 @@ export default function App() {
       </div>
       <TabBar
         current={tabFor(current)}
-        onSelect={(tab) => { setAlertsOpen(false); navigate({ kind: tab }) }}
+        onSelect={selectTab}
       />
       {current.kind === 'seenBefore' && (
         <SeenBeforeScreen

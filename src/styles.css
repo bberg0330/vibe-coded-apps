@@ -191,8 +191,11 @@ body {
 .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .link { background: none; border: 0; color: var(--accent-text); font: inherit; cursor: pointer; padding: 8px; }
 .topbar .link { white-space: nowrap; }
-/* Figma sets "← Back" flush left. */
+/* Back: flush left, a 44pt-tall target, named for where it goes. The name truncates at ~45% of the bar so the gear and avatar never move. */
 .topbar > .link:first-child { padding-left: 0; }
+.topbar .back-link { display: flex; align-items: center; min-height: 44px; max-width: 45%; font-size: 17px; }
+.topbar .back-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.topbar .back-link:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 0; border-radius: 10px; }
 /* 🔔 ⚙ and the profile avatar: 44x44 targets, no gap, flush right (Figma: TopBar actions). */
 .topbar-actions { display: flex; }
 .icon-btn-bare {
