@@ -22,6 +22,21 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('SettingsSheet - What\u2019s new row', () => {
+  it('shows the release date and calls the handler, and is left out when nothing handles it', () => {
+    const onWhatsNew = vi.fn()
+    const { unmount } = render(<SettingsSheet onClose={() => {}} onWhatsNew={onWhatsNew} />)
+    const row = screen.getByRole('button', { name: /what.s new/i })
+    expect(row).toHaveTextContent('25 Nov')
+    fireEvent.click(row)
+    expect(onWhatsNew).toHaveBeenCalledTimes(1)
+    unmount()
+
+    render(<SettingsSheet onClose={() => {}} />)
+    expect(screen.queryByRole('button', { name: /what.s new/i })).not.toBeInTheDocument()
+  })
+})
+
 describe('SettingsSheet', () => {
   it('clears a previous error once a later toggle succeeds', async () => {
     let shouldFail = true

@@ -20,11 +20,12 @@ catchphrase in the app or the docs.
    what's new", "Coming soon".
 2. **One exclamation mark per screen, at most.** Enthusiasm is the tone, not
    the punctuation.
-3. **One movie pun or aside per screen, at most.** Pick the best one.
+3. **One movie pun or aside per screen, at most.** Pick the best one. A short
+   interjection like "Ding!" is the exclamation (rule 2), not an aside.
 4. **Say what changed, then what to do.** The sentence is still an
    instruction: "Tap ✓ and it's tonight's feature."
-5. **Short.** One sentence a row, four rows a release, nothing that wraps past
-   two lines on a phone.
+5. **Short.** One or two short sentences a row (the second can be a question),
+   four rows a release, nothing that wraps past two lines on a phone.
 6. **Warm, never cutesy.** No baby talk, no ALL CAPS, no emoji in copy. The
    household is the audience, not an audience of strangers.
 7. **Plain beats funny** when they clash, and always in errors.

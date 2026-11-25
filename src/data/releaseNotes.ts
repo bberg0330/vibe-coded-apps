@@ -1,13 +1,15 @@
 import type { IconName } from '../components/icons'
 
 /** One line in the What's new sheet: a glyph or icon, a title and one sentence. */
-export interface ReleaseRow {
-  /** One of the app's line icons; use `glyph` for a single character like ✓. */
-  icon?: IconName
-  glyph?: string
+export type ReleaseRow = {
   title: string
   body: string
-}
+} & (
+  /** One of the app's line icons... */
+  | { icon: IconName; glyph?: never }
+  /** ...or a single character like ✓. */
+  | { glyph: string; icon?: never }
+)
 
 /** One release's notes. Written by hand, in the Movie Night voice (docs/VOICE.md), at most four rows. */
 export interface ReleaseNote {

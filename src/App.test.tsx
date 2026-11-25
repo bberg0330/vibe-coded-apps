@@ -1254,6 +1254,15 @@ describe('App - What\u2019s new', () => {
     expect(window.location.hash).toBe('#/')
   })
 
+  it('returns focus to the Settings button when What\u2019s new, opened from Settings, closes', async () => {
+    await renderApp()
+    await userEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    await userEvent.click(screen.getByRole('button', { name: /what.s new/i }))
+    await screen.findByRole('dialog', { name: release.title })
+    await userEvent.click(screen.getByRole('button', { name: 'Got it' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Settings' })).toHaveFocus())
+  })
+
   it('waits for home: a cold-loaded film page does not get it until Search is shown', async () => {
     seedHousehold()
     window.location.hash = '#/history'
