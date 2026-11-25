@@ -1,5 +1,5 @@
 import type { Plugin } from 'vite'
-import { applyOp } from './store-ops.ts'
+import { applyOp, SeedRejectedError } from './store-ops.ts'
 import { readStore, writeStoreAtomic, commitStore, commitMessageFor } from './store-file.ts'
 import type { Store, StoreOp } from '../src/types.ts'
 
@@ -63,7 +63,8 @@ export function storeApi(dir: string = DEFAULT_DIR): Plugin {
           res.statusCode = 405
           res.end(JSON.stringify({ error: 'Method not allowed' }))
         } catch (err) {
-          res.statusCode = 400
+          // A seed over existing history is a conflict, not a bad request (same as api/store.ts).
+          res.statusCode = err instanceof SeedRejectedError ? 409 : 400
           res.end(JSON.stringify({
             error: err instanceof Error ? err.message : 'Store operation failed',
           }))

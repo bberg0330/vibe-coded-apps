@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { handleOp } from './store-api'
+import { handleOp, storeApi } from './store-api'
 import { readStore } from './store-file'
 import { SeedRejectedError } from './store-ops'
 import type { WatchEntry } from '../src/types'
@@ -93,5 +93,30 @@ describe('handleOp', () => {
 
     const store = await handleOp(dir, { type: 'logWatch', entry: entry(2, 'Second') })
     expect(store.history).toHaveLength(2)
+  })
+})
+
+describe('storeApi middleware: seed over existing history', () => {
+  it('answers 409, not 400', async () => {
+    await handleOp(dir, { type: 'logWatch', entry: entry(1, 'Real') })
+
+    let handler: (req: unknown, res: unknown) => Promise<void> = async () => {}
+    const plugin = storeApi(dir)
+    ;(plugin.configureServer as (s: unknown) => void)({
+      middlewares: { use: (_path: string, fn: typeof handler) => { handler = fn } },
+    })
+
+    const body = JSON.stringify({ type: 'seed', history: [], enabledServices: ['netflix'] })
+    const req = {
+      method: 'POST',
+      on: (event: string, cb: (chunk?: unknown) => void) => {
+        if (event === 'data') cb(Buffer.from(body))
+        if (event === 'end') cb()
+      },
+    }
+    const res = { statusCode: 200, setHeader: () => {}, end: () => {} }
+    await handler(req, res)
+
+    expect(res.statusCode).toBe(409)
   })
 })
