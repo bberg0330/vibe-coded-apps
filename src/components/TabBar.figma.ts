@@ -4,16 +4,18 @@
 
 import figma from 'figma'
 
-// Figma's Current variant is the active tab; Cast and Filmography use Search.
+// Figma's Current variant is the active tab; None marks no tab (Cast and
+// Filmography are drill-downs, so every tab stays tappable).
 const current = figma.selectedInstance.getEnum('Current', {
   Search: "'search'",
   Watchlist: "'watchlist'",
   History: "'history'",
+  None: 'null',
 })
 
 export default {
   id: 'TabBar',
   imports: ["import { TabBar } from './TabBar'"],
-  example: figma.code`<TabBar current={${current}} onSelect={(tab) => navigate({ kind: tab })} />`,
+  example: figma.code`<TabBar current={${current}} onSelect={selectTab} />`,
   metadata: { nestable: true },
 }

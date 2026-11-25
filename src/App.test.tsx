@@ -238,7 +238,7 @@ describe('App - URL navigation', () => {
 
     expect(await screen.findByRole('button', { name: /mark rushmore as watched/i }))
       .toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /← Back/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /back to search/i })).toBeInTheDocument()
   })
 
   it('falls back to search with a message when rehydration fails', async () => {
@@ -265,7 +265,7 @@ describe('App - URL navigation', () => {
     await screen.findByRole('button', { name: /mark rushmore as watched/i })
 
     const fetchCallsBeforeBack = (fetch as ReturnType<typeof vi.fn>).mock.calls.length
-    await userEvent.click(screen.getByRole('button', { name: /← Back/i }))
+    await userEvent.click(screen.getByRole('button', { name: /back to search/i }))
 
     expect(await screen.findByRole('searchbox')).toBeInTheDocument()
     // Going back to a screen already held in memory must not hit the network again.
@@ -676,6 +676,85 @@ describe('App - undo toast', () => {
 
     await waitFor(() => expect(getHistory().map((e) => e.movie.title)).toEqual(['Ronin']))
     expect(screen.getByRole('status')).toHaveTextContent('Deleted your Ronin watch')
+  })
+})
+
+describe('App - faster navigation', () => {
+  const tabs = () => screen.getByRole('navigation', { name: 'Main' })
+
+  it('names where Back goes, on a tab root and on a drill-down', async () => {
+    await renderApp()
+    expect(screen.queryByRole('button', { name: /^back to/i })).not.toBeInTheDocument() // Search is home
+
+    await userEvent.click(within(tabs()).getByRole('button', { name: 'Watchlist' }))
+    await screen.findByText(/Nothing saved yet/)
+    expect(screen.getByRole('button', { name: 'Back to Search' })).toHaveTextContent('‹ Search')
+  })
+
+  it('tab taps reset history, so Back from a tab goes home and never replays earlier tabs', async () => {
+    await renderApp()
+    await userEvent.click(within(tabs()).getByRole('button', { name: 'Watchlist' }))
+    await screen.findByText(/Nothing saved yet/)
+    await userEvent.click(within(tabs()).getByRole('button', { name: 'History' }))
+    await userEvent.click(within(tabs()).getByRole('button', { name: 'Rewind' }))
+    expect(await screen.findByRole('heading', { name: 'Rewind' })).toBeInTheDocument()
+    expect(window.location.hash).toBe('#/rewind')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back to Search' }))
+    expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+    expect(window.location.hash).toBe('#/')
+  })
+
+  it('highlights no tab on a film page, and any tab is one tap from there', async () => {
+    const movieDetails = { id: 1585, title: 'Rushmore', release_date: '1998-10-09', poster_path: null, popularity: 18 }
+    window.location.hash = '#/movie/rushmore-1585'
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => {
+      if (String(url).startsWith('/api/store')) return { ok: true, status: 200, json: async () => getStoreSnapshot() }
+      if (String(url).includes('/movie/1585')) return { ok: true, status: 200, json: async () => movieDetails }
+      return { ok: true, status: 200, json: async () => ({ results: [] }) }
+    }))
+    setActiveProfileId(PROFILES[0].id)
+    render(<App />)
+    await screen.findByRole('button', { name: /mark rushmore as watched/i })
+    expect(within(tabs()).queryByRole('button', { current: 'page' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to Search' })).toBeInTheDocument()
+
+    await userEvent.click(within(tabs()).getByRole('button', { name: 'Search' }))
+    expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+    expect(window.location.hash).toBe('#/')
+  })
+
+  it('still resets the stack when the browser cannot step back, and leaves no stale tab to hijack a later Back', async () => {
+    window.location.hash = '#/history/seen-before'
+    setActiveProfileId(PROFILES[0].id)
+    render(<App />)
+    await screen.findByRole('button', { name: 'Back to History' })
+    const go = vi.spyOn(window.history, 'go').mockImplementation(() => {}) // history.go does nothing: no popstate arrives
+    try {
+      await userEvent.click(within(tabs()).getByRole('button', { name: 'Watchlist' }))
+      await screen.findByText(/Nothing saved yet/)
+      expect(go).toHaveBeenCalled()
+      expect(window.location.hash).toBe('#/watchlist')
+      // A later Back is an ordinary one-step Back, not another tab reset.
+      window.dispatchEvent(new PopStateEvent('popstate', { state: { pointer: 0 } }))
+      expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+    } finally { go.mockRestore() }
+  })
+
+  it('tapping the current tab returns to its first screen from deeper in, and does nothing on it', async () => {
+    window.location.hash = '#/history/seen-before'
+    setActiveProfileId(PROFILES[0].id)
+    render(<App />)
+    await waitFor(() => expect(window.location.hash).toBe('#/history/seen-before'))
+    expect(await screen.findByRole('button', { name: 'Back to History' })).toBeInTheDocument()
+
+    await userEvent.click(within(tabs()).getByRole('button', { name: 'History' }))
+    await waitFor(() => expect(window.location.hash).toBe('#/history'))
+    expect(screen.getByRole('button', { name: 'Back to Search' })).toBeInTheDocument()
+
+    await userEvent.click(within(tabs()).getByRole('button', { name: 'History' })) // first screen: nothing
+    expect(window.location.hash).toBe('#/history')
+    expect(screen.getByRole('button', { name: 'Back to Search' })).toBeInTheDocument()
   })
 })
 
