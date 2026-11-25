@@ -121,11 +121,18 @@ IMDb id and stored in Supabase's `movie_night_scores`:
   with 2025 and moving back a year each time one is exhausted, down to 1950.
   Progress is kept in `movie_night_backfill`; delete its row to start over.
 - **Rewind lists**, at the end of the same run, using TMDB only: for this
-  year and up to 5 past years the backfill has passed, once every film from
-  that year with 300+ TMDB votes has an OMDb answer, the year's top 50 by
-  TMDB rating is saved to `movie_night_rewind_years`. Past years are saved
-  once; this year is rebuilt weekly (`refresh_after`). Delete a year's row
-  to rebuild it.
+  year and up to 5 past years the backfill has passed, once every feature
+  film (60+ minutes) from that year with 300+ TMDB votes has an OMDb answer,
+  the year's top 50 is saved to `movie_night_rewind_years`. The order is a
+  blend of audience score (TMDB and IMDb, shrunk towards a typical score when
+  votes are few), critic score and how many people voted
+  (`rewindScore` in `api/_lib/rewind.ts`). A year is the one in TMDB's
+  primary release date. Past years are saved once; this year is rebuilt weekly
+  (`refresh_after`). Each row records the ranking that built it
+  (`ranking_version`): after changing the ranking, bump
+  `REWIND_RANKING_VERSION` and the nightly run rebuilds older years, five a
+  night, serving the old list until the new one is saved. Delete a year's row
+  to rebuild it from scratch.
 - **`/api/rewind`** serves those lists to the app (`?year=2019` for one
   year; 404 `{ locked: true }` until a year is saved). In local dev, with no
   Supabase, it ranks this year and the five before it live from TMDB.
@@ -143,4 +150,5 @@ has no public URL, so it needs no `CRON_SECRET`. Apply
 `supabase/migrations/20261124000000_rewind_years.sql` and
 `supabase/migrations/20261124010000_watchlist_alerts.sql` and
 `supabase/migrations/20261124020000_clear_alerts_function.sql` and
-`supabase/migrations/20261124030000_rewind_former_ids.sql` before deploying.
+`supabase/migrations/20261124030000_rewind_former_ids.sql` and
+`supabase/migrations/20261125000000_rewind_ranking_version.sql` before deploying.

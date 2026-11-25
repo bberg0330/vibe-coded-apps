@@ -3,7 +3,7 @@
 // Supabase env vars it returns undefined and lookups just skip the cache.
 import { createClient } from '@supabase/supabase-js'
 import type { BackfillStore, ScoreCache } from './ratings'
-import type { RewindReader, RewindStore } from './rewind'
+import { REWIND_RANKING_VERSION, type RewindReader, type RewindStore } from './rewind.js'
 import type { AlertStore } from './alerts'
 import type { ScoreData } from '../../src/data/scores'
 
@@ -115,9 +115,16 @@ export function supabaseRewindStore(): RewindStore | undefined {
 
   return {
     async saved() {
-      const { data, error } = await supabase.from('movie_night_rewind_years').select('year, refresh_after')
+      const { data, error } = await supabase.from('movie_night_rewind_years').select('year, refresh_after, ranking_version')
       if (error) throw error
-      return new Map((data ?? []).map((row) => [Number(row.year), row.refresh_after ? new Date(row.refresh_after) : null]))
+      return new Map((data ?? []).map((row) => {
+        // A row from before the column existed, or an unreadable value, counts as the original ranking.
+        const version = Number(row.ranking_version ?? 1)
+        return [
+          Number(row.year),
+          { refreshAfter: row.refresh_after ? new Date(row.refresh_after) : null, version: Number.isFinite(version) ? version : 1 },
+        ]
+      }))
     },
     async save(year, films, computedAt, refreshAfter) {
       // Carry forward every film that was ever in this year's list but isn't now,
@@ -131,17 +138,18 @@ export function supabaseRewindStore(): RewindStore | undefined {
       const former = [...new Set(before)].filter((id) => !now.has(id))
       const { error } = await supabase.from('movie_night_rewind_years').upsert({
         year, films, former_ids: former, computed_at: computedAt.toISOString(), refresh_after: refreshAfter?.toISOString() ?? null,
+        ranking_version: REWIND_RANKING_VERSION,
       })
       if (error) throw error
     },
-    async checked(tmdbIds) {
-      const found = new Set<number>()
+    async scores(tmdbIds) {
+      const found = new Map<number, ScoreData>()
       // Chunked: a year can have a few hundred rankable films, too many for one URL.
       for (let i = 0; i < tmdbIds.length; i += 200) {
         const { data, error } = await supabase
-          .from(TABLE).select('tmdb_id').in('tmdb_id', tmdbIds.slice(i, i + 200)).not('fetched_at', 'is', null)
+          .from(TABLE).select('tmdb_id, critic, audience').in('tmdb_id', tmdbIds.slice(i, i + 200)).not('fetched_at', 'is', null)
         if (error) throw error
-        for (const row of data ?? []) found.add(Number(row.tmdb_id))
+        for (const row of data ?? []) found.set(Number(row.tmdb_id), { critic: row.critic, audience: row.audience })
       }
       return found
     },

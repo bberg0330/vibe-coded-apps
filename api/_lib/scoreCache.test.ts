@@ -31,6 +31,8 @@ const {
   RETRY_EMPTY_AFTER_DAYS, REFRESH_RECENT_AFTER_DAYS,
 } = await import('./scoreCache')
 
+const { REWIND_RANKING_VERSION } = await import('./rewind')
+
 const NOW = new Date('2026-06-15T12:00:00.000Z')
 const callsTo = (method: string) => calls.filter((c) => c.method === method)
 
@@ -137,7 +139,8 @@ describe('Rewind store', () => {
     const row = callsTo('upsert')[0].args[0] as Record<string, unknown>
     // 1 dropped out now; 9 was already former; 2 is in the list again so it is not "former".
     expect(row.former_ids).toEqual([1, 9])
-    expect(row).toMatchObject({ year: 2020, refresh_after: null, computed_at: NOW.toISOString() })
+    // Stamped with the ranking that built it, so an older list can be rebuilt later.
+    expect(row).toMatchObject({ year: 2020, refresh_after: null, computed_at: NOW.toISOString(), ranking_version: REWIND_RANKING_VERSION })
   })
 
   it('save: a first save has nothing to carry forward', async () => {
@@ -148,19 +151,32 @@ describe('Rewind store', () => {
     expect(row.refresh_after).toBe('2026-07-01T00:00:00.000Z')
   })
 
-  it('checked: asks in chunks of 200 so a big year does not overflow the URL', async () => {
+  it('scores: asks in chunks of 200 so a big year does not overflow the URL, and returns what OMDb said', async () => {
     const ids = Array.from({ length: 450 }, (_, i) => i + 1)
-    results = [{ data: [{ tmdb_id: 1 }] }, { data: [{ tmdb_id: 201 }] }, { data: [] }]
-    const found = await supabaseRewindStore()!.checked(ids)
+    results = [{ data: [{ tmdb_id: 1, critic: 80, audience: 70 }] }, { data: [{ tmdb_id: 201, critic: null, audience: null }] }, { data: [] }]
+    const found = await supabaseRewindStore()!.scores(ids)
     expect(callsTo('in').map((c) => (c.args[1] as number[]).length)).toEqual([200, 200, 50])
-    expect([...found].sort()).toEqual([1, 201])
+    // Only films OMDb has answered; a "no rating" answer is still an answer.
+    expect(callsTo('not')[0].args).toEqual(['fetched_at', 'is', null])
+    expect([...found.keys()].sort()).toEqual([1, 201])
+    expect(found.get(1)).toEqual({ critic: 80, audience: 70 })
+    expect(found.get(201)).toEqual({ critic: null, audience: null })
   })
 
-  it('saved: maps each year to its refresh date, or null when it never expires', async () => {
-    results = [{ data: [{ year: 2020, refresh_after: '2026-07-01T00:00:00.000Z' }, { year: 2019, refresh_after: null }] }]
+  it('saved: maps each year to its refresh date (null when it never expires) and the ranking that built it', async () => {
+    results = [{ data: [
+      { year: 2020, refresh_after: '2026-07-01T00:00:00.000Z', ranking_version: 2 },
+      { year: 2019, refresh_after: null, ranking_version: 1 },
+      // A row from before the column existed counts as the original ranking.
+      { year: 2018, refresh_after: null },
+      // So does a value we can't read: it must not look newer than every ranking and never be rebuilt.
+      { year: 2017, refresh_after: null, ranking_version: 'x' },
+    ] }]
     const saved = await supabaseRewindStore()!.saved()
-    expect(saved.get(2020)).toEqual(new Date('2026-07-01T00:00:00.000Z'))
-    expect(saved.get(2019)).toBeNull()
+    expect(saved.get(2020)).toEqual({ refreshAfter: new Date('2026-07-01T00:00:00.000Z'), version: 2 })
+    expect(saved.get(2019)).toEqual({ refreshAfter: null, version: 1 })
+    expect(saved.get(2018)).toEqual({ refreshAfter: null, version: 1 })
+    expect(saved.get(2017)).toEqual({ refreshAfter: null, version: 1 })
   })
 })
 
