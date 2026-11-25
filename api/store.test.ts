@@ -288,3 +288,39 @@ describe('POST: seen before', () => {
     expect(history).toEqual([night])
   })
 })
+
+describe('POST: seed', () => {
+  const seedOp: StoreOp = { type: 'seed', history: [], enabledServices: ['netflix'] }
+
+  it('rejects seeding a store that already has history with 409 and writes nothing', async () => {
+    const existing = {
+      watchedAt: '2026-01-01T00:00:00.000Z',
+      movie: { tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null, tomatometer: 90, popcornmeter: null },
+      discoveredVia: null,
+    }
+    const onUpdate = vi.fn()
+    mockFrom.mockImplementationOnce(() => makeBuilder({ data: { ...baseRow, history: [existing] }, error: null }, onUpdate))
+
+    const res = makeRes()
+    await handler(postReq({ ...seedOp, history: [{ ...existing, watchedAt: null }] } as StoreOp) as never, res as never)
+
+    expect(res.statusCode).toBe(409)
+    expect(onUpdate).not.toHaveBeenCalled()
+  })
+
+  it('seeds an empty store and sanitizes enabledServices', async () => {
+    let updateArg: Record<string, unknown> | undefined
+    mockFrom
+      .mockImplementationOnce(() => makeBuilder({ data: baseRow, error: null }))
+      .mockImplementationOnce(() =>
+        makeBuilder(() => ({ data: { ...baseRow, ...updateArg }, error: null }), (arg) => { updateArg = arg }),
+      )
+
+    const res = makeRes()
+    await handler(postReq({ ...seedOp, enabledServices: ['retired-service'] } as unknown as StoreOp) as never, res as never)
+
+    expect(res.statusCode).toBe(200)
+    expect((updateArg?.enabled_services as string[]).length).toBeGreaterThan(1)
+    expect(updateArg?.enabled_services).not.toContain('retired-service')
+  })
+})
