@@ -16,7 +16,11 @@ Figma file: `ajsVg5LjRT7Y5D346WMif3` (Movie Night — UX/UI Baseline). Component
 
 Review designs before changing UI code. Unless the user has provided Figma designs for the change, draft the proposed UI in Figma first (on a new "Proposal — …" page, leaving existing components untouched), share the link, and wait for approval before writing or merging code. Behaviour-only changes with no visual difference don't need this. If UI code was already written without a design, set the PR to draft and design it in Figma before it goes further.
 
-**Critique every proposal before sharing it.** Once the "Proposal — …" page is drafted, run `design:design-critique` on it (pass the page's link, with its `node-id`) before asking for approval. Fix what it finds, or say why a finding doesn't apply, and give the user the link together with a short summary of the critique. Run it again on the revised page whenever the proposal changes materially (for example after the user's feedback or after applying an earlier critique's recommendations), so the version that is approved is the version that was critiqued. A proposal that is only a small tweak to an approved one (a copy change, a one-state fix) doesn't need a fresh critique.
+**Always run the full critique before asking for approval.** Once the "Proposal — …" page is drafted, run `design:design-critique` on it (pass the page's link, with its `node-id`) and complete its whole output template: overall impression, usability, visual hierarchy, consistency, accessibility, what works well and priority recommendations. Don't swap it for a prose summary.
+
+- **Measure, don't eyeball.** Read the real values with `get_design_context` / `get_metadata` or the resolved node fills. Report contrast ratios computed from them (WCAG: 4.5:1 for text under 24px, 3:1 for large text and UI shapes) and tap-target sizes in points.
+- **Act on it.** Fix what it finds, or say why a finding doesn't apply. Give the user the link with the critique's findings tables and priorities, not only a one-line verdict.
+- **Critique the final version, every time.** Run it again whenever the proposal changes after a critique: after the user's feedback, after applying a critique's recommendations, and for copy changes or one-state fixes too. There is no "small tweak" exemption. The version that is approved must be the version that was critiqued, and the reply that asks for approval must say which critique run it follows.
 
 Once a proposal is approved, move it into the evergreen pages (02 Components, 03 Screens, 04 Flows), then delete the "Proposal — …" page. Before deleting, check that no instance on those pages still uses a component that lives on the proposal page.
 
@@ -66,7 +70,7 @@ For debugging (something broken, throwing, failing or slow), use `mattpocock-ski
 
 For code review, use `mattpocock-skills:code-review` rather than the built-in `/code-review`.
 
-For design proposals, use `design:design-critique` (see *Design first*).
+For design proposals, use `design:design-critique`, full template, on every version before approval (see *Design first*).
 
 ## Code review
 
