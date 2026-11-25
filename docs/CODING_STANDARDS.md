@@ -20,6 +20,9 @@ don't flag it as a smell.
 - **Must** pass storage in as an interface (`ScoreCache`, `RewindStore`,
   `AlertStore`, …) with a Supabase implementation in `api/_lib/scoreCache.ts`,
   so logic is tested against an in-memory fake.
+- **Must** keep every file directly in `api/` a real route: Vercel turns each one
+  into a serverless function and the Hobby plan allows 12. Tests and helpers
+  go in `api/_lib/` (ignored by Vercel) or `src/`.
 - **Prefer** one shared type over parallel copies; put types used by both
   sides in `src/types.ts`.
 

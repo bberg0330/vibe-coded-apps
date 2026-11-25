@@ -13,13 +13,13 @@ vi.mock('@supabase/supabase-js', () => ({ createClient: () => ({ from: mockFrom 
 const fetchMock = vi.fn()
 
 const routes = {
-  tmdb: (await import('./tmdb')).default,
-  omdb: (await import('./omdb')).default,
-  recommendations: (await import('./recommendations')).default,
-  rewind: (await import('./rewind')).default,
-  alerts: (await import('./alerts')).default,
-  scores: (await import('./scores')).default,
-  store: (await import('./store')).default,
+  tmdb: (await import('../tmdb')).default,
+  omdb: (await import('../omdb')).default,
+  recommendations: (await import('../recommendations')).default,
+  rewind: (await import('../rewind')).default,
+  alerts: (await import('../alerts')).default,
+  scores: (await import('../scores')).default,
+  store: (await import('../store')).default,
 }
 
 function fakeRes() {
