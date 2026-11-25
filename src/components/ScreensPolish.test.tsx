@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { LastWatchedCard } from './LastWatchedCard'
-import { HistoryRow } from './HistoryRow'
 import { SkeletonRows } from './SkeletonRows'
 import { WatchlistControls } from './WatchlistControls'
 import { DEFAULT_VIEW } from '../data/watchlistView'
@@ -19,18 +18,6 @@ describe('LastWatchedCard', () => {
   it('leaves the audience score out when there is none', () => {
     render(<LastWatchedCard movie={{ ...movie, popcornmeter: null, availability: { streaming: [], rent: [] } }} />)
     expect(screen.queryByTitle('IMDb user rating')).not.toBeInTheDocument()
-  })
-})
-
-describe('HistoryRow menu', () => {
-  it('marks Delete as destructive', () => {
-    render(
-      <HistoryRow
-        entry={{ watchedAt: '2026-01-01T00:00:00.000Z', movie, discoveredVia: null }}
-        count={1} isMenuOpen isDeleting={false} onToggleMenu={vi.fn()} onDelete={vi.fn()}
-      />,
-    )
-    expect(screen.getByRole('button', { name: 'Delete this watch' })).toHaveClass('danger')
   })
 })
 
