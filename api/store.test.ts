@@ -10,7 +10,7 @@
 // (top-level `await import(...)`) rather than a static ESM import, which
 // would be hoisted above the env-var assignments.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { StoreOp } from '../src/types'
+import type { Store, StoreOp, WatchEntry, WatchlistEntry } from '../src/types'
 
 process.env.SUPABASE_URL = 'https://example.supabase.co'
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key'
@@ -22,7 +22,8 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({ from: mockFrom }),
 }))
 
-const { default: handler } = await import('./store')
+const { default: handler, applyOp: apiApplyOp } = await import('./store')
+const { applyOp: sharedApplyOp } = await import('../src/data/storeReducer')
 const { issueToken } = await import('./_lib/session')
 const AUTH = { authorization: `Bearer ${issueToken('test-session-secret')}` }
 
@@ -305,4 +306,57 @@ describe('POST: seen before', () => {
     expect((await post({ type: 'moveToSeenBefore', tmdbId: 1, watchedAt: night.watchedAt }, both)).history).toEqual(both)
     expect((await post({ type: 'moveToSeenBefore', tmdbId: 1, watchedAt: '1999-01-01T00:00:00.000Z' }, [night])).history).toEqual([night])
   })
+})
+
+// api/store.ts keeps its own copy of the reducer; src/data/storeReducer.ts is the
+// one the dev server uses. They must agree, so each op runs through both.
+// Keyed by op type: adding a StoreOp without a case here fails `tsc`.
+describe('applyOp parity with src/data/storeReducer.ts', () => {
+  const watch = (tmdbId: number, watchedAt: string | null): WatchEntry => ({
+    watchedAt, discoveredVia: null,
+    movie: { tmdbId, title: `Film ${tmdbId}`, year: 2000, posterPath: null, tomatometer: null, popcornmeter: null },
+  })
+  const listed = (tmdbId: number): WatchlistEntry => ({
+    addedAt: '2026-01-01T00:00:00.000Z', profileId: 'brian', movie: watch(tmdbId, null).movie,
+  })
+  const start: Store = {
+    version: 1,
+    history: [watch(1, '2026-01-01T00:00:00.000Z'), watch(1, null), watch(2, '2026-02-01T00:00:00.000Z'), watch(3, '2026-03-01T00:00:00.000Z')],
+    enabledServices: ['netflix'],
+    nowWatching: [{ profileId: 'brian', movie: watch(5, null).movie, startedAt: '2026-01-01T00:00:00.000Z', discoveredVia: null }],
+    watchlist: [listed(4), listed(7)],
+  }
+
+  // `seed` is left out on purpose: the server copy doesn't yet reject a non-empty
+  // store or sanitize services the way the shared reducer does.
+  const cases: Record<Exclude<StoreOp['type'], 'seed'>, StoreOp[]> = {
+    logWatch: [
+      { type: 'logWatch', entry: watch(9, '2026-04-01T00:00:00.000Z') },
+      { type: 'logWatch', entry: watch(4, '2026-04-01T00:00:00.000Z') }, // also leaves the watchlist
+      { type: 'logWatch', entry: watch(1, null) }, // second undated mark: no-op
+    ],
+    undoLastWatch: [{ type: 'undoLastWatch', tmdbId: 1 }, { type: 'undoLastWatch', tmdbId: 99 }],
+    deleteWatch: [
+      { type: 'deleteWatch', tmdbId: 1, watchedAt: null },
+      { type: 'deleteWatch', tmdbId: 2, watchedAt: '2026-02-01T00:00:00.000Z' },
+      { type: 'deleteWatch', tmdbId: 2, watchedAt: 'nope' },
+    ],
+    setWatchDate: [{ type: 'setWatchDate', tmdbId: 1, watchedAt: '2026-05-01T00:00:00.000Z' }, { type: 'setWatchDate', tmdbId: 2, watchedAt: '2026-05-01T00:00:00.000Z' }],
+    moveToSeenBefore: [
+      { type: 'moveToSeenBefore', tmdbId: 2, watchedAt: '2026-02-01T00:00:00.000Z' },
+      { type: 'moveToSeenBefore', tmdbId: 1, watchedAt: '2026-01-01T00:00:00.000Z' }, // already seen before: no-op
+    ],
+    setService: [{ type: 'setService', key: 'peacock', enabled: true }, { type: 'setService', key: 'netflix', enabled: false }, { type: 'setService', key: 'netflix', enabled: true }],
+    replaceHistory: [{ type: 'replaceHistory', entries: [watch(8, null)] }],
+    cancelWatching: [{ type: 'cancelWatching', profileId: 'brian', tmdbId: 5 }, { type: 'cancelWatching', profileId: 'other', tmdbId: 5 }],
+    addToWatchlist: [{ type: 'addToWatchlist', entry: listed(6) }, { type: 'addToWatchlist', entry: listed(4) }],
+    removeFromWatchlist: [{ type: 'removeFromWatchlist', tmdbId: 4 }, { type: 'removeFromWatchlist', tmdbId: 99 }],
+  }
+
+  it.each(Object.values(cases).flat().map((op) => [JSON.stringify(op), op] as const))(
+    'gives the same store for %s',
+    (_label, op) => {
+      expect(apiApplyOp(structuredClone(start), op)).toEqual(sharedApplyOp(structuredClone(start), op))
+    },
+  )
 })
