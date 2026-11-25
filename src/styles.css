@@ -338,6 +338,7 @@ body {
 .profile-gate .btn:disabled {
   background: var(--control-bg); color: var(--muted);
   border: 1px solid var(--border); opacity: 1; cursor: default;
+  box-shadow: none; /* a grey control, not a gold fill: no edge */
 }
 /*
  * Keyboard / switch-control focus. --accent-text clears 3:1 against --bg and
