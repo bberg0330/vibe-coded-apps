@@ -80,6 +80,8 @@ export function SearchScreen({
   // Restored once, on mount: the query that already has results saved for it
   // needs no request, until the user types something else or taps retry.
   const [restored] = useState(() => readSavedResults(queryKey, sessionStorage.getItem(queryKey) ?? ''))
+  // The query `results` belong to, so a keystroke can't save new text beside old results.
+  const resultsQuery = useRef<string | null>(restored ? query.trim() : null)
   const restoredQuery = useRef(restored ? query.trim() : null)
   const [results, setResults] = useState<Movie[]>(restored ?? [])
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>(restored ? 'done' : 'idle')
@@ -96,7 +98,7 @@ export function SearchScreen({
   }, [query, queryKey])
 
   useEffect(() => {
-    if (status !== 'done') return
+    if (status !== 'done' || resultsQuery.current !== query.trim()) return
     try {
       sessionStorage.setItem(RESULTS_STORAGE_PREFIX + queryKey, JSON.stringify({ query: query.trim(), results }))
     } catch {
@@ -123,6 +125,7 @@ export function SearchScreen({
       try {
         const found = await searchMovies(trimmed, controller.signal)
         if (cancelled) return
+        resultsQuery.current = trimmed
         setResults(found)
         setStatus('done')
 
