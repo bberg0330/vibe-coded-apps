@@ -104,7 +104,8 @@ export default async function handler(
     }
 
     res.status(405).json({ error: 'Method not allowed' });
-  } catch {
+  } catch (err) {
+    console.error('api/store: operation failed', err);
     res.status(400).json({ error: 'Store operation failed' });
   }
 }

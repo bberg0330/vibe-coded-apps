@@ -57,8 +57,8 @@ don't flag it as a smell.
 ## State and writes
 
 - **Must** route household writes through `applyRemoteOp` with a `StoreOp`,
-  and add any new op to both reducers (`src/data/storeReducer.ts` and
-  `api/store.ts`).
+  and add any new op to the shared reducer (`src/data/storeReducer.ts`), which
+  both the dev server and `api/store.ts` import.
 - **Must** only show a save as done once it succeeded: optimistic UI is
   fine, but revert it on failure and surface `setSaveError`.
 - **Prefer** Undo through the shared toast (`showUndo`) for destructive or
