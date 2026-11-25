@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { searchMovies, getWatchProviders } from '../api/tmdb'
 import { getRottenTomatoesScores } from '../api/omdb'
 import { MissingKeyError } from '../api/http'
@@ -20,6 +20,20 @@ import { ScoreLegend } from '../components/ScoreLegend'
 const QUERY_STORAGE_KEY = 'mn.searchQuery'
 /** Log a film keeps its own query, so searching for one doesn't leak into the other. */
 const LOG_QUERY_STORAGE_KEY = 'mn.logQuery'
+
+/** Last finished search per mode, so coming Back to this screen shows it without asking TMDB again. */
+const RESULTS_STORAGE_PREFIX = 'mn.searchResults.'
+
+function readSavedResults(queryKey: string, query: string): Movie[] | null {
+  try {
+    const raw = sessionStorage.getItem(RESULTS_STORAGE_PREFIX + queryKey)
+    if (!raw) return null
+    const saved = JSON.parse(raw) as { query?: unknown; results?: unknown }
+    return saved.query === query.trim() && Array.isArray(saved.results) ? (saved.results as Movie[]) : null
+  } catch {
+    return null
+  }
+}
 
 /** How many watchlist films the homescreen previews under "Up next". */
 export const UP_NEXT_COUNT = 2
@@ -63,8 +77,12 @@ export function SearchScreen({
   const logMode = mode === 'log'
   const queryKey = logMode ? LOG_QUERY_STORAGE_KEY : QUERY_STORAGE_KEY
   const [query, setQuery] = useState(() => sessionStorage.getItem(queryKey) ?? '')
-  const [results, setResults] = useState<Movie[]>([])
-  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>('idle')
+  // Restored once, on mount: the query that already has results saved for it
+  // needs no request, until the user types something else or taps retry.
+  const [restored] = useState(() => readSavedResults(queryKey, sessionStorage.getItem(queryKey) ?? ''))
+  const restoredQuery = useRef(restored ? query.trim() : null)
+  const [results, setResults] = useState<Movie[]>(restored ?? [])
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'nokey'>(restored ? 'done' : 'idle')
   const [attempt, setAttempt] = useState(0)
 
   const [recommendations, setRecommendations] = useState<RecommendationWithAttribution[]>([])
@@ -78,12 +96,24 @@ export function SearchScreen({
   }, [query, queryKey])
 
   useEffect(() => {
+    if (status !== 'done') return
+    try {
+      sessionStorage.setItem(RESULTS_STORAGE_PREFIX + queryKey, JSON.stringify({ query: query.trim(), results }))
+    } catch {
+      // Storage full or unavailable: Back just searches again.
+    }
+  }, [status, results, query, queryKey])
+
+  useEffect(() => {
     const trimmed = query.trim()
     if (!trimmed) {
       setResults([])
       setStatus('idle')
       return
     }
+
+    if (restoredQuery.current === trimmed && attempt === 0) return
+    restoredQuery.current = null
 
     const controller = new AbortController()
     let cancelled = false

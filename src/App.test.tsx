@@ -54,6 +54,7 @@ beforeEach(() => {
   clearHttpCache()
   resetStoreForTests()
   localStorage.clear()
+  sessionStorage.clear()
   // Most tests are about screens past the passcode gate: start unlocked.
   // The "App - passcode gate" suite clears this to test the gate itself.
   localStorage.setItem('mn.session', 'test-token')
@@ -254,6 +255,8 @@ describe('App - URL navigation', () => {
 
     expect(await screen.findByRole('searchbox')).toBeInTheDocument()
     // Going back to a screen already held in memory must not hit the network again.
+    // Outlast the search debounce: a remounted search screen must not re-query.
+    await new Promise((r) => setTimeout(r, 600))
     expect((fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(fetchCallsBeforeBack)
   })
 
@@ -273,6 +276,8 @@ describe('App - URL navigation', () => {
     expect(await screen.findByRole('searchbox')).toBeInTheDocument()
     // Same outcome as clicking Back: the already-visited search screen is
     // restored from memory, with no extra network round-trip.
+    // Outlast the search debounce: a remounted search screen must not re-query.
+    await new Promise((r) => setTimeout(r, 600))
     expect((fetch as ReturnType<typeof vi.fn>).mock.calls.length).toBe(fetchCallsBeforeBack)
   })
 
