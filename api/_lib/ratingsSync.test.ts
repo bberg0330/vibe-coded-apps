@@ -14,14 +14,14 @@ const m = vi.hoisted(() => ({
 }))
 
 vi.mock('@vercel/schedules', () => ({ handleSchedule: (fn: unknown) => fn }))
-vi.mock('../_lib/ratings.js', () => ({ syncRatings: m.syncRatings, DEFAULT_SYNC_BUDGET: 111 }))
-vi.mock('../_lib/rewind.js', () => ({ refreshRewind: m.refreshRewind }))
-vi.mock('../_lib/alerts.js', () => ({ checkWatchlist: m.checkWatchlist }))
-vi.mock('../_lib/scoreCache.js', () => ({
+vi.mock('./ratings.js', () => ({ syncRatings: m.syncRatings, DEFAULT_SYNC_BUDGET: 111 }))
+vi.mock('./rewind.js', () => ({ refreshRewind: m.refreshRewind }))
+vi.mock('./alerts.js', () => ({ checkWatchlist: m.checkWatchlist }))
+vi.mock('./scoreCache.js', () => ({
   supabaseScoreCache: m.cache, supabaseBackfillStore: m.backfill, supabaseRewindStore: m.rewind, supabaseAlertStore: m.alerts,
 }))
 
-const { POST } = await import('./ratings-sync') as unknown as { POST: (meta: { executionId: string }) => Promise<void> }
+const { POST } = await import('../cron/ratings-sync') as unknown as { POST: (meta: { executionId: string }) => Promise<void> }
 const NOW = new Date('2026-06-15T09:17:00.000Z').getTime()
 const RUN = 240_000, SLICE = 30_000
 
