@@ -724,6 +724,23 @@ describe('App - faster navigation', () => {
     expect(window.location.hash).toBe('#/')
   })
 
+  it('still resets the stack when the browser cannot step back, and leaves no stale tab to hijack a later Back', async () => {
+    window.location.hash = '#/history/seen-before'
+    setActiveProfileId(PROFILES[0].id)
+    render(<App />)
+    await screen.findByRole('button', { name: 'Back to History' })
+    const go = vi.spyOn(window.history, 'go').mockImplementation(() => {}) // history.go does nothing: no popstate arrives
+    try {
+      await userEvent.click(within(tabs()).getByRole('button', { name: 'Watchlist' }))
+      await screen.findByText(/Nothing saved yet/)
+      expect(go).toHaveBeenCalled()
+      expect(window.location.hash).toBe('#/watchlist')
+      // A later Back is an ordinary one-step Back, not another tab reset.
+      window.dispatchEvent(new PopStateEvent('popstate', { state: { pointer: 0 } }))
+      expect(await screen.findByRole('searchbox')).toBeInTheDocument()
+    } finally { go.mockRestore() }
+  })
+
   it('tapping the current tab returns to its first screen from deeper in, and does nothing on it', async () => {
     window.location.hash = '#/history/seen-before'
     setActiveProfileId(PROFILES[0].id)

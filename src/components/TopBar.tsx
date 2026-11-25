@@ -10,7 +10,7 @@ import type { Profile } from '../data/profiles'
  * opens the "Who's watching" switcher. Screens are reached from the bottom
  * TabBar, not from here. .topbar
  */
-export function TopBar({ showBack, backLabel = 'Search', onBack, profile, onSwitchProfile, onSettings, onAlerts, hasAlerts = false }: {
+export function TopBar({ showBack, backLabel = 'Back', onBack, profile, onSwitchProfile, onSettings, onAlerts, hasAlerts = false }: {
   showBack: boolean
   /** Title of the screen Back returns to. */
   backLabel?: string

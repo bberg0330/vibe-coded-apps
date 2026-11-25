@@ -47,6 +47,9 @@ function tabFor(screen: Screen): Tab | null {
   return screen.kind === 'history' || screen.kind === 'watchlist' ? screen.kind : 'search'
 }
 
+/** How long a tab tap waits for the browser's history.go to land before resetting the stack itself. */
+const TAB_RESET_FALLBACK_MS = 300
+
 /** What the Back button calls the screen it returns to. */
 function backLabelFor(screen: Screen): string {
   switch (screen.kind) {
@@ -138,12 +141,20 @@ export default function App() {
     if (stack.length > 1) history.pushState({ pointer: 1 }, '', hashFor(stack[1]))
   }
   const selectTab = (tab: Tab) => {
+    if (settingsOpen || markSheet) return // a modal is over the tab bar; its own Back handling owns history
     setAlertsOpen(false)
     if (entries[pointer].kind === tab) return // already on that tab's first screen
     if (pointer === 0) goToTabRoot(tab)
     else {
       pendingTab.current = tab
       history.go(-pointer)
+      // If the browser can't step back that far there is no popstate to wait
+      // for, and a stale pendingTab would hijack the next unrelated Back.
+      window.setTimeout(() => {
+        if (pendingTab.current !== tab) return
+        pendingTab.current = null
+        goToTabRoot(tab)
+      }, TAB_RESET_FALLBACK_MS)
     }
   }
 
@@ -292,6 +303,7 @@ export default function App() {
         // synchronous re-push, or the browser briefly shows the screen
         // underneath before React's next paint reverts it — a visible flash
         // on exactly the gesture this is meant to make seamless.
+        pendingTab.current = null
         flushSync(() => { setSettingsOpen(false); setMarkSheet(null) })
         // Settings and the Mark as watched sheet are modals, not routes:
         // closing one must not actually move through history, so re-assert
