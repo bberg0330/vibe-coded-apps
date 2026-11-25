@@ -25,7 +25,9 @@ rent tonight, and tracks how many of them the household has seen.
 
 ## Data
 
-- **"That year"** is the US theatrical release year.
+- **"That year"** is the year of TMDB's primary release date. (This spec first
+  said US theatrical release year, but the code never did that, and switching
+  was measured and rejected: see `2026-11-25-rewind-ranking-design.md`.)
 - **Years:** the current year (2026) plus every year the ratings backfill has
   finished. The backfill runs from `BACKFILL_START_YEAR` (2025) back to
   `BACKFILL_END_YEAR` (1950), about a year per night
@@ -43,8 +45,9 @@ rent tonight, and tracks how many of them the household has seen.
 
 ## The year list
 
-- **Sort:** TMDB rating (default; it's what picks the 50), critic score
-  (OMDb), popularity.
+- **Sort:** "Rating" (default: the saved order, a blend of audience score,
+  critic score and reach that also picks the 50; see
+  `2026-11-25-rewind-ranking-design.md`), critic score (OMDb), popularity.
 - **"Watchable now" filter**, on by default: your streaming services
   (`SERVICES`) and the rental stores (`RENT_SERVICES`), each film badged
   "Stream" or "Rent".
