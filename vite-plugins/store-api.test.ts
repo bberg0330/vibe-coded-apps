@@ -120,3 +120,53 @@ describe('storeApi middleware: seed over existing history', () => {
     expect(res.statusCode).toBe(409)
   })
 })
+
+describe('storeApi middleware: request handling', () => {
+  type Handler = (req: unknown, res: unknown) => Promise<void>
+
+  /** Mounts the plugin on `dir` the way Vite does and sends it one request. */
+  async function request(method: string, body?: unknown) {
+    let handler: Handler = async () => {}
+    ;(storeApi(dir).configureServer as (s: unknown) => void)({
+      middlewares: { use: (_path: string, fn: Handler) => { handler = fn } },
+    })
+    const text = body === undefined ? '' : typeof body === 'string' ? body : JSON.stringify(body)
+    const req = {
+      method,
+      on: (event: string, cb: (chunk?: unknown) => void) => {
+        if (event === 'data' && text) cb(Buffer.from(text))
+        if (event === 'end') cb()
+      },
+    }
+    const res = { statusCode: 200, headers: {} as Record<string, string>, payload: '', setHeader(k: string, v: string) { res.headers[k] = v }, end(s: string) { res.payload = s } }
+    await handler(req, res)
+    return { status: res.statusCode, body: JSON.parse(res.payload) as Record<string, unknown>, headers: res.headers }
+  }
+
+  it('GET answers the stored household as JSON', async () => {
+    await handleOp(dir, { type: 'logWatch', entry: entry(1, 'Rushmore') })
+    const out = await request('GET')
+    expect(out.status).toBe(200)
+    expect(out.headers['Content-Type']).toBe('application/json')
+    expect((out.body.history as unknown[]).length).toBe(1)
+  })
+
+  it('POST applies the operation, saves it and answers the new store', async () => {
+    const out = await request('POST', { type: 'logWatch', entry: entry(2, 'Heat') })
+    expect(out.status).toBe(200)
+    expect((out.body.history as Array<{ movie: { title: string } }>)[0].movie.title).toBe('Heat')
+    expect((await readStore(dir)).history).toHaveLength(1)
+  })
+
+  it('POST with a body that is not JSON answers 400 and writes nothing', async () => {
+    const before = await readStore(dir)
+    const out = await request('POST', '{not json')
+    expect(out.status).toBe(400)
+    expect(typeof out.body.error).toBe('string')
+    expect(await readStore(dir)).toEqual(before)
+  })
+
+  it('answers 405 to other methods', async () => {
+    expect(await request('DELETE')).toMatchObject({ status: 405, body: { error: 'Method not allowed' } })
+  })
+})
