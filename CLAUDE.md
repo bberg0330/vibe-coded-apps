@@ -4,6 +4,10 @@
 
 Name branches after the work, as `<type>/<short-kebab-summary>`: `feature/…` for new behaviour, `fix/…` for bugs, `design/…` for Figma-driven UI syncs, `chore/…` for tooling and docs (e.g. `feature/recommendation-score-floor`). Don't use generated or random names, even if a session suggests one. Start each piece of work on a fresh branch from `main`; once its PR merges, start the next change on a new branch rather than reusing the old one.
 
+## Grill first
+
+For any new feature request or change in behaviour, run `mattpocock-skills:grilling` before the Figma proposal or any code. Resolve the open questions (scope, edge cases, data, out-of-scope) and record the agreed decisions in the PR description. Skip it for bug fixes, `chore/` work, and Figma syncs where the user has already supplied designs.
+
 ## Figma sync
 
 Figma file: `ajsVg5LjRT7Y5D346WMif3` (Movie Night — UX/UI Baseline). Components live in `src/components/`, styles in `src/styles.css`, and each component has a Code Connect mapping in a sibling `*.figma.ts`.
