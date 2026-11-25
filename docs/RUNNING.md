@@ -60,6 +60,10 @@ npm test
 
 Tests stub `fetch` and never call the live APIs, so they run without keys.
 
+CI (`.github/workflows/ci.yml`) runs `npm test` and `npm run build` on every
+pull request and on pushes to `main`. Make the `test-and-build` check required
+in the repo's branch protection so auto-merge waits for it.
+
 ## Navigation and reloading
 
 The URL reflects where you are — search, a film's cast, or an actor's
