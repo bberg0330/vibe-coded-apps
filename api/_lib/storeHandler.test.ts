@@ -10,7 +10,7 @@
 // (top-level `await import(...)`) rather than a static ESM import, which
 // would be hoisted above the env-var assignments.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { StoreOp } from '../src/types'
+import type { StoreOp } from '../../src/types'
 
 process.env.SUPABASE_URL = 'https://example.supabase.co'
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'service-role-key'
@@ -22,8 +22,8 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: () => ({ from: mockFrom }),
 }))
 
-const { default: handler } = await import('./store')
-const { issueToken } = await import('./_lib/session')
+const { default: handler } = await import('../store')
+const { issueToken } = await import('./session')
 const AUTH = { authorization: `Bearer ${issueToken('test-session-secret')}` }
 
 type FakeResult = { data: unknown; error: unknown }
