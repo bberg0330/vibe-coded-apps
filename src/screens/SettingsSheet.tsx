@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { SERVICES, getEnabledServices, setServiceEnabled } from '../data/providers'
 import { SectionHeading } from '../components/SectionHeading'
 import { useDialogFocus } from '../hooks/useDialogFocus'
+import { formatReleaseDate, latestRelease } from '../data/releaseNotes'
 import type { ServiceKey } from '../types'
 
-export function SettingsSheet({ onClose }: { onClose: () => void }) {
+/** Subscriptions toggles, and a row that reopens What's new (when there are release notes). */
+export function SettingsSheet({ onClose, onWhatsNew }: { onClose: () => void; onWhatsNew?: () => void }) {
+  const release = latestRelease()
   const [enabled, setEnabled] = useState<ServiceKey[]>(getEnabledServices())
   const [error, setError] = useState<string | null>(null)
   const dialogRef = useDialogFocus<HTMLDivElement>(onClose)
@@ -45,6 +48,12 @@ export function SettingsSheet({ onClose }: { onClose: () => void }) {
           {SERVICES[key].label}
         </label>
       ))}
+      {release && onWhatsNew && (
+        <button className="settings-link-row" onClick={onWhatsNew}>
+          <span>What’s new</span>
+          <span className="detail">{formatReleaseDate(release.date)} <span aria-hidden="true">›</span></span>
+        </button>
+      )}
       </div>
     </>
   )

@@ -15,6 +15,8 @@ import { TopBar } from './components/TopBar'
 import { TabBar, type Tab } from './components/TabBar'
 import { OptionSheet } from './components/OptionSheet'
 import { MarkWatchedSheet } from './components/MarkWatchedSheet'
+import { WhatsNewSheet } from './components/WhatsNewSheet'
+import { latestRelease, getSeenRelease, markReleaseSeen } from './data/releaseNotes'
 import { AlertsPanel } from './components/AlertsPanel'
 import type { Alert } from './api/alerts'
 import { useAlerts } from './hooks/useAlerts'
@@ -141,7 +143,7 @@ export default function App() {
     if (stack.length > 1) history.pushState({ pointer: 1 }, '', hashFor(stack[1]))
   }
   const selectTab = (tab: Tab) => {
-    if (settingsOpen || markSheet) return // a modal is over the tab bar; its own Back handling owns history
+    if (modalOpen) return // a modal is over the tab bar; its own Back handling owns history
     setAlertsOpen(false)
     if (entries[pointer].kind === tab) return // already on that tab's first screen
     if (pointer === 0) goToTabRoot(tab)
@@ -161,6 +163,16 @@ export default function App() {
   // A counter forces re-render after a history write, since history lives outside React state.
   const [historyVersion, setHistoryVersion] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false)
+  const release = latestRelease()
+  // Opened from Settings, which unmounts, so its opener is gone: focus goes back to the Settings button on close.
+  const whatsNewFromSettings = useRef(false)
+  const closeWhatsNew = () => {
+    setWhatsNewOpen(false)
+    if (!whatsNewFromSettings.current) return
+    whatsNewFromSettings.current = false
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('.topbar button[aria-label="Settings"]')?.focus())
+  }
   const [profileSheetOpen, setProfileSheetOpen] = useState(false)
   const [alertsOpen, setAlertsOpen] = useState(false)
   // The film a ✓ is asking "when?" about (the Mark as watched sheet), if any. `moveFrom` is
@@ -168,6 +180,8 @@ export default function App() {
   const [markSheet, setMarkSheet] = useState<
     { movie: Movie; via: WatchEntry['discoveredVia']; forceLog: boolean; moveFrom?: string } | null
   >(null)
+  // Settings, the Mark as watched sheet and What's new are modals, not routes: Back closes them without moving through history.
+  const modalOpen = settingsOpen || markSheet !== null || whatsNewOpen
   const { alerts, dropAlerts } = useAlerts(activeProfileId, () => setSaveError("Couldn't clear that alert — is the Movie Night server still running?"))
 
   // Films logged during THIS session. Undo is scoped to a misfired tap in
@@ -298,13 +312,14 @@ export default function App() {
 
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
-      if (settingsOpen || markSheet) {
+      if (modalOpen) {
         // flushSync: a real back-swipe's popstate must be answered by a
         // synchronous re-push, or the browser briefly shows the screen
         // underneath before React's next paint reverts it — a visible flash
         // on exactly the gesture this is meant to make seamless.
         pendingTab.current = null
-        flushSync(() => { setSettingsOpen(false); setMarkSheet(null) })
+        whatsNewFromSettings.current = false
+        flushSync(() => { setSettingsOpen(false); setMarkSheet(null); setWhatsNewOpen(false) })
         // Settings and the Mark as watched sheet are modals, not routes:
         // closing one must not actually move through history, so re-assert
         // the current entry to cancel the browser's own back navigation.
@@ -357,7 +372,21 @@ export default function App() {
 
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
-  }, [entries, pointer, settingsOpen, markSheet])
+  }, [entries, pointer, modalOpen])
+
+  // What's new: once per release per profile on this device, when Search (home)
+  // has loaded and nothing else is open. It is marked seen as it opens, so a
+  // reload never brings it back. A fresh household (nothing logged or saved yet)
+  // has nothing to catch up on, so it is marked seen without showing.
+  const homeReady = !booting && !bootError && activeProfileId !== null && current.kind === 'search'
+  const nothingOpen = !settingsOpen && !markSheet && !profileSheetOpen && !alertsOpen && !whatsNewOpen
+  useEffect(() => {
+    if (!homeReady || !nothingOpen || !release || !activeProfileId) return
+    if (getSeenRelease(activeProfileId) === release.id) return
+    markReleaseSeen(activeProfileId, release.id)
+    const freshHousehold = getHistory().length === 0 && getSeenBefore().length === 0 && getWatchlist().length === 0
+    if (!freshHousehold) setWhatsNewOpen(true)
+  }, [homeReady, nothingOpen, activeProfileId, release])
 
   /**
    * `forceLog`: a ✓ on a watchlist row always means "we watched it" — never
@@ -722,7 +751,13 @@ export default function App() {
       {watchingError && <div className="error" role="alert">{watchingError}</div>}
       {locationError && <div className="error" role="alert">{locationError}</div>}
 
-      {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && (
+        <SettingsSheet
+          onClose={() => setSettingsOpen(false)}
+          onWhatsNew={() => { whatsNewFromSettings.current = true; setSettingsOpen(false); setWhatsNewOpen(true) }}
+        />
+      )}
+      {whatsNewOpen && release && <WhatsNewSheet release={release} onClose={closeWhatsNew} />}
       {profileSheetOpen && (
         <OptionSheet
           title="Who's watching"
