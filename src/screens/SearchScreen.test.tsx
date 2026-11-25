@@ -362,3 +362,54 @@ describe('recommendations carousel', () => {
     })
   })
 })
+
+describe('search results restore', () => {
+  const props = { debounceMs: 0, onOpenMovie: vi.fn(), onToggleWatched: vi.fn(), watchCountFor: () => 0 }
+  const searchCalls = () => vi.mocked(fetch).mock.calls.filter(([u]) => String(u).includes('search')).length
+  const saved = (query: string) => JSON.stringify({
+    query,
+    results: [{ tmdbId: 7, title: 'Saved Film', year: 2000, posterPath: null, popularity: 1, tomatometer: null, popcornmeter: null, availability: { streaming: [], rent: [] }, overview: null, voteAverage: 0, voteCount: 0 }],
+  })
+
+  beforeEach(() => sessionStorage.clear())
+
+  it('shows saved results for the same query without searching again', async () => {
+    sessionStorage.setItem('mn.searchQuery', 'saved')
+    sessionStorage.setItem('mn.searchResults.mn.searchQuery', saved('saved'))
+    render(<SearchScreen {...props} />)
+
+    expect(screen.getByText('Saved Film')).toBeInTheDocument()
+    await new Promise((r) => setTimeout(r, 50))
+    expect(searchCalls()).toBe(0)
+  })
+
+  it('searches when the saved results are for a different query', async () => {
+    sessionStorage.setItem('mn.searchQuery', 'rushmore')
+    sessionStorage.setItem('mn.searchResults.mn.searchQuery', saved('other'))
+    render(<SearchScreen {...props} />)
+
+    expect(await screen.findByText('Rushmore')).toBeInTheDocument()
+    expect(searchCalls()).toBe(1)
+  })
+
+  it('ignores corrupt saved results', async () => {
+    sessionStorage.setItem('mn.searchQuery', 'rushmore')
+    sessionStorage.setItem('mn.searchResults.mn.searchQuery', '{nope')
+    render(<SearchScreen {...props} />)
+
+    expect(await screen.findByText('Rushmore')).toBeInTheDocument()
+  })
+
+  it('never saves a newly typed query beside the previous results', async () => {
+    render(<SearchScreen {...props} />)
+    await userEvent.type(screen.getByRole('searchbox'), 'rushmore')
+    await screen.findByText('Rushmore')
+    // The next search never answers, so only the stale-save path could write.
+    vi.mocked(fetch).mockImplementation(() => new Promise(() => {}))
+    await userEvent.type(screen.getByRole('searchbox'), 'x')
+
+    const raw = sessionStorage.getItem('mn.searchResults.mn.searchQuery')
+    expect(raw).not.toBeNull()
+    expect(JSON.parse(raw as string).query).not.toBe('rushmorex')
+  })
+})
