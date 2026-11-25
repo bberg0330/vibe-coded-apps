@@ -186,6 +186,16 @@ describe('refreshRewind', () => {
     expect(summary.notReady).toEqual([{ year: 2025, unchecked: 1 }])
   })
 
+  it('does not replace a list we already have with an empty one', async () => {
+    stubDiscover({})
+    const store = memoryStore(new Map([[2026, current()], [2025, { refreshAfter: null, version: REWIND_RANKING_VERSION - 1 }]]))
+
+    const summary = await refreshRewind('tmdb', store, { cursor: { year: 2024, page: 1 }, now: NOW })
+
+    expect(store.save).not.toHaveBeenCalledWith(2025, expect.anything(), expect.anything(), expect.anything())
+    expect(summary.notReady).toEqual([{ year: 2025, unchecked: 0 }])
+  })
+
   it('gives the current year a refresh date a week out', async () => {
     stubDiscover({ 2026: range(1, 5) })
     const store = memoryStore(new Map([[2025, current()]]))

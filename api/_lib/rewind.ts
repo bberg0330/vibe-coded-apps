@@ -174,6 +174,12 @@ export async function refreshRewind(
       summary.notReady.push({ year, unchecked })
       continue
     }
+    // A rebuild that finds nothing (say TMDB has no runtimes for a new year yet)
+    // must not wipe out a list we already have; try again tomorrow.
+    if (films.length === 0 && saved.has(year)) {
+      summary.notReady.push({ year, unchecked: 0 })
+      continue
+    }
     const refreshAfter = year === now.getUTCFullYear() ? new Date(now.getTime() + REFRESH_CURRENT_AFTER_DAYS * DAY) : null
     await store.save(year, rankFilms(films, scores).slice(0, REWIND_SIZE), now, refreshAfter)
     summary.saved.push(year)

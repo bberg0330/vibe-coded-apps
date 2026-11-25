@@ -69,7 +69,8 @@ reference list.
 |---|---|---|---|---|---|---|
 | TMDB rating (before) | 21 | 28 | 8 | 9 | 4 (0) | 34 |
 | Blend 0.6/0.2/0.2 | 21 | 39 | 11 | 10 | 5 (3) | 44 |
-| Blend, 200-vote shrinkage (shipped) | 23 | 39 | 11 | 11 | 5 (3) | 45 |
+| Blend, 200-vote shrinkage | 23 | 39 | 11 | 11 | 5 (3) | 45 |
+| Same, feature films only (shipped) | 23 | 39 | 12 | 11 | 5 (3) | 46 |
 
 Floor sweep with the blend (average share of each list): 300 → 0.434,
 500 → 0.411, 1,000 → 0.399, 2,000 → 0.215.
@@ -87,8 +88,20 @@ adds only 6 more IMDb films. Not worth changing the list and its progress UI.
   with 100,000 IMDb votes may have 4,000 here), hence the 20,000 ceiling.
 - **Tiny documentaries are out of reach** by design: Rotten Tomatoes' top 50 is
   mostly films with under 300 TMDB votes. We don't try to match it there.
-- **Noise remains.** *Squid Game: Making Season 2* and *The Shadow's Edge* still
-  rank on the 2025 list. A feature-length filter doesn't catch them.
+- **Some noise remains.** The 60-minute filter removes *Squid Game: Making
+  Season 2* (the only 2025 film it drops), but *The Shadow's Edge* and other
+  feature-length entries still rank. Concert, stand-up and TV-movie filters
+  were judged not feasible with TMDB's discover endpoint (no reliable field),
+  so the blend is what keeps them down.
+- **A rebuild never empties a list.** TMDB drops films with a blank runtime
+  from the filter, which could hit a new year; a rebuild that finds nothing
+  leaves the saved list alone and tries again the next night.
+- **The local-dev fallback** (no Supabase) ranks with TMDB scores only, since
+  it has no OMDb scores to blend.
+- **Rebuild pace.** Only years already saved are rebuilt (today that is 2025
+  alone; older years are saved by the backfill with the new ranking as it
+  reaches them), five a night, newest first. A saved year keeps serving its old
+  list until the new one is saved.
 
 ## Not in this plan
 

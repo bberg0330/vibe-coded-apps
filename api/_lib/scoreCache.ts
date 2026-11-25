@@ -117,10 +117,14 @@ export function supabaseRewindStore(): RewindStore | undefined {
     async saved() {
       const { data, error } = await supabase.from('movie_night_rewind_years').select('year, refresh_after, ranking_version')
       if (error) throw error
-      return new Map((data ?? []).map((row) => [
-        Number(row.year),
-        { refreshAfter: row.refresh_after ? new Date(row.refresh_after) : null, version: Number(row.ranking_version ?? 1) },
-      ]))
+      return new Map((data ?? []).map((row) => {
+        // A row from before the column existed, or an unreadable value, counts as the original ranking.
+        const version = Number(row.ranking_version ?? 1)
+        return [
+          Number(row.year),
+          { refreshAfter: row.refresh_after ? new Date(row.refresh_after) : null, version: Number.isFinite(version) ? version : 1 },
+        ]
+      }))
     },
     async save(year, films, computedAt, refreshAfter) {
       // Carry forward every film that was ever in this year's list but isn't now,

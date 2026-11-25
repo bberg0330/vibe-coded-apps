@@ -169,11 +169,14 @@ describe('Rewind store', () => {
       { year: 2019, refresh_after: null, ranking_version: 1 },
       // A row from before the column existed counts as the original ranking.
       { year: 2018, refresh_after: null },
+      // So does a value we can't read: it must not look newer than every ranking and never be rebuilt.
+      { year: 2017, refresh_after: null, ranking_version: 'x' },
     ] }]
     const saved = await supabaseRewindStore()!.saved()
     expect(saved.get(2020)).toEqual({ refreshAfter: new Date('2026-07-01T00:00:00.000Z'), version: 2 })
     expect(saved.get(2019)).toEqual({ refreshAfter: null, version: 1 })
     expect(saved.get(2018)).toEqual({ refreshAfter: null, version: 1 })
+    expect(saved.get(2017)).toEqual({ refreshAfter: null, version: 1 })
   })
 })
 
