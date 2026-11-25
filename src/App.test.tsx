@@ -3,12 +3,14 @@ import { render, screen, within, waitFor, fireEvent } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { clearHttpCache } from './api/http'
+import { latestRelease, markReleaseSeen, getSeenRelease } from './data/releaseNotes'
 import { getHistory, getSeenBefore } from './data/history'
 import { getAllWatchingTonight } from './data/watching'
 import { seedWatching } from './data/watching.testutil'
 import { resetStoreForTests, getStoreSnapshot } from './data/store'
 import { applyOp } from '../vite-plugins/store-ops'
 import { emptyStore } from './types'
+import type { WatchlistEntry } from './types'
 import type { StoreOp, Movie } from './types'
 import { hashFor } from './router'
 import { PROFILES, type ProfileId } from './data/profiles'
@@ -68,6 +70,8 @@ beforeEach(() => {
   resetStoreForTests()
   localStorage.clear()
   sessionStorage.clear()
+  // The What's new sheet has its own suite below: everywhere else the current release counts as seen.
+  for (const p of PROFILES) markReleaseSeen(p.id, latestRelease()!.id)
   // Most tests are about screens past the passcode gate: start unlocked.
   // The "App - passcode gate" suite clears this to test the gate itself.
   localStorage.setItem('mn.session', 'test-token')
@@ -1196,5 +1200,69 @@ describe('App - Log a film', () => {
     window.location.hash = '#/history/log'
     await renderApp()
     expect(await screen.findByRole('heading', { name: 'Log a film' })).toBeInTheDocument()
+  })
+})
+
+describe('App - What\u2019s new', () => {
+  const release = latestRelease()!
+  const seedHousehold = () => {
+    const snapshot = getStoreSnapshot()
+    resetStoreForTests({
+      ...snapshot,
+      watchlist: [{ movie: { tmdbId: 1585, title: 'Rushmore', year: 1998, posterPath: null, tomatometer: null, popcornmeter: null }, profileId: PROFILES[0].id, addedAt: new Date().toISOString() } as WatchlistEntry],
+    })
+  }
+  beforeEach(() => { localStorage.removeItem(`mn.whatsNewSeen.${PROFILES[0].id}`) })
+
+  it('shows once for a household with data, then not again after a reload', async () => {
+    seedHousehold()
+    const first = await renderApp()
+    expect(await screen.findByRole('dialog', { name: release.title })).toBeInTheDocument()
+    expect(getSeenRelease(PROFILES[0].id)).toBe(release.id) // marked as it opens
+    await userEvent.click(screen.getByRole('button', { name: 'Got it' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    first.unmount()
+
+    await renderApp()
+    expect(screen.queryByRole('dialog', { name: release.title })).not.toBeInTheDocument()
+  })
+
+  it('is marked as seen without showing for a household with nothing logged or saved yet', async () => {
+    await renderApp()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(getSeenRelease(PROFILES[0].id)).toBe(release.id)
+  })
+
+  it('is per profile: another profile on the same device still sees it', async () => {
+    seedHousehold()
+    markReleaseSeen(PROFILES[0].id, release.id) // the first profile has seen it
+    localStorage.removeItem(`mn.whatsNewSeen.${PROFILES[1].id}`)
+    await renderApp(PROFILES[1].id)
+    expect(await screen.findByRole('dialog', { name: release.title })).toBeInTheDocument()
+  })
+
+  it('reopens from Settings, and Back closes it without leaving the screen', async () => {
+    await renderApp()
+    await userEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    await userEvent.click(screen.getByRole('button', { name: /what.s new/i }))
+    expect(await screen.findByRole('dialog', { name: release.title })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'Our subscriptions' })).not.toBeInTheDocument()
+
+    window.dispatchEvent(new PopStateEvent('popstate', { state: { pointer: 0 } }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(screen.getByRole('searchbox')).toBeInTheDocument()
+    expect(window.location.hash).toBe('#/')
+  })
+
+  it('waits for home: a cold-loaded film page does not get it until Search is shown', async () => {
+    seedHousehold()
+    window.location.hash = '#/history'
+    setActiveProfileId(PROFILES[0].id)
+    render(<App />)
+    await screen.findByRole('navigation', { name: 'Main' })
+    expect(screen.queryByRole('dialog', { name: release.title })).not.toBeInTheDocument()
+    expect(getSeenRelease(PROFILES[0].id)).toBeNull()
+    await userEvent.click(within(screen.getByRole('navigation', { name: 'Main' })).getByRole('button', { name: 'Search' }))
+    expect(await screen.findByRole('dialog', { name: release.title })).toBeInTheDocument()
   })
 })
