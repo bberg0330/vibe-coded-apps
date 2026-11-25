@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { TabBar } from './TabBar'
 
 describe('TabBar', () => {
-  it('shows every tab, marks the current one, and ignores taps on it', async () => {
+  it('shows every tab, marks the current one, and reports every tap, the current tab included', async () => {
     const onSelect = vi.fn()
     render(<TabBar current="rewind" onSelect={onSelect} />)
     expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Search', 'Rewind', 'Watchlist', 'History'])
@@ -12,8 +12,12 @@ describe('TabBar', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Rewind' }))
     await userEvent.click(screen.getByRole('button', { name: 'History' }))
-    expect(onSelect).toHaveBeenCalledTimes(1)
-    expect(onSelect).toHaveBeenCalledWith('history')
+    expect(onSelect.mock.calls).toEqual([['rewind'], ['history']]) // the app decides what tapping the current tab does
+  })
+
+  it('marks no tab on drill-down screens', () => {
+    render(<TabBar current={null} onSelect={() => {}} />)
+    expect(screen.getAllByRole('button').some((b) => b.hasAttribute('aria-current'))).toBe(false)
   })
 
   it('puts the alert dot on one tab only', () => {
