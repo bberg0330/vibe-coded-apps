@@ -2,14 +2,18 @@ import { Icon } from './icons'
 import type { Profile } from '../data/profiles'
 
 /**
- * Shared chrome above every screen: "← Back" on the left (when there is
- * somewhere to go back to), and on the right 44x44 icon buttons for alerts
+ * Shared chrome above every screen: Back on the left (when there is
+ * somewhere to go back to), named for where it goes ("‹ Search", "‹ History",
+ * a film's title) with a 44pt-tall tap target and an ellipsis when the name is
+ * long, and on the right 44x44 icon buttons for alerts
  * (🔔, once alerts ship), Settings, and the active profile's avatar, which
  * opens the "Who's watching" switcher. Screens are reached from the bottom
  * TabBar, not from here. .topbar
  */
-export function TopBar({ showBack, onBack, profile, onSwitchProfile, onSettings, onAlerts, hasAlerts = false }: {
+export function TopBar({ showBack, backLabel = 'Back', onBack, profile, onSwitchProfile, onSettings, onAlerts, hasAlerts = false }: {
   showBack: boolean
+  /** Title of the screen Back returns to. */
+  backLabel?: string
   onBack: () => void
   profile: Profile
   onSwitchProfile: () => void
@@ -21,7 +25,11 @@ export function TopBar({ showBack, onBack, profile, onSwitchProfile, onSettings,
   return (
     <nav className="topbar" aria-label="Top">
       {showBack
-        ? <button className="link" onClick={onBack}>← Back</button>
+        ? (
+          <button className="link back-link" onClick={onBack} aria-label={`Back to ${backLabel}`}>
+            <span aria-hidden="true">‹ </span><span className="back-label">{backLabel}</span>
+          </button>
+        )
         : <span />}
       <span className="topbar-actions">
         {onAlerts && (
