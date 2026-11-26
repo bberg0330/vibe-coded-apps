@@ -221,8 +221,8 @@ async function collectBackfill(
   return { films, cursor: cursor.year >= BACKFILL_END_YEAR ? cursor : null }
 }
 
-/** Rewind ranks films with this many votes (REWIND_MIN_VOTES); the sync rates this year's first. */
-export const CURRENT_YEAR_MIN_VOTES = 300
+/** Rewind ranks films with this many votes in every year (REWIND_MIN_VOTES); the sync rates this year's first. */
+export const CURRENT_YEAR_MIN_VOTES = 150
 
 /** Up to `want` films from `year` with `minVotes`+ votes that we've never stored, most popular first. */
 async function collectUnknown(

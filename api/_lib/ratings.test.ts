@@ -206,7 +206,7 @@ describe('syncRatings backfill', () => {
       if (url.includes('omdbapi.com')) return ok(hit('75%'))
       if (url.includes('/discover/movie')) {
         const q = new URL(url).searchParams
-        const list = (q.get('vote_count.gte') === '300' ? current : pages)[Number(q.get('primary_release_year'))] ?? []
+        const list = (q.get('vote_count.gte') === '150' ? current : pages)[Number(q.get('primary_release_year'))] ?? []
         const page = Number(q.get('page'))
         return ok({
           page, total_pages: Math.max(list.length, 1),
@@ -286,7 +286,7 @@ describe('syncRatings backfill', () => {
   describe('current year first', () => {
     const NOW = new Date('2026-11-24T09:17:00Z')
 
-    it('rates this year\'s 300+ vote films we have never stored before anything else', async () => {
+    it('rates this year\'s 150+ vote films we have never stored before anything else', async () => {
       stubDiscover({ 2025: [[9]] }, { 2026: [[1, 2], [3]] })
       const cache = memoryCache()
       cache.due.mockResolvedValue([{ tmdbId: 7 }])
@@ -296,7 +296,7 @@ describe('syncRatings backfill', () => {
 
       const q = allDiscover()[0]
       expect(q.get('primary_release_year')).toBe('2026')
-      expect(q.get('vote_count.gte')).toBe('300')
+      expect(q.get('vote_count.gte')).toBe('150')
       expect(summary.current).toEqual({ added: 2, rated: 2, pending: 0 })
       expect(cache.due).toHaveBeenCalledWith(1, NOW)
       expect(summary.backfill).toBeNull()

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
-  handleRewind, rankFilms, refreshRewind, rewindScore, yearsToCheck,
+  criticWeightFor, handleRewind, rankFilms, refreshRewind, rewindScore, yearsToCheck,
   REWIND_RANKING_VERSION, REWIND_SIZE, YEARS_PER_RUN, type RewindFilm, type RewindStore, type SavedYear,
 } from './rewind'
 import type { ScoreData } from '../../src/data/scores'
@@ -95,6 +95,33 @@ describe('rewindScore', () => {
   it('treats a film with no votes as the unproven film it is, not a NaN', () => {
     expect(Number.isFinite(rewindScore(film(1, 0, 0)))).toBe(true)
   })
+
+  it('ignores the critic score at zero critic weight, and gives the freed weight to audience and reach 3:1', () => {
+    const f = film(1, 8, 1e9) // so many votes that shrinkage is negligible: audience 80, reach 100
+    expect(rewindScore(f, { critic: 95, audience: null }, 0)).toBe(rewindScore(f, { critic: 10, audience: null }, 0))
+    expect(rewindScore(f, undefined, 0)).toBeCloseTo(0.75 * 80 + 0.25 * 100, 3)
+  })
+})
+
+describe('criticWeightFor', () => {
+  const films = range(1, 8).map((id) => film(id, 7, 1000))
+  const withCritic = (n: number) => new Map<number, ScoreData>(films.slice(0, n).map((f) => [f.tmdbId, { critic: 80, audience: 70 }]))
+
+  it('is full at a quarter of the films, half at an eighth, and none when no film has one', () => {
+    expect(criticWeightFor(films, withCritic(2))).toBeCloseTo(0.2)
+    expect(criticWeightFor(films, withCritic(1))).toBeCloseTo(0.1)
+    expect(criticWeightFor(films, withCritic(0))).toBe(0)
+  })
+
+  it('never goes above the full weight, however many films have a critic score', () => {
+    expect(criticWeightFor(films, withCritic(8))).toBeCloseTo(0.2)
+  })
+
+  it('does not count films with an empty critic score or no OMDb answer, and handles an empty year', () => {
+    const scores = new Map<number, ScoreData>([[1, { critic: null, audience: 70 }], [2, { critic: undefined }]])
+    expect(criticWeightFor(films, scores)).toBe(0)
+    expect(criticWeightFor([], new Map())).toBe(0)
+  })
 })
 
 describe('rankFilms', () => {
@@ -102,6 +129,24 @@ describe('rankFilms', () => {
     const films = [film(1, 7.5, 2000), film(2, 7.5, 2000), film(3, 7.5, 2000)]
     const scores = new Map<number, ScoreData>([[3, { critic: 96, audience: 80 }], [2, { critic: 30, audience: 55 }]])
     expect(rankFilms(films, scores).map((f) => f.tmdbId)).toEqual([3, 1, 2])
+  })
+
+  describe('when few films in the year have a critic score', () => {
+    // Film 2 rates lower than film 1 with audiences, but a critic gave it 99.
+    // (At full critic weight it comes out ahead by about 2.8 points; at the 10%
+    // coverage of the first test, behind by about 1.2.)
+    const top = [film(1, 7.0, 2000), film(2, 6.4, 2000)]
+    const filler = range(10, 18).map((id) => film(id, 5, 400))
+    const order = (scores: Map<number, ScoreData>) => rankFilms([...top, ...filler], scores).map((f) => f.tmdbId).slice(0, 2)
+
+    it('a lone critic score does not reorder the year', () => {
+      expect(order(new Map([[2, { critic: 99, audience: null }]]))).toEqual([1, 2])
+    })
+
+    it('but once a quarter of the films have one, it does', () => {
+      const scores = new Map<number, ScoreData>([[2, { critic: 99, audience: null }], ...filler.slice(0, 4).map((f) => [f.tmdbId, { critic: 40, audience: null }] as const)])
+      expect(order(scores)).toEqual([2, 1])
+    })
   })
 
   it('breaks ties by votes, then id, so the order never shuffles between runs', () => {
@@ -125,7 +170,8 @@ describe('refreshRewind', () => {
 
     const q = years()[0]
     expect(q.get('primary_release_year')).toBe('2025')
-    expect(q.get('vote_count.gte')).toBe('300')
+    // One floor for every year.
+    expect(q.get('vote_count.gte')).toBe('150')
     // Feature films only: shorts and making-ofs are left out.
     expect(q.get('with_runtime.gte')).toBe('60')
     expect(years().map((p) => p.get('page'))).toEqual(['1', '2', '3', '4'])

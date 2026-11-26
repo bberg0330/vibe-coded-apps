@@ -6,7 +6,11 @@ import { BACKFILL_END_YEAR, BACKFILL_START_YEAR, CURRENT_YEAR_MIN_VOTES, type Ba
 import type { RewindFilm } from '../../src/types'
 import type { ScoreData } from '../../src/data/scores'
 
-/** Films need this many TMDB votes to be ranked (the backfill rates from 50). Same floor the sync rates this year's films at. */
+/**
+ * Films need this many TMDB votes to be ranked, in every year. The backfill
+ * rates from 50, so every year it has passed has OMDb answers for all of them;
+ * the sync rates this year's films at the same floor.
+ */
 export const REWIND_MIN_VOTES = CURRENT_YEAR_MIN_VOTES
 /** Shorter than this and it isn't a feature film (shorts, making-ofs). */
 export const REWIND_MIN_RUNTIME = 60
@@ -16,7 +20,7 @@ export const REWIND_SIZE = 50
  * Bump when the ranking changes: saved years from an older version are rebuilt
  * by the nightly run, and keep being served until their replacement is saved.
  */
-export const REWIND_RANKING_VERSION = 2
+export const REWIND_RANKING_VERSION = 3
 /** The current year's list is rebuilt this often, since new films keep arriving. */
 export const REFRESH_CURRENT_AFTER_DAYS = 7
 /** Past years checked per night, newest first, so one run stays well inside its time limit. */
@@ -50,6 +54,8 @@ export type RewindStore = {
 const AUDIENCE_WEIGHT = 0.6
 const CRITIC_WEIGHT = 0.2
 const REACH_WEIGHT = 0.2
+/** The critic weight is full once this share of a year's films has a critic score, and ramps down to nothing as it falls. */
+const CRITIC_FULL_COVERAGE = 0.25
 /** A film with few votes is pulled towards this audience score (0-100)... */
 const PRIOR_AUDIENCE = 66
 /** ...as if it had this many more votes at that score. */
@@ -58,25 +64,42 @@ const PRIOR_VOTES = 200
 const REACH_FULL_VOTES = 20000
 
 /**
+ * The critic weight for one year's films. OMDb's Rotten Tomatoes scores are
+ * patchy (they all but stopped arriving on 23 Nov 2026), and where only a few
+ * films have one the critic term is noise, so it fades out with coverage: full
+ * weight at CRITIC_FULL_COVERAGE or more, none when no film has a score.
+ */
+export function criticWeightFor(films: RewindFilm[], scores: Map<number, ScoreData>): number {
+  if (films.length === 0) return 0
+  const scored = films.filter((f) => scores.get(f.tmdbId)?.critic != null).length
+  return CRITIC_WEIGHT * Math.min(1, scored / films.length / CRITIC_FULL_COVERAGE)
+}
+
+/**
  * A film's blended score, 0-100. Audience is TMDB's rating averaged with
  * IMDb's (when OMDb has one), shrunk towards a typical score when votes are
  * few. A missing critic score counts as the audience score, so it neither
- * helps nor hurts the film.
+ * helps nor hurts the film. Weight taken off the critic term (see
+ * criticWeightFor) goes to audience and reach in their usual 3:1 proportion.
  */
-export function rewindScore(film: RewindFilm, score?: ScoreData): number {
+export function rewindScore(film: RewindFilm, score?: ScoreData, criticWeight = CRITIC_WEIGHT): number {
   const votes = Math.max(film.voteCount, 0)
   const tmdb = film.voteAverage * 10
   const raw = score?.audience == null ? tmdb : (tmdb + score.audience) / 2
   const audience = (votes * raw + PRIOR_VOTES * PRIOR_AUDIENCE) / (votes + PRIOR_VOTES)
   const critic = score?.critic ?? audience
   const reach = 100 * Math.min(Math.log10(Math.max(votes, 1)) / Math.log10(REACH_FULL_VOTES), 1)
-  return AUDIENCE_WEIGHT * audience + CRITIC_WEIGHT * critic + REACH_WEIGHT * reach
+  const freed = CRITIC_WEIGHT - criticWeight
+  const audienceWeight = AUDIENCE_WEIGHT + (freed * AUDIENCE_WEIGHT) / (AUDIENCE_WEIGHT + REACH_WEIGHT)
+  const reachWeight = REACH_WEIGHT + (freed * REACH_WEIGHT) / (AUDIENCE_WEIGHT + REACH_WEIGHT)
+  return audienceWeight * audience + criticWeight * critic + reachWeight * reach
 }
 
 /** Best first. Ties go to the film more people have voted on, then the lower id, so the order is stable. */
 export function rankFilms(films: RewindFilm[], scores: Map<number, ScoreData>): RewindFilm[] {
+  const criticWeight = criticWeightFor(films, scores)
   return films
-    .map((film) => ({ film, score: rewindScore(film, scores.get(film.tmdbId)) }))
+    .map((film) => ({ film, score: rewindScore(film, scores.get(film.tmdbId), criticWeight) }))
     .sort((a, b) => b.score - a.score || b.film.voteCount - a.film.voteCount || a.film.tmdbId - b.film.tmdbId)
     .map((r) => r.film)
 }

@@ -37,7 +37,8 @@ rent tonight, and tracks how many of them the household has seen.
 - When the sync finishes a year it **saves that year's top 50** to Supabase.
   A year counts as finished once its list is saved; the grid lists only
   those years.
-- **Ranking floor:** 300 TMDB votes to be ranked. The backfill keeps its
+- **Ranking floor:** 150 TMDB votes to be ranked, in every year (it was 300
+  until `2026-11-26-rewind-adaptive-ranking-design.md`). The backfill keeps its
   50-vote floor (`BACKFILL_MIN_VOTES`) for deciding what to rate, so every
   ranked film has been rated.
 - **The current year's list refreshes weekly.** A watched film that drops out
