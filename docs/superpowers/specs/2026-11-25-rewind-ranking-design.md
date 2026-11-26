@@ -1,7 +1,8 @@
 # Rewind ranking — Design
 
 **Date:** 2026-11-25
-**Status:** Agreed, built
+**Status:** Agreed, built. The floor and the critic weight below were changed by
+`2026-11-26-rewind-adaptive-ranking-design.md`.
 **Builds on:** `2026-11-24-rewind-design.md`
 
 ## Problem

@@ -221,8 +221,12 @@ async function collectBackfill(
   return { films, cursor: cursor.year >= BACKFILL_END_YEAR ? cursor : null }
 }
 
-/** Rewind ranks films with this many votes (REWIND_MIN_VOTES); the sync rates this year's first. */
-export const CURRENT_YEAR_MIN_VOTES = 300
+/**
+ * The vote floor Rewind ranks films at, in every year (REWIND_MIN_VOTES). The
+ * sync rates this year's films at it first, so the current year is ready; past
+ * years are covered by the backfill, which rates from BACKFILL_MIN_VOTES.
+ */
+export const RANKING_MIN_VOTES = 150
 
 /** Up to `want` films from `year` with `minVotes`+ votes that we've never stored, most popular first. */
 async function collectUnknown(
@@ -251,7 +255,7 @@ async function collectUnknown(
 /**
  * Nightly job, in three parts sharing one OMDb budget:
  *
- * 0. Rate this year's films with CURRENT_YEAR_MIN_VOTES+ votes that we've
+ * 0. Rate this year's films with RANKING_MIN_VOTES+ votes that we've
  *    never stored, so Rewind's current year is ready first.
  * 1. Re-check films that are pending, have no rating, or are recent enough
  *    that their scores still move.
@@ -275,7 +279,7 @@ export async function syncRatings(
   let current: null | { added: number; rated: number; pending: number } = null
   let spent = 0
   if (opts.backfill && keys.tmdbToken) {
-    const fresh = await collectUnknown(keys.tmdbToken, opts.backfill, now.getUTCFullYear(), CURRENT_YEAR_MIN_VOTES, budget, opts.deadline)
+    const fresh = await collectUnknown(keys.tmdbToken, opts.backfill, now.getUTCFullYear(), RANKING_MIN_VOTES, budget, opts.deadline)
     const r = await resolveScores(fresh, keys, cache, { bypassCache: true, concurrency: 8, deadline: opts.deadline })
     current = { added: fresh.length, rated: rated(r), pending: r.pending.length }
     spent = fresh.length

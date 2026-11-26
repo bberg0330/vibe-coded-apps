@@ -112,7 +112,7 @@ IMDb id and stored in Supabase's `movie_night_scores`:
   `api/cron/ratings-sync` function at 09:17 UTC (Hobby adds up to 15 min of
   jitter). Run it now from the project's **Schedules** page (Run Schedule)
   or with `vercel schedules invoke ratings-sync`. It first rates this year's
-  films with 300+ TMDB votes that aren't in the table yet (Rewind's current
+  films with 150+ TMDB votes that aren't in the table yet (Rewind's current
   year), then re-checks queued films, "no rating" answers older than 30 days, and films
   from this year or last whose scores are over a week old, spending at most
   `OMDB_SYNC_BUDGET` requests (default 800) and stopping at the limit.
@@ -122,11 +122,15 @@ IMDb id and stored in Supabase's `movie_night_scores`:
   Progress is kept in `movie_night_backfill`; delete its row to start over.
 - **Rewind lists**, at the end of the same run, using TMDB only: for this
   year and up to 5 past years the backfill has passed, once every feature
-  film (60+ minutes) from that year with 300+ TMDB votes has an OMDb answer,
-  the year's top 50 is saved to `movie_night_rewind_years`. The order is a
-  blend of audience score (TMDB and IMDb, shrunk towards a typical score when
-  votes are few), critic score and how many people voted
-  (`rewindScore` in `api/_lib/rewind.ts`). A year is the one in TMDB's
+  film (60+ minutes) from that year with 150+ TMDB votes (every year, the
+  same floor) has an OMDb answer, the year's top 50 is saved to
+  `movie_night_rewind_years`. The order is a blend of audience score (TMDB and
+  IMDb, shrunk towards a typical score when votes are few), critic score and
+  how many people voted (`rewindScore` in `api/_lib/rewind.ts`). The critic
+  score's weight fades with how many of that year's films have one (full at a
+  quarter or more, none at zero), because OMDb's Rotten Tomatoes scores became
+  rare from 23 Nov 2026 (local dev, with no OMDb scores, ranks on audience and
+  reach only). A year is the one in TMDB's
   primary release date. Past years are saved once; this year is rebuilt weekly
   (`refresh_after`). Each row records the ranking that built it
   (`ranking_version`): after changing the ranking, bump
