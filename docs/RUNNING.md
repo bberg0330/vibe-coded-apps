@@ -129,7 +129,8 @@ IMDb id and stored in Supabase's `movie_night_scores`:
   how many people voted (`rewindScore` in `api/_lib/rewind.ts`). The critic
   score's weight fades with how many of that year's films have one (full at a
   quarter or more, none at zero), because OMDb's Rotten Tomatoes scores became
-  rare from 23 Nov 2026. A year is the one in TMDB's
+  rare from 23 Nov 2026 (local dev, with no OMDb scores, ranks on audience and
+  reach only). A year is the one in TMDB's
   primary release date. Past years are saved once; this year is rebuilt weekly
   (`refresh_after`). Each row records the ranking that built it
   (`ranking_version`): after changing the ranking, bump

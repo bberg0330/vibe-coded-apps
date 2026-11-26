@@ -2,7 +2,7 @@
 // See docs/superpowers/specs/2026-11-24-rewind-design.md and
 // docs/superpowers/specs/2026-11-25-rewind-ranking-design.md.
 import { tmdbFetch } from './upstream.js'
-import { BACKFILL_END_YEAR, BACKFILL_START_YEAR, CURRENT_YEAR_MIN_VOTES, type BackfillCursor } from './ratings.js'
+import { BACKFILL_END_YEAR, BACKFILL_START_YEAR, RANKING_MIN_VOTES, type BackfillCursor } from './ratings.js'
 import type { RewindFilm } from '../../src/types'
 import type { ScoreData } from '../../src/data/scores'
 
@@ -11,7 +11,7 @@ import type { ScoreData } from '../../src/data/scores'
  * rates from 50, so every year it has passed has OMDb answers for all of them;
  * the sync rates this year's films at the same floor.
  */
-export const REWIND_MIN_VOTES = CURRENT_YEAR_MIN_VOTES
+export const REWIND_MIN_VOTES = RANKING_MIN_VOTES
 /** Shorter than this and it isn't a feature film (shorts, making-ofs). */
 export const REWIND_MIN_RUNTIME = 60
 /** Films per year. */
@@ -76,11 +76,22 @@ export function criticWeightFor(films: RewindFilm[], scores: Map<number, ScoreDa
 }
 
 /**
+ * The three weights at a given critic weight. What the critic term gives up
+ * goes to audience and reach in their usual 3:1 proportion, so they always sum
+ * to 1.
+ */
+function weightsFor(criticWeight: number) {
+  const freed = CRITIC_WEIGHT - criticWeight
+  const share = (weight: number) => weight + (freed * weight) / (AUDIENCE_WEIGHT + REACH_WEIGHT)
+  return { audience: share(AUDIENCE_WEIGHT), critic: criticWeight, reach: share(REACH_WEIGHT) }
+}
+
+/**
  * A film's blended score, 0-100. Audience is TMDB's rating averaged with
  * IMDb's (when OMDb has one), shrunk towards a typical score when votes are
  * few. A missing critic score counts as the audience score, so it neither
- * helps nor hurts the film. Weight taken off the critic term (see
- * criticWeightFor) goes to audience and reach in their usual 3:1 proportion.
+ * helps nor hurts the film. See criticWeightFor for the critic weight a year
+ * uses; the default is the full weight.
  */
 export function rewindScore(film: RewindFilm, score?: ScoreData, criticWeight = CRITIC_WEIGHT): number {
   const votes = Math.max(film.voteCount, 0)
@@ -89,10 +100,8 @@ export function rewindScore(film: RewindFilm, score?: ScoreData, criticWeight = 
   const audience = (votes * raw + PRIOR_VOTES * PRIOR_AUDIENCE) / (votes + PRIOR_VOTES)
   const critic = score?.critic ?? audience
   const reach = 100 * Math.min(Math.log10(Math.max(votes, 1)) / Math.log10(REACH_FULL_VOTES), 1)
-  const freed = CRITIC_WEIGHT - criticWeight
-  const audienceWeight = AUDIENCE_WEIGHT + (freed * AUDIENCE_WEIGHT) / (AUDIENCE_WEIGHT + REACH_WEIGHT)
-  const reachWeight = REACH_WEIGHT + (freed * REACH_WEIGHT) / (AUDIENCE_WEIGHT + REACH_WEIGHT)
-  return audienceWeight * audience + criticWeight * critic + reachWeight * reach
+  const weights = weightsFor(criticWeight)
+  return weights.audience * audience + weights.critic * critic + weights.reach * reach
 }
 
 /** Best first. Ties go to the film more people have voted on, then the lower id, so the order is stable. */

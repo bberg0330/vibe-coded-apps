@@ -96,6 +96,14 @@ describe('rewindScore', () => {
     expect(Number.isFinite(rewindScore(film(1, 0, 0)))).toBe(true)
   })
 
+  it('keeps the three weights summing to 1 at every critic weight along the ramp', () => {
+    // A film that is perfect on every term scores 100 whatever the weights are.
+    const perfect = film(1, 10, 1e9)
+    for (const weight of [0, 0.05, 0.1, 0.15, 0.2]) {
+      expect(rewindScore(perfect, { critic: 100, audience: 100 }, weight)).toBeCloseTo(100, 3)
+    }
+  })
+
   it('ignores the critic score at zero critic weight, and gives the freed weight to audience and reach 3:1', () => {
     const f = film(1, 8, 1e9) // so many votes that shrinkage is negligible: audience 80, reach 100
     expect(rewindScore(f, { critic: 95, audience: null }, 0)).toBe(rewindScore(f, { critic: 10, audience: null }, 0))

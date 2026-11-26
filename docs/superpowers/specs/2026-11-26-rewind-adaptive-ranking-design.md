@@ -1,7 +1,9 @@
 # Rewind ranking, adaptive critic weight and one floor — Design
 
 **Date:** 2026-11-26
-**Status:** Agreed, built (PR 1 of 3)
+**Status:** Agreed, built (PR 1 of 3). The success bar below is met in aggregate:
+the lists are no worse overall, but at the old size of 50 some single lists lose
+a film or two (see the caveats).
 **Builds on:** `2026-11-25-rewind-ranking-design.md`
 
 ## Problem
@@ -84,5 +86,7 @@ the current year, once.
 - A year saved after OMDb's Rotten Tomatoes scores return will be ranked with
   that data only if it is rebuilt (a version bump or the weekly refresh of the
   current year).
+- The local-dev fallback (no Supabase, so no OMDb scores) has no critic
+  coverage, so it ranks on audience and reach only.
 - Reference lists are third-party opinions that disagree with each other. Tiny
   films under 150 votes are still out of reach.
