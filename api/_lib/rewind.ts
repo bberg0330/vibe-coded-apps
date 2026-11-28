@@ -71,8 +71,9 @@ const REACH_FULL_VOTES = 20000
 /**
  * The critic weight for one year's films. The critic score is Metacritic's
  * Metascore (OMDb stopped sending Rotten Tomatoes on 23 Nov 2026); many films
- * have none, and where only a few do the critic term is noise, so it fades out with coverage: full
- * weight at CRITIC_FULL_COVERAGE or more, none when no film has a score.
+ * have none, and where only a few do the critic term is noise, so it fades
+ * out with coverage: full weight at CRITIC_FULL_COVERAGE or more, none when no
+ * film has a score.
  */
 export function criticWeightFor(films: RewindFilm[], scores: Map<number, ScoreData>): number {
   if (films.length === 0) return 0
