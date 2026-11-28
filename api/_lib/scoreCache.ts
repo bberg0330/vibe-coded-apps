@@ -153,6 +153,14 @@ export function supabaseRewindStore(): RewindStore | undefined {
       }
       return found
     },
+    async queue(films) {
+      if (films.length === 0) return
+      // Pending rows (fetched_at null) come first in the sync's due list.
+      // ignoreDuplicates: a film already on record keeps its row as it is.
+      const rows = films.map((f) => ({ tmdb_id: f.tmdbId, year: f.year }))
+      const { error } = await supabase.from(TABLE).upsert(rows, { onConflict: 'tmdb_id', ignoreDuplicates: true })
+      if (error) throw error
+    },
   }
 }
 
