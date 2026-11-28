@@ -172,8 +172,8 @@ describe('rankFilms', () => {
 })
 
 describe('refreshRewind', () => {
-  it('saves the top 50 once every rankable film in the year has been checked', async () => {
-    stubDiscover({ 2025: range(1, 70) })
+  it('saves the top 100 once every rankable film in the year has been checked', async () => {
+    stubDiscover({ 2025: range(1, 120) })
     const store = memoryStore(new Map([[2026, current()]]))
 
     const summary = await refreshRewind('tmdb', store, { cursor: { year: 2024, page: 1 }, now: NOW })
@@ -184,8 +184,8 @@ describe('refreshRewind', () => {
     expect(q.get('vote_count.gte')).toBe('150')
     // Feature films only: shorts and making-ofs are left out.
     expect(q.get('with_runtime.gte')).toBe('60')
-    expect(years().map((p) => p.get('page'))).toEqual(['1', '2', '3', '4'])
-    expect(store.scores).toHaveBeenCalledWith(range(1, 70))
+    expect(years().map((p) => p.get('page'))).toEqual(['1', '2', '3', '4', '5', '6'])
+    expect(store.scores).toHaveBeenCalledWith(range(1, 120))
     const [year, films, , refreshAfter] = store.save.mock.calls[0]
     expect(year).toBe(2025)
     expect(films).toHaveLength(REWIND_SIZE)
@@ -333,7 +333,7 @@ describe('handleRewind', () => {
   })
 
   it('ranks live from TMDB when there are no saved lists (local dev)', async () => {
-    stubDiscover({ 2026: range(1, 60) })
+    stubDiscover({ 2026: range(1, 120) })
     const res = await handleRewind({ year: '2026' }, 'tmdb', undefined, NOW)
     expect((res.body as { films: unknown[] }).films).toHaveLength(REWIND_SIZE)
   })

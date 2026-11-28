@@ -143,7 +143,7 @@ export type StoreOp =
   | { type: 'addToWatchlist'; entry: WatchlistEntry }
   | { type: 'removeFromWatchlist'; tmdbId: number }
 
-/** A film in a Rewind year's saved top 50 (api/_lib/rewind.ts → /api/rewind). */
+/** A film in a Rewind year's saved list (api/_lib/rewind.ts → /api/rewind). */
 export type RewindFilm = {
   tmdbId: number
   title: string

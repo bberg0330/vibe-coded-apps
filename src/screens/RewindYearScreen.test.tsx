@@ -40,17 +40,20 @@ describe('whereToWatch', () => {
 })
 
 describe('RewindYearScreen', () => {
-  it('shows watchable films by default, counting progress against the whole list', async () => {
+  it('opens with the whole list, and Watchable now filters it, counting progress against the whole list either way', async () => {
     vi.mocked(getRewindYear).mockResolvedValue({ films: [film(1), film(2), film(3)], formerIds: [] })
     render(<RewindYearScreen {...props} />)
 
+    // Off on load: every film shows, including one with nowhere to watch (no badge).
     expect(await screen.findByText('Stream · Netflix')).toBeInTheDocument()
     expect(await screen.findByText('Rent · YouTube')).toBeInTheDocument()
-    expect(titles()).toEqual(['Film 1', 'Film 2'])
+    expect(titles()).toEqual(['Film 1', 'Film 2', 'Film 3'])
+    expect(screen.getByRole('button', { name: 'Watchable now' })).toHaveAttribute('aria-pressed', 'false')
     expect(screen.getByText('1 of 3 watched')).toBeInTheDocument()
 
-    await userEvent.click(screen.getByRole('button', { name: '✓ Watchable now' }))
-    expect(titles()).toEqual(['Film 1', 'Film 2', 'Film 3'])
+    await userEvent.click(screen.getByRole('button', { name: 'Watchable now' }))
+    expect(titles()).toEqual(['Film 1', 'Film 2'])
+    expect(screen.getByRole('button', { name: '✓ Watchable now' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByText('1 of 3 watched')).toBeInTheDocument()
   })
 
