@@ -2,7 +2,7 @@
 // See docs/superpowers/specs/2026-11-24-rewind-design.md and
 // docs/superpowers/specs/2026-11-25-rewind-ranking-design.md.
 import { tmdbFetch } from './upstream.js'
-import { BACKFILL_END_YEAR, BACKFILL_START_YEAR, RANKING_MIN_VOTES, type BackfillCursor } from './ratings.js'
+import { BACKFILL_END_YEAR, BACKFILL_START_YEAR, RANKING_MIN_VOTES, type BackfillCursor, type FilmRef } from './ratings.js'
 import type { RewindFilm } from '../../src/types'
 import type { ScoreData } from '../../src/data/scores'
 
@@ -49,7 +49,7 @@ export type RewindStore = {
    * Asks the nightly sync to rate these films (they become due next run).
    * Films already on record are left as they are.
    */
-  queue(films: { tmdbId: number; year: number }[]): Promise<void>
+  queue(films: FilmRef[]): Promise<void>
 }
 
 // The blend that orders a year: how good people say it is (audience), how good
@@ -210,7 +210,10 @@ export async function refreshRewind(
     // A year with no rankable films is saved as an empty list (the grid hides
     // it) so it stops taking one of tonight's slots.
     if (unrated.length > 0) {
+      // Best effort: a failed queue only delays the year, so log it and carry
+      // on with the other years (and the rest of the nightly run).
       await store.queue(unrated.map((f) => ({ tmdbId: f.tmdbId, year })))
+        .catch((err) => console.error('rewind: could not queue unrated films', year, err))
       summary.notReady.push({ year, unchecked: unrated.length })
       continue
     }

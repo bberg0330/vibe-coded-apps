@@ -126,7 +126,8 @@ IMDb id and stored in Supabase's `movie_night_scores`:
   same floor) has an OMDb answer, the year's top 50 is saved to
   `movie_night_rewind_years`. A year that isn't ready queues its unrated films
   (pending rows in `movie_night_scores`), so the next sync rates them; the
-  backfill can miss a few, since popularity shifts while it pages a year. The order is a blend of audience score (TMDB and
+  backfill can miss a few, since popularity shifts while it pages a year.
+  The order is a blend of audience score (TMDB and
   IMDb, shrunk towards a typical score when votes are few), critic score and
   how many people voted (`rewindScore` in `api/_lib/rewind.ts`). The critic
   score's weight fades with how many of that year's films have one (full at a
