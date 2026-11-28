@@ -155,7 +155,7 @@ export async function resolveScores(
 }
 
 /** OMDb requests the nightly sync may spend; the free tier allows 1,000 a day. */
-export const DEFAULT_SYNC_BUDGET = 800
+export const DEFAULT_SYNC_BUDGET = 950
 
 /** Where the backfill has got to in TMDB's discover list. */
 export type BackfillCursor = { year: number; page: number }

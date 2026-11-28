@@ -10,7 +10,7 @@ export type ScoreMap = Record<string, ScoreData>
 /**
  * What the shared cache can actually hold. Entries written before the
  * { critic, audience } shape existed are still in there: a bare number
- * (the tomatometer) or a bare null meaning "OMDb has no RT score".
+ * (the critic score, once Rotten Tomatoes) or a bare null meaning "no critic score".
  */
 export type StoredScore = ScoreData | number | null
 export type StoredScoreMap = Record<string, StoredScore>

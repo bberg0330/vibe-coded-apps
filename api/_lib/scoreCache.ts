@@ -16,14 +16,23 @@ export const RETRY_EMPTY_AFTER_DAYS = 30
 export const REFRESH_RECENT_AFTER_DAYS = 7
 
 /**
+ * When the critic score switched from Rotten Tomatoes to Metacritic. Every row
+ * fetched before it is re-fetched once for its Metascore; after that the
+ * clause matches nothing.
+ */
+export const METASCORE_SINCE = '2026-11-28T00:00:00Z'
+
+/**
  * PostgREST filter for rows the nightly sync should look at: never fetched
- * (pending, or legacy rows from before `fetched_at`), empty answers past
- * their retry date, and recent films past their refresh date.
+ * (pending, or legacy rows from before `fetched_at`), rows from before the
+ * Metascore switch, empty answers past their retry date, and recent films
+ * past their refresh date.
  */
 export function dueFilter(now: Date): string {
   const ago = (days: number) => new Date(now.getTime() - days * DAY).toISOString()
   return [
     'fetched_at.is.null',
+    `fetched_at.lt.${METASCORE_SINCE}`,
     `and(critic.is.null,audience.is.null,fetched_at.lt.${ago(RETRY_EMPTY_AFTER_DAYS)})`,
     `and(year.gte.${now.getUTCFullYear() - 1},fetched_at.lt.${ago(REFRESH_RECENT_AFTER_DAYS)})`,
   ].join(',')

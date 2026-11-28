@@ -27,7 +27,7 @@ vi.mock('@supabase/supabase-js', () => ({
 }))
 
 const {
-  dueFilter, supabaseScoreCache, supabaseBackfillStore, supabaseRewindStore, supabaseRewindReader, supabaseAlertStore,
+  dueFilter, METASCORE_SINCE, supabaseScoreCache, supabaseBackfillStore, supabaseRewindStore, supabaseRewindReader, supabaseAlertStore,
   RETRY_EMPTY_AFTER_DAYS, REFRESH_RECENT_AFTER_DAYS,
 } = await import('./scoreCache')
 
@@ -54,12 +54,13 @@ describe('without Supabase credentials', () => {
 })
 
 describe('dueFilter', () => {
-  it('selects never-fetched rows, empty answers past their retry date, and recent films past their refresh date', () => {
+  it('selects never-fetched rows, rows from before the Metascore switch, empty answers past their retry date, and recent films past their refresh date', () => {
     const day = 24 * 60 * 60 * 1000
     const retry = new Date(NOW.getTime() - RETRY_EMPTY_AFTER_DAYS * day).toISOString()
     const refresh = new Date(NOW.getTime() - REFRESH_RECENT_AFTER_DAYS * day).toISOString()
     expect(dueFilter(NOW)).toBe([
       'fetched_at.is.null',
+      `fetched_at.lt.${METASCORE_SINCE}`,
       `and(critic.is.null,audience.is.null,fetched_at.lt.${retry})`,
       `and(year.gte.2025,fetched_at.lt.${refresh})`,
     ].join(','))

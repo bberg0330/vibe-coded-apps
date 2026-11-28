@@ -62,7 +62,7 @@ describe('handleTmdb', () => {
 })
 
 describe('handleOmdb', () => {
-  const omdbHit = { Response: 'True', Year: '1999', imdbRating: '7.7', Ratings: [{ Source: 'Rotten Tomatoes', Value: '90%' }] }
+  const omdbHit = { Response: 'True', Year: '1999', imdbRating: '7.7', Metascore: '90' }
 
   it('looks films up by IMDb id and returns their scores keyed by TMDB id', async () => {
     fetchMock.mockImplementation(async (url: string) =>
@@ -101,7 +101,7 @@ describe('handleRecommendations', () => {
   function stubUpstream(films: ReturnType<typeof film>[]) {
     fetchMock.mockImplementation(async (url: string) => {
       if (url.includes('omdbapi.com')) {
-        return ok({ Response: 'True', Year: '2000', imdbRating: '8.0', Ratings: [{ Source: 'Rotten Tomatoes', Value: '80%' }] })
+        return ok({ Response: 'True', Year: '2000', imdbRating: '8.0', Metascore: '80' })
       }
       if (url.includes('/movie/100/credits')) return ok({ cast: [{ id: 1, name: 'Bill Murray', character: '', profile_path: null, order: 0 }] })
       if (url.includes('/person/1/movie_credits')) return ok({ cast: films })

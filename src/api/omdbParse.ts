@@ -8,7 +8,8 @@ export type OmdbResponse = {
   Error?: string
   Title?: string
   Year?: string
-  Ratings?: { Source: string; Value: string }[]
+  /** Metacritic's critic score, 0-100 (e.g. "67"), or "N/A" when absent. */
+  Metascore?: string
   /** IMDb's own user rating, 0-10 (e.g. "7.7"), or "N/A" when absent. */
   imdbRating?: string
 }
@@ -38,7 +39,7 @@ export function omdbFailure(data: OmdbResponse): OmdbFailure | null {
 }
 
 /**
- * Critic (Rotten Tomatoes) and audience (IMDb) scores from an OMDb response.
+ * Critic (Metacritic) and audience (IMDb) scores from an OMDb response.
  *
  * Always returns both keys, so a definitive "OMDb doesn't have this film" is
  * cached as a complete answer. Left as `{}` it would read as "never looked
@@ -47,7 +48,7 @@ export function omdbFailure(data: OmdbResponse): OmdbFailure | null {
 export function scoresFromOmdb(data: OmdbResponse, year: number | null): ScoreData {
   if (data.Response !== 'True' || !yearMatches(data.Year, year)) return { critic: null, audience: null }
   return {
-    critic: parseCriticScore(data.Ratings),
+    critic: parseMetascore(data.Metascore),
     audience: parseImdbRating(data.imdbRating),
   }
 }
@@ -60,19 +61,17 @@ function yearMatches(omdbYear: string | undefined, expected: number | null): boo
   return Number.isFinite(actual) && Math.abs(actual - expected) <= 1
 }
 
-function parseCriticScore(ratings: OmdbResponse['Ratings']): number | null {
-  const rt = ratings?.find((r) => r.Source === 'Rotten Tomatoes')
-  if (!rt) return null
-  const value = Number.parseInt(rt.Value, 10)
+/**
+ * OMDb stopped returning Rotten Tomatoes scores around 23 Nov 2026 (even its
+ * own example film lost them), so the critic score is Metacritic's Metascore.
+ */
+function parseMetascore(metascore: string | undefined): number | null {
+  if (!metascore || metascore === 'N/A') return null
+  const value = Number.parseInt(metascore, 10)
   return Number.isFinite(value) ? value : null
 }
 
-/**
- * Rotten Tomatoes' own audience score (Popcornmeter) has no public API.
- * IMDb's user rating, already present in the same OMDb response, is used
- * as a real stand-in "audience opinion" score instead — scaled from
- * IMDb's 0-10 to a 0-100 percentage to match the tomatometer's scale.
- */
+/** IMDb's user rating, scaled from 0-10 to 0-100 to match the critic score. */
 function parseImdbRating(imdbRating: string | undefined): number | null {
   if (!imdbRating || imdbRating === 'N/A') return null
   const value = Number.parseFloat(imdbRating)
