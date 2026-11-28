@@ -12,7 +12,8 @@ function rules(): { selector: string; body: string }[] {
   for (let m = re.exec(css); m; m = re.exec(css)) out.push({ selector: m[1].trim().replace(/\s+/g, ' '), body: m[2] })
   return out
 }
-const rule = (selector: string) => rules().filter((r) => r.selector.endsWith(selector))
+/** Rules whose selector, or one selector in a grouped list, ends with `selector`. */
+const rule = (selector: string) => rules().filter((r) => r.selector.split(',').some((part) => part.trim().endsWith(selector)))
 
 /** The gold FILLS: `background` or `background-color` set to var(--accent), not --accent-text or --accent-fg. */
 const goldFills = () => rules().filter((r) => /background(?:-color)?:\s*var\(--accent\)(?![\w-])/.test(r.body))
@@ -36,7 +37,7 @@ describe('Rewind chips', () => {
 
   it('give the 36px pills a 44pt tap area without changing their size', () => {
     expect(rule('.rewind-controls .chip').some((r) => /height:\s*36px/.test(r.body) && /position:\s*relative/.test(r.body))).toBe(true)
-    expect(rule('.rewind-controls .chip::before').some((r) => /position:\s*absolute/.test(r.body) && /inset:\s*-4px 0/.test(r.body))).toBe(true)
+    expect(rule('.rewind-controls .chip::before').some((r) => /position:\s*absolute/.test(r.body) && /inset:\s*var\(--tap-inset, -4px 0\)/.test(r.body))).toBe(true)
   })
 })
 
@@ -67,6 +68,15 @@ describe('gold in light mode', () => {
 
   it('keeps Watch tonight at 36px with a taller hit area', () => {
     expect(rule('.alert-watch')[0].body).toMatch(/height:\s*36px/)
-    expect(rule('.alert-watch::after')[0].body).toMatch(/inset:\s*-4px 0/)
+    expect(rule('.alert-watch::before')[0].body).toMatch(/inset:\s*var\(--tap-inset, -4px 0\)/)
+  })
+})
+
+describe('shared tap area', () => {
+  it('gives every 36px control one 44pt tap-area rule, all-round only for the round compact button', () => {
+    const [shared] = rule('.watchlist-btn.compact::before')
+    for (const s of ['.rewind-controls .chip::before', '.alert-watch::before']) expect(shared.selector).toContain(s)
+    expect(shared.body).toMatch(/position:\s*absolute/)
+    expect(rule('.watchlist-btn.compact').some((r) => /--tap-inset:\s*-4px;/.test(r.body))).toBe(true)
   })
 })
