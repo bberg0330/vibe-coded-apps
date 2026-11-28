@@ -25,7 +25,8 @@ const SORTS: { value: Sort; label: string }[] = [
 
 /**
  * One Rewind year: the top films in rank order, household progress, sort,
- * and "Watchable now" (on by default: your services or a rental). Progress
+ * and "Watchable now" (off when a year opens, so the whole list shows, and not
+ * remembered; on: your services or a rental). Progress
  * always counts the whole list, whatever the filter shows. A year that
  * isn't ready shows an "unlocks soon" message instead.
  */
@@ -47,7 +48,7 @@ export function RewindYearScreen({
   const [error, setError] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const [where, setWhere] = useState<Map<number, Availability>>(new Map())
-  const [watchableOnly, setWatchableOnly] = useState(true)
+  const [watchableOnly, setWatchableOnly] = useState(false)
   const [sort, setSort] = useState<Sort>('rating')
   const [sortOpen, setSortOpen] = useState(false)
 

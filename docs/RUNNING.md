@@ -123,7 +123,7 @@ IMDb id and stored in Supabase's `movie_night_scores`:
 - **Rewind lists**, at the end of the same run, using TMDB only: for this
   year and up to 5 past years the backfill has passed, once every feature
   film (60+ minutes) from that year with 150+ TMDB votes (every year, the
-  same floor) has an OMDb answer, the year's top 50 is saved to
+  same floor) has an OMDb answer, the year's top 100 is saved to
   `movie_night_rewind_years`. A year that isn't ready queues its unrated films
   (pending rows in `movie_night_scores`), so the next sync rates them; the
   backfill can miss a few, since popularity shifts while it pages a year.

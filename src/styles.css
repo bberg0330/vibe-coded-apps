@@ -697,6 +697,16 @@ h2 { font-size: 16px; color: var(--muted); margin: 20px 0 8px; text-transform: u
   background: var(--control-bg); color: var(--text);
 }
 .rewind-controls .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); box-shadow: inset 0 0 0 1px var(--accent-edge); }
+/*
+ * Off, a Rewind chip's --control-bg is the page colour in dark mode (1.00:1), so
+ * it read as a label, not a button, and "Watchable now" is off when a year opens.
+ * A --muted outline gives the shape back (7.43:1 dark, 5.79:1 light; --border is
+ * only 1.41:1). The ::before widens the 36px pill's tap area to 44pt without
+ * changing how it looks.
+ */
+.rewind-controls .chip:not([aria-pressed="true"]) { box-shadow: inset 0 0 0 1px var(--muted); }
+.rewind-controls .chip { position: relative; }
+.rewind-controls .chip::before { content: ''; position: absolute; inset: -4px 0; }
 
 /* History → "Seen before" (Figma: "History — with Seen before" / "History — Seen before list"). */
 .seen-before-link {

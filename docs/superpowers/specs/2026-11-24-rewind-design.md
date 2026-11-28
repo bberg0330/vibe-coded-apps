@@ -17,8 +17,8 @@ rent tonight, and tracks how many of them the household has seen.
 ## Screens and routes
 
 - `#/rewind` — a **grid of years**, each showing household progress
-  ("2019 · 7/50").
-- `#/rewind/<year>` — that year's **top 50**.
+  ("2019 · 7/100"; it was 50 until the 2026-11-28 top-100 change).
+- `#/rewind/<year>` — that year's **top 100**.
 - A year that isn't finished yet (see *Years*) shows "Rewind 1987 unlocks
   soon" with a rough date (one year per night) and a link back to the grid.
 - Rewind is reached from the new bottom tab bar (see *Navigation*).
@@ -34,7 +34,7 @@ rent tonight, and tracks how many of them the household has seen.
   (`api/_lib/ratings.ts`).
 - The nightly sync changes to **rate the current year first**, then continue
   the backfill with whatever budget is left.
-- When the sync finishes a year it **saves that year's top 50** to Supabase.
+- When the sync finishes a year it **saves that year's top 100** to Supabase.
   A year counts as finished once its list is saved; the grid lists only
   those years.
 - **Ranking floor:** 150 TMDB votes to be ranked, in every year (it was 300
@@ -42,18 +42,20 @@ rent tonight, and tracks how many of them the household has seen.
   50-vote floor (`BACKFILL_MIN_VOTES`) for deciding what to rate, so every
   ranked film has been rated.
 - **The current year's list refreshes weekly.** A watched film that drops out
-  of the top 50 still counts, so progress never goes backwards.
+  of the top 100 still counts, so progress never goes backwards.
 
 ## The year list
 
 - **Sort:** "Rating" (default: the saved order, a blend of audience score,
-  critic score and reach that also picks the 50; see
+  critic score and reach that also picks the 100; see
   `2026-11-25-rewind-ranking-design.md`), critic score (OMDb), popularity.
-- **"Watchable now" filter**, on by default: your streaming services
-  (`SERVICES`) and the rental stores (`RENT_SERVICES`), each film badged
-  "Stream" or "Rent".
+- **"Watchable now" filter**, off when a year opens so the whole list shows,
+  and not remembered between visits. On, it keeps your streaming services
+  (`SERVICES`) and the rental stores (`RENT_SERVICES`); each watchable film is
+  badged "Stream" or "Rent". Off-state chips carry a `--muted` outline so they
+  read as buttons, and both chips have a 44pt tap area.
 - **Watched films stay in the list**, marked as watched.
-- **Progress** is the household's watched films against the full 50,
+- **Progress** is the household's watched films against the full 100,
   whatever the filter shows.
 - **Row actions:** open the film, **Add to watchlist**, **Mark as watched**.
 - Reuse what #38–#42 added:
@@ -111,7 +113,7 @@ Approved on 2026-11-24. Figma file `ajsVg5LjRT7Y5D346WMif3`:
 
 ## Build order
 
-1. Nightly sync: rate the current year first; save each finished year's top 50.
+1. Nightly sync: rate the current year first; save each finished year's top 100.
 2. Watched history: undated "seen before" entries (type, store, import check).
 3. Navigation: tab bar, new top bar with bell and avatar.
 4. Rewind screens.

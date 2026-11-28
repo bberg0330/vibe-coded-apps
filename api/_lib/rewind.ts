@@ -1,4 +1,4 @@
-// Rewind: each year's top 50 films, saved once the year's ratings are in.
+// Rewind: each year's top 100 films, saved once the year's ratings are in.
 // See docs/superpowers/specs/2026-11-24-rewind-design.md and
 // docs/superpowers/specs/2026-11-25-rewind-ranking-design.md.
 import { tmdbFetch } from './upstream.js'
@@ -15,12 +15,12 @@ export const REWIND_MIN_VOTES = RANKING_MIN_VOTES
 /** Shorter than this and it isn't a feature film (shorts, making-ofs). */
 export const REWIND_MIN_RUNTIME = 60
 /** Films per year. */
-export const REWIND_SIZE = 50
+export const REWIND_SIZE = 100
 /**
  * Bump when the ranking changes: saved years from an older version are rebuilt
  * by the nightly run, and keep being served until their replacement is saved.
  */
-export const REWIND_RANKING_VERSION = 3
+export const REWIND_RANKING_VERSION = 4
 /** The current year's list is rebuilt this often, since new films keep arriving. */
 export const REFRESH_CURRENT_AFTER_DAYS = 7
 /** Past years checked per night, newest first, so one run stays well inside its time limit. */
@@ -185,7 +185,7 @@ export function yearsToCheck(saved: Map<number, SavedYear>, cursor: BackfillCurs
 }
 
 /**
- * Nightly, after the rating sync: saves the top 50 for every year that is
+ * Nightly, after the rating sync: saves the top 100 for every year that is
  * ready, i.e. all of its films with REWIND_MIN_VOTES+ votes have been checked
  * by OMDb, ranked by the blend of what those answers said. Uses TMDB only,
  * none of the OMDb budget. A year that isn't ready queues its unrated films
