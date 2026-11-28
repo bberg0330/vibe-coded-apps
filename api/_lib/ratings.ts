@@ -155,7 +155,7 @@ export async function resolveScores(
 }
 
 /** OMDb requests the nightly sync may spend; the free tier allows 1,000 a day. */
-export const DEFAULT_SYNC_BUDGET = 800
+export const DEFAULT_SYNC_BUDGET = 950
 
 /** Where the backfill has got to in TMDB's discover list. */
 export type BackfillCursor = { year: number; page: number }
@@ -257,8 +257,8 @@ async function collectUnknown(
  *
  * 0. Rate this year's films with RANKING_MIN_VOTES+ votes that we've
  *    never stored, so Rewind's current year is ready first.
- * 1. Re-check films that are pending, have no rating, or are recent enough
- *    that their scores still move.
+ * 1. Re-check films that are pending, were fetched before the Metascore
+ *    switch, have no rating, or are recent enough that their scores still move.
  * 2. With whatever budget is left, backfill films we've never stored, from
  *    TMDB's discover list (2025 first, then a year further back each time a
  *    year is exhausted).

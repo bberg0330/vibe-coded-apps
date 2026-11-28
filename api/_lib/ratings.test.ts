@@ -5,8 +5,8 @@ import { omdbFailure } from '../../src/api/omdbParse'
 
 const KEYS = { tmdbToken: 'tmdb-secret', omdbKey: 'omdb-secret' }
 const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body })
-const hit = (rt: string, imdb = '7.7', year = '2000') =>
-  ({ Response: 'True', Year: year, imdbRating: imdb, Ratings: [{ Source: 'Rotten Tomatoes', Value: rt }] })
+const hit = (metascore: string, imdb = '7.7', year = '2000') =>
+  ({ Response: 'True', Year: year, imdbRating: imdb, Metascore: metascore })
 
 function memoryCache(seed: Record<number, { critic: number | null; audience: number | null }> = {}) {
   const cache = {

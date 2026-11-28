@@ -102,7 +102,9 @@ situation, because an empty list looks exactly like lost data.
 ## Rating sync (production)
 
 Scores come from OMDb (1,000 requests/day on the free key), looked up by
-IMDb id and stored in Supabase's `movie_night_scores`:
+IMDb id and stored in Supabase's `movie_night_scores`. The critic score
+(`critic`, shown with 🍅) is Metacritic's Metascore: OMDb stopped sending
+Rotten Tomatoes scores on 23 Nov 2026. The audience score is IMDb's rating ×10.
 
 - On demand: `/api/omdb?ids=…` (batched, up to 25 films) and
   `/api/recommendations` check the table first and only ask OMDb about
@@ -115,7 +117,7 @@ IMDb id and stored in Supabase's `movie_night_scores`:
   films with 150+ TMDB votes that aren't in the table yet (Rewind's current
   year), then re-checks queued films, "no rating" answers older than 30 days, and films
   from this year or last whose scores are over a week old, spending at most
-  `OMDB_SYNC_BUDGET` requests (default 800) and stopping at the limit.
+  `OMDB_SYNC_BUDGET` requests (default 950, leaving 50 for lookups in the app) and stopping at the limit.
   Whatever budget is left goes to a **backfill**: films not yet in the table,
   from TMDB's discover list (most popular first, at least 50 TMDB votes), starting
   with 2025 and moving back a year each time one is exhausted, down to 1950.
@@ -131,8 +133,8 @@ IMDb id and stored in Supabase's `movie_night_scores`:
   IMDb, shrunk towards a typical score when votes are few), critic score and
   how many people voted (`rewindScore` in `api/_lib/rewind.ts`). The critic
   score's weight fades with how many of that year's films have one (full at a
-  quarter or more, none at zero), because OMDb's Rotten Tomatoes scores became
-  rare from 23 Nov 2026 (local dev, with no OMDb scores, ranks on audience and
+  quarter or more, none at zero), because many films have no critic score
+  (local dev, with no OMDb scores, ranks on audience and
   reach only). A year is the one in TMDB's
   primary release date. Past years are saved once; this year is rebuilt weekly
   (`refresh_after`). Each row records the ranking that built it
@@ -151,7 +153,7 @@ IMDb id and stored in Supabase's `movie_night_scores`:
   the last 30 days for films still listed and unwatched; POST clears them for
   that profile. Local dev has no alerts.
 
-Vercel env vars: `OMDB_SYNC_BUDGET` (optional, default 800). The function
+Vercel env vars: `OMDB_SYNC_BUDGET` (optional, default 950). The function
 has no public URL, so it needs no `CRON_SECRET`. Apply
 `supabase/migrations/20261123000000_score_sync.sql` and
 `supabase/migrations/20261124000000_rewind_years.sql` and

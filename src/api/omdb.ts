@@ -56,7 +56,8 @@ async function fetchChunk(ids: number[]): Promise<Record<string, ScoreData>> {
 }
 
 /**
- * Rotten Tomatoes critic score and IMDb audience score for a film. Each is a
+ * Critic score (Metacritic's Metascore; the name predates the switch from Rotten
+ * Tomatoes) and IMDb audience score for a film. Each is a
  * number, or null when OMDb has none.
  *
  * The server looks the film up by IMDb id and records the answer in the
