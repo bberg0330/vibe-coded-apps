@@ -2,7 +2,7 @@
 // See docs/superpowers/specs/2026-11-24-rewind-design.md and
 // docs/superpowers/specs/2026-11-25-rewind-ranking-design.md.
 import { tmdbFetch } from './upstream.js'
-import { BACKFILL_END_YEAR, BACKFILL_START_YEAR, RANKING_MIN_VOTES, type BackfillCursor } from './ratings.js'
+import { BACKFILL_END_YEAR, BACKFILL_START_YEAR, RANKING_MIN_VOTES, type BackfillCursor, type FilmRef } from './ratings.js'
 import type { RewindFilm } from '../../src/types'
 import type { ScoreData } from '../../src/data/scores'
 
@@ -45,6 +45,11 @@ export type RewindStore = {
    * rating", which is an entry with both scores empty), with what it said.
    */
   scores(tmdbIds: number[]): Promise<Map<number, ScoreData>>
+  /**
+   * Asks the nightly sync to rate these films (they become due next run).
+   * Films already on record are left as they are.
+   */
+  queue(films: FilmRef[]): Promise<void>
 }
 
 // The blend that orders a year: how good people say it is (audience), how good
@@ -183,8 +188,10 @@ export function yearsToCheck(saved: Map<number, SavedYear>, cursor: BackfillCurs
  * Nightly, after the rating sync: saves the top 50 for every year that is
  * ready, i.e. all of its films with REWIND_MIN_VOTES+ votes have been checked
  * by OMDb, ranked by the blend of what those answers said. Uses TMDB only,
- * none of the OMDb budget. A year that isn't ready is simply tried again
- * tomorrow.
+ * none of the OMDb budget. A year that isn't ready queues its unrated films
+ * for the sync and is tried again tomorrow: the backfill can miss a few films
+ * (it pages a year by popularity over several nights, and popularity moves),
+ * and without this a year would wait for them forever.
  */
 export async function refreshRewind(
   token: string,
@@ -199,11 +206,15 @@ export async function refreshRewind(
     if (opts.deadline !== undefined && Date.now() > opts.deadline) break
     const films = await yearFilms(token, year)
     const scores = await store.scores(films.map((f) => f.tmdbId))
-    const unchecked = films.filter((f) => !scores.has(f.tmdbId)).length
+    const unrated = films.filter((f) => !scores.has(f.tmdbId))
     // A year with no rankable films is saved as an empty list (the grid hides
     // it) so it stops taking one of tonight's slots.
-    if (unchecked > 0) {
-      summary.notReady.push({ year, unchecked })
+    if (unrated.length > 0) {
+      // Best effort: a failed queue only delays the year, so log it and carry
+      // on with the other years (and the rest of the nightly run).
+      await store.queue(unrated.map((f) => ({ tmdbId: f.tmdbId, year })))
+        .catch((err) => console.error('rewind: could not queue unrated films', year, err))
+      summary.notReady.push({ year, unchecked: unrated.length })
       continue
     }
     // A rebuild that finds nothing (say TMDB has no runtimes for a new year yet)

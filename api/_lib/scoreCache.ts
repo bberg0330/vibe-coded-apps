@@ -1,8 +1,8 @@
 // The shared Supabase score cache (the same `movie_night_scores` table
 // api/scores.ts serves), for server-side lookups. Optional: without the
 // Supabase env vars it returns undefined and lookups just skip the cache.
-import { createClient } from '@supabase/supabase-js'
-import type { BackfillStore, ScoreCache } from './ratings'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { BackfillStore, FilmRef, ScoreCache } from './ratings'
 import { REWIND_RANKING_VERSION, type RewindReader, type RewindStore } from './rewind.js'
 import type { AlertStore } from './alerts'
 import type { ScoreData } from '../../src/data/scores'
@@ -27,6 +27,18 @@ export function dueFilter(now: Date): string {
     `and(critic.is.null,audience.is.null,fetched_at.lt.${ago(RETRY_EMPTY_AFTER_DAYS)})`,
     `and(year.gte.${now.getUTCFullYear() - 1},fetched_at.lt.${ago(REFRESH_RECENT_AFTER_DAYS)})`,
   ].join(',')
+}
+
+/**
+ * Adds films as pending rows (fetched_at null), which come first in the sync's
+ * due list. ignoreDuplicates: a film already on record keeps its row and its
+ * scores; the sync refreshes it when it comes due anyway.
+ */
+async function insertPending(supabase: SupabaseClient, films: FilmRef[]) {
+  if (films.length === 0) return
+  const rows = films.map((f) => ({ tmdb_id: f.tmdbId, year: f.year ?? null }))
+  const { error } = await supabase.from(TABLE).upsert(rows, { onConflict: 'tmdb_id', ignoreDuplicates: true })
+  if (error) throw error
 }
 
 export function supabaseScoreCache(): ScoreCache | undefined {
@@ -58,11 +70,7 @@ export function supabaseScoreCache(): ScoreCache | undefined {
       if (error) throw error
     },
     async markPending(films) {
-      // ignoreDuplicates: a film already on record keeps its scores; the
-      // sync will refresh it when it comes due anyway.
-      const rows = films.map((f) => ({ tmdb_id: f.tmdbId, year: f.year ?? null }))
-      const { error } = await supabase.from(TABLE).upsert(rows, { onConflict: 'tmdb_id', ignoreDuplicates: true })
-      if (error) throw error
+      await insertPending(supabase, films)
     },
     async due(limit, now) {
       const { data, error } = await supabase
@@ -152,6 +160,9 @@ export function supabaseRewindStore(): RewindStore | undefined {
         for (const row of data ?? []) found.set(Number(row.tmdb_id), { critic: row.critic, audience: row.audience })
       }
       return found
+    },
+    async queue(films) {
+      await insertPending(supabase, films)
     },
   }
 }

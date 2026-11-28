@@ -163,6 +163,18 @@ describe('Rewind store', () => {
     expect(found.get(201)).toEqual({ critic: null, audience: null })
   })
 
+  it('queue: adds pending rows for films not on record and leaves the rest alone; an empty list makes no query', async () => {
+    const store = supabaseRewindStore()!
+    await store.queue([])
+    expect(calls).toHaveLength(0)
+
+    results = [{ error: null }]
+    await store.queue([{ tmdbId: 588648, year: 2024 }, { tmdbId: 801688, year: 2024 }])
+    const upsert = callsTo('upsert')[0]
+    expect(upsert.args[0]).toEqual([{ tmdb_id: 588648, year: 2024 }, { tmdb_id: 801688, year: 2024 }])
+    expect(upsert.args[1]).toEqual({ onConflict: 'tmdb_id', ignoreDuplicates: true })
+  })
+
   it('saved: maps each year to its refresh date (null when it never expires) and the ranking that built it', async () => {
     results = [{ data: [
       { year: 2020, refresh_after: '2026-07-01T00:00:00.000Z', ranking_version: 2 },

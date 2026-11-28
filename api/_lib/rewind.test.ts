@@ -4,6 +4,7 @@ import {
   REWIND_RANKING_VERSION, REWIND_SIZE, YEARS_PER_RUN, type RewindFilm, type RewindStore, type SavedYear,
 } from './rewind'
 import type { ScoreData } from '../../src/data/scores'
+import type { FilmRef } from './ratings'
 
 const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body })
 const NOW = new Date('2026-11-24T09:17:00Z')
@@ -40,6 +41,7 @@ function memoryStore(
     saved: vi.fn(async () => saved),
     save: vi.fn(async (_year: number, _films: RewindFilm[], _at: Date, _refresh: Date | null) => undefined),
     scores: vi.fn(async (ids: number[]) => new Map(ids.flatMap((id) => { const s = scoreOf(id); return s ? [[id, s] as const] : [] }))),
+    queue: vi.fn(async (_films: FilmRef[]) => undefined),
   } satisfies RewindStore
 }
 const range = (from: number, n: number) => Array.from({ length: n }, (_, i) => from + i)
@@ -215,6 +217,38 @@ describe('refreshRewind', () => {
 
     expect(store.save).not.toHaveBeenCalled()
     expect(summary.notReady).toEqual([{ year: 2025, unchecked: 1 }])
+  })
+
+  it('queues a year\'s unrated films for the sync, so the year cannot wait on them forever', async () => {
+    stubDiscover({ 2025: range(1, 30) })
+    const store = memoryStore(new Map([[2026, current()]]), (id) => (id === 17 || id === 23 ? undefined : { critic: null, audience: null }))
+
+    await refreshRewind('tmdb', store, { cursor: { year: 2024, page: 1 }, now: NOW })
+
+    expect(store.queue).toHaveBeenCalledWith([{ tmdbId: 17, year: 2025 }, { tmdbId: 23, year: 2025 }])
+  })
+
+  it('carries on with the other years when queueing fails, and logs it', async () => {
+    stubDiscover({ 2026: [1, 2], 2025: range(3, 3) })
+    const store = memoryStore(new Map(), (id) => (id === 2 ? undefined : { critic: null, audience: null }))
+    store.queue.mockRejectedValueOnce(new Error('supabase down'))
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+
+    const summary = await refreshRewind('tmdb', store, { cursor: { year: 2024, page: 1 }, now: NOW })
+
+    expect(summary.notReady).toEqual([{ year: 2026, unchecked: 1 }])
+    expect(summary.saved).toEqual([2025])
+    expect(log).toHaveBeenCalledWith('rewind: could not queue unrated films', 2026, expect.any(Error))
+    log.mockRestore()
+  })
+
+  it('queues nothing for a year that is ready', async () => {
+    stubDiscover({ 2025: range(1, 5) })
+    const store = memoryStore(new Map([[2026, current()]]))
+
+    await refreshRewind('tmdb', store, { cursor: { year: 2024, page: 1 }, now: NOW })
+
+    expect(store.queue).not.toHaveBeenCalled()
   })
 
   it('rebuilds a year saved by an older ranking', async () => {
