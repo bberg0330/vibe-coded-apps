@@ -1,4 +1,4 @@
-// Rewind: each year's top 100 films, saved once the year's ratings are in.
+// Rewind: each year's top films (REWIND_SIZE), saved once the year's ratings are in.
 // See docs/superpowers/specs/2026-11-24-rewind-design.md and
 // docs/superpowers/specs/2026-11-25-rewind-ranking-design.md.
 import { tmdbFetch } from './upstream.js'
@@ -185,7 +185,7 @@ export function yearsToCheck(saved: Map<number, SavedYear>, cursor: BackfillCurs
 }
 
 /**
- * Nightly, after the rating sync: saves the top 100 for every year that is
+ * Nightly, after the rating sync: saves the top REWIND_SIZE for every year that is
  * ready, i.e. all of its films with REWIND_MIN_VOTES+ votes have been checked
  * by OMDb, ranked by the blend of what those answers said. Uses TMDB only,
  * none of the OMDb budget. A year that isn't ready queues its unrated films

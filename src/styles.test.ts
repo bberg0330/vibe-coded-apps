@@ -28,6 +28,18 @@ const KNOWN_GOLD_FILLS = [
   '.alert-watch',
 ]
 
+describe('Rewind chips', () => {
+  it('outline the off state so it reads as a button, and swap in the gold edge when pressed', () => {
+    expect(rule('.rewind-controls .chip').some((r) => /box-shadow:\s*inset 0 0 0 1px var\(--muted\)/.test(r.body))).toBe(true)
+    expect(rule('.rewind-controls .chip[aria-pressed="true"]').some((r) => /box-shadow:[^;]*var\(--accent-edge\)/.test(r.body))).toBe(true)
+  })
+
+  it('give the 36px pills a 44pt tap area without changing their size', () => {
+    expect(rule('.rewind-controls .chip').some((r) => /height:\s*36px/.test(r.body) && /position:\s*relative/.test(r.body))).toBe(true)
+    expect(rule('.rewind-controls .chip::before').some((r) => /position:\s*absolute/.test(r.body) && /inset:\s*-4px 0/.test(r.body))).toBe(true)
+  })
+})
+
 describe('gold in light mode', () => {
   it('gives every gold fill the 1px edge, so the shape shows on a light surface', () => {
     const selectors = goldFills().map((r) => r.selector)

@@ -25,8 +25,8 @@ const SORTS: { value: Sort; label: string }[] = [
 
 /**
  * One Rewind year: the top films in rank order, household progress, sort,
- * and "Watchable now" (off when a year opens, so the whole list shows, and not
- * remembered; on: your services or a rental). Progress
+ * and "Watchable now". The filter is off when a year opens, so the whole list
+ * shows, and isn't remembered; on, it keeps your services and rentals. Progress
  * always counts the whole list, whatever the filter shows. A year that
  * isn't ready shows an "unlocks soon" message instead.
  */
